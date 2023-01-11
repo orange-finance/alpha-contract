@@ -1,0 +1,16 @@
+node_modules
+.envrc
+
+#Hardhat files
+typechain
+typechain-types
+cache
+artifacts
+forge-cache
+out
+soljson*
+bin
+
+#other
+.vscode
+.DS_Store

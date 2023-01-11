@@ -1,0 +1,35 @@
+{
+  "name": "hardhat-project",
+  "dependencies": {
+    "@aave/core-v3": "^1.13.1",
+    "@aave/protocol-v2": "^1.0.1",
+    "@chainlink/contracts": "^0.4.2",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
+    "@openzeppelin/contracts": "^4.6.0",
+    "@openzeppelin/contracts-upgradeable": "^4.8.0",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.1",
+    "hardhat": "^2.12.0",
+    "typescript": "^4.8.4",
+    "weth": "^1.0.4"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.4",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.4.1",
+    "eslint-plugin-promise": "^5.2.0",
+    "prettier": "^2.7.1",
+    "prettier-plugin-solidity": "^1.0.0",
+    "solhint": "^3.3.7",
+    "ts-node": "^10.8.1"
+  }
+}

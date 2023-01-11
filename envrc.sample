@@ -1,0 +1,9 @@
+layout node
+
+export ETHERSCAN_API_KEY=""
+export INFURA_KEY=""
+export PRIVATE_KEY=""
+export RPC_MAINNET="https://mainnet.infura.io/v3/${INFURA_KEY}"
+export BLOCK_MAINNET="15100757"
+export RPC_ARB="https://arb1.arbitrum.io/rpc"
+export BLOCK_ARB=46334701

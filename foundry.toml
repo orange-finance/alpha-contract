@@ -1,0 +1,23 @@
+[profile.default]
+src = 'contracts'
+out = 'out'
+libs = ['node_modules', 'lib']
+test = 'test/foundry'
+cache_path  = 'forge-cache'
+solc_version = '0.8.16'
+#optimizer = true
+#via_ir = true
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[profile.avax]
+# eth_rpc_url = 'https://api.avax.network/ext/bc/C/rpc'
+# block_number = 17600321
+
+[profile.default.optimizer_details]
+#constantOptimizer = true
+#yul = true
+# this sets the `yulDetails` of the `optimizer_details` for the `default` profile
+[profile.default.optimizer_details.yulDetails]
+#optimizerSteps = 'dhfoDgvulfnTUtnIf'
+#stackAllocation = true
