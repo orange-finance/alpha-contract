@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { Verify, ERC20metadata } from "../common";
+import { Deploy, ERC20metadata } from "../common";
 import { getAddresses } from "../addresses";
 
 const vaultMeta: ERC20metadata = {
@@ -11,21 +11,22 @@ const vaultMeta: ERC20metadata = {
 const lowerTick = -205680;
 const upperTick = -203760;
 
-const verify = async () => {
-  const a = getAddresses()!;
-  await Verify(a.OrangeAlphaVault, [
+async function deployOrangeAlphaVault(poolAddr: string, aaveAddr: string) {
+  await Deploy(
+    "OrangeAlphaVault",
     vaultMeta.name,
     vaultMeta.symbol,
-    a.UniswapPool,
-    a.AavePool,
+    poolAddr,
+    aaveAddr,
     lowerTick,
-    upperTick,
-  ]);
-};
+    upperTick
+  );
+}
 
-const main = async () => {
-  await verify();
-};
+async function main() {
+  const a = getAddresses()!;
+  await deployOrangeAlphaVault(a.UniswapPool, a.AavePool);
+}
 
 main().catch((error) => {
   console.error(error);

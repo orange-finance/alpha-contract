@@ -2,23 +2,28 @@ import env from "hardhat";
 
 export const getAddresses = () => {
   switch (env.network.name) {
-    // case "goerli":
-    //   return {
-    //     Usdc: "0x160601681F7CFD8874f4DE38bE928284A6AAdd61",
-    //     Usdt: "0x591d66AD81984bF44f26Afa2dBBF9794cC91Df0C",
-    //     Susd: "0x37C05eb4310E4e0ef9C2806fE899b7df6A514147",
-    //     AaveV3Pool: "0xd3D29bd93346a8Ea455c71c8B8e355282f33F30F",
-    //     AUsdc: "0x07993Df0C325A7E8D6824696ddB733fE08Ad96b0",
-    //     ASusd: "0xE1A41E10ec5A188127879aD683AB4eC425149C89",
-    //     VDebtSusd: "0x4ba3FD4392AC45CDBA2e8F0F27f01cB00C65b1D6",
-    //     SDebtSusd: "0xdbd9A7c0E28631473B77b0328ED1C1B673e42693",
-    //     OpToken: "0xf40F8E136c2325C33d704A96Eaf48f982323E030",
-    //     AaveV3Reward: "0xdB9b17EcfDE8fc86B50643De9dF73F8A5dB856F6",
-    //     ChainlinkUsdc: "0xDFE48Fe31c5bCc6f502eeCBcC5f35C409D3B7FF9",
-    //     ChainlinkSusd: "0x6c51ABbd4E7DDF71b03Ff7c319ecA5da7A9774F7",
-    //   } as AddressesProtocols;
+    case "goerli":
+      return {
+        Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
+        UniswapFactory: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        Weth: "0x6E8EDc17Ef3db5f3Fbb7B8f6574934bD169E22E7",
+        Usdc: "0xCc0a1e7086eD38a701dD8886C1AaAc1CC00dF71f",
+        AavePool: "0x1Fe749bef290c350e85cC7BF29B228344355E52D",
+        VDebtWeth: "0x2Bb51435e2fd8d5FA43ef5287821D01faA01f1f8",
+        AUsdc: "0xe822F2c0AF9be5B11EDeEd50e617B572567b67E0",
+        UniswapPool: "0x5D5c8Aa7E4Df82D5f5e33b77c39524EBbc8988bF",
+        OrangeAlphaVault: "0x65B95573B3d757cDE0678E38987F5557E5020845",
 
-    default:
-      return {};
+        // AavePool: "0x76F3b1DB35040D231245a039fC67561CF4b85953",
+        // VDebtWeth: "0x3B395ECbDf98c18AE09d1f6e6e5B8f8Fe292912e",
+        // AUsdc: "0x9235951345d89eD5508bd837AD9dA1c9BeDC107C",
+        // OrangeAlphaVault: "0x3127EB9C5e880dA5C29D3bB71Dd4C36dC5ba62E4",
+        // OrangeAlphaVault: "0xc02F438122c1A3c001526949ee4dEc6c58D0Ff06",
+        // OrangeAlphaVault: "0x8A5FFE856A9a42d88ea23e1d93c7fC3bAE6d831b",
+        // OrangeAlphaVault: "0xb56B1014068cE88b70bEC6661c6832fB1DaAB666",
+        // OrangeAlphaVault: "0x25540ac2015a2Fb4993C752F0d57c91821D83713", //deposit時のemitAction eventなし
+        UniswapV3PoolAccessorMock: "0xABEcB921FbA87F8157dD7c070FF797352f38Ee79",
+        LiquidityAmountsMock: "0x884B0F4c8c23D4d8Fd095B24879aaE6461b32475",
+      };
   }
 };
