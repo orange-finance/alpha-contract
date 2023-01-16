@@ -79,14 +79,20 @@ contract OrangeAlphaVault is
         aave = IAaveV3Pool(_aave);
         token0.safeApprove(_aave, type(uint256).max);
         token1.safeApprove(_aave, type(uint256).max);
-        DataTypes.ReserveData memory reserveDataToken0 = aave.getReserveData(
-            address(token0)
-        );
-        debtToken0 = IERC20(reserveDataToken0.variableDebtTokenAddress);
-        DataTypes.ReserveData memory reserveDataToken1 = aave.getReserveData(
-            address(token1)
-        );
-        aToken1 = IERC20(reserveDataToken1.aTokenAddress);
+        address _variableDebtTokenAddress = aave
+            .getReserveData(address(token0))
+            .variableDebtTokenAddress;
+        if (_variableDebtTokenAddress == address(0)) {
+            revert InvalidAaveTokenAddress();
+        }
+        debtToken0 = IERC20(_variableDebtTokenAddress);
+        address _aTokenAddress = aave
+            .getReserveData(address(token1))
+            .aTokenAddress;
+        if (_aTokenAddress == address(0)) {
+            revert InvalidAaveTokenAddress();
+        }
+        aToken1 = IERC20(_aTokenAddress);
         //this decimal is same as token1's decimal
         _decimal = IERC20Decimals(address(token1)).decimals();
 

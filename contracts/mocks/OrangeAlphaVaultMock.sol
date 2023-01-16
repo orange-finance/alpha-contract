@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import {OrangeAlphaVault} from "../core/OrangeAlphaVault.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // import "forge-std/console2.sol";
 
@@ -17,6 +18,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     ) OrangeAlphaVault(_name, _symbol, _pool, _aave, _lowerTick, _upperTick) {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
+
+    function setAaveTokens(address _debtToken0, address _aToken1) external {
+        debtToken0 = IERC20(_debtToken0);
+        aToken1 = IERC20(_aToken1);
+    }
+
     function setTicks(int24 _lowerTick, int24 _upperTick) external {
         _validateTicks(_lowerTick, _upperTick);
         lowerTick = _lowerTick;

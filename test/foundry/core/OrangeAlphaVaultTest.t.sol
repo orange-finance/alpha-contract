@@ -143,6 +143,23 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertEq(vault.upperTick(), upperTick);
     }
 
+    function test_constructor_RevertAaveToken() public {
+        AaveMock _aave = new AaveMock();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOrangeAlphaVault.InvalidAaveTokenAddress.selector
+            )
+        );
+        new OrangeAlphaVaultMock(
+            "OrangeAlphaVault",
+            "ORANGE_ALPHA_VAULT",
+            address(pool),
+            address(_aave),
+            lowerTick,
+            upperTick
+        );
+    }
+
     function test_constructor_RevertTickSpacine() public {
         vm.expectRevert(
             abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
@@ -730,6 +747,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         );
         // assert debt token0 amount nearly equals adding token0
         assertApproxEqRel(_debtToken0, _underlyingAssets.amount0Current, 1e16);
+        console2.log(vault.totalAssets(), "totalAssets");
     }
 
     function test_deposit_Success2() public {
@@ -1268,5 +1286,34 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         console2.log(_underlyingAssets.amount0Balance, "amount0Balance");
         console2.log(_underlyingAssets.amount1Balance, "amount1Balance");
         console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
+    }
+}
+
+import {DataTypes} from "../../../contracts/vendor/aave/DataTypes.sol";
+
+contract AaveMock {
+    function getReserveData(address asset)
+        external
+        pure
+        returns (DataTypes.ReserveData memory reserveData_)
+    {
+        DataTypes.ReserveConfigurationMap memory configuration;
+        reserveData_ = DataTypes.ReserveData(
+            configuration,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            address(0),
+            address(0),
+            address(0),
+            address(0),
+            0,
+            0,
+            0
+        );
     }
 }

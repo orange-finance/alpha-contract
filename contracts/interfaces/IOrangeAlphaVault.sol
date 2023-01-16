@@ -203,6 +203,7 @@ interface IOrangeAlphaVault {
     function removeAllPosition() external;
 
     /* ========== ERRORS ========== */
+    error InvalidAaveTokenAddress();
     error InvalidTicks();
     error InvalidDepositReceiver();
     error InvalidDepositCapOver();
