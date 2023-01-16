@@ -64,5 +64,5 @@ Testing
 with forking Arbitrum
 
 ```
-forge test -vv --fork-url ${RPC_ARB} --fork-block-number ${BLOCK_ARB} --no-match-path 'test/foundry/tmp/*'
+forge test -vv --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*'
 ```

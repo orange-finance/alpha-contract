@@ -95,7 +95,7 @@ contract OrangeAlphaVault is
         totalDepositCap = 1_000_000 * 1e6;
         slippageBPS = 500; // default: 5% slippage
         slippageInterval = 5 minutes;
-        maxLtv = 8000; //80%
+        maxLtv = 70000000; //70%
 
         //setting ticks
         _validateTicks(_lowerTick, _upperTick);

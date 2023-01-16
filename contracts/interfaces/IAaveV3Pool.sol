@@ -106,12 +106,6 @@ interface IAaveV3Pool {
     ) external returns (uint256);
 
     /**
-     * @notice Allows a user to use the protocol in eMode
-     * @param categoryId The id of the category
-     */
-    function setUserEMode(uint8 categoryId) external;
-
-    /**
      * @notice Supplies an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
      * - E.g. User supplies 100 USDC and gets in return 100 aUSDC
      * @dev Deprecated: Use the `supply` function instead
@@ -181,36 +175,4 @@ interface IAaveV3Pool {
             uint256 ltv,
             uint256 healthFactor
         );
-
-    /**
-     * @notice Allows smartcontracts to access the liquidity of the pool within one transaction,
-     * as long as the amount taken plus a fee is returned.
-     * @dev IMPORTANT There are security concerns for developers of flashloan receiver contracts that must be kept
-     * into consideration. For further details please visit https://developers.aave.com
-     * @param receiverAddress The address of the contract receiving the funds, implementing IFlashLoanSimpleReceiver interface
-     * @param asset The address of the asset being flash-borrowed
-     * @param amount The amount of the asset being flash-borrowed
-     * @param params Variadic packed params to pass to the receiver as extra information
-     * @param referralCode The code used to register the integrator originating the operation, for potential rewards.
-     *   0 if the action is executed directly by the user, without any middle-man
-     **/
-    function flashLoanSimple(
-        address receiverAddress,
-        address asset,
-        uint256 amount,
-        bytes calldata params,
-        uint16 referralCode
-    ) external;
-
-    /**
-     * @notice Returns the total fee on flash loans
-     * @return The total fee on flashloans
-     */
-    function FLASHLOAN_PREMIUM_TOTAL() external view returns (uint128);
-
-    /**
-     * @notice Returns the part of the flashloan fees sent to protocol
-     * @return The flashloan fee sent to the protocol treasury
-     */
-    function FLASHLOAN_PREMIUM_TO_PROTOCOL() external view returns (uint128);
 }
