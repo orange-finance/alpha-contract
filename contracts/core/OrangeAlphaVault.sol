@@ -10,6 +10,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
+import {IResolver} from "../interfaces/IResolver.sol";
 import {IAaveV3Pool} from "../interfaces/IAaveV3Pool.sol";
 import {DataTypes} from "../vendor/aave/DataTypes.sol";
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
@@ -25,7 +26,8 @@ contract OrangeAlphaVault is
     IUniswapV3MintCallback,
     IUniswapV3SwapCallback,
     ERC20,
-    Ownable
+    Ownable,
+    IResolver
 {
     using SafeERC20 for IERC20;
     using TickMath for int24;
@@ -214,14 +216,36 @@ contract OrangeAlphaVault is
         return _getPositionID(lowerTick, upperTick);
     }
 
+    ///@notice external function of _getTicksByStorage
+    function getTicksByStorage() external view returns (Ticks memory) {
+        return _getTicksByStorage();
+    }
+
+    ///@notice external function of _canStoploss
+    function canStoploss() external view returns (bool) {
+        return (!stoplossed && _isOutOfRange(_getTicksByStorage()));
+    }
+
     ///@notice external function of _isOutOfRange
     function isOutOfRange() external view returns (bool) {
         return _isOutOfRange(_getTicksByStorage());
     }
 
-    ///@notice external function of _getTicksByStorage
-    function getTicksByStorage() external view returns (Ticks memory) {
-        return _getTicksByStorage();
+    // @inheritdoc ERC20
+    function checker()
+        external
+        view
+        override
+        returns (bool canExec, bytes memory execPayload)
+    {
+        if (_canStoploss(_getTicksByStorage())) {
+            execPayload = abi.encodeWithSelector(
+                IOrangeAlphaVault.stoploss.selector
+            );
+            return (true, execPayload);
+        } else {
+            return (false, bytes("can not stoploss"));
+        }
     }
 
     // @inheritdoc ERC20
@@ -562,15 +586,21 @@ contract OrangeAlphaVault is
     }
 
     /**
+     * @notice Can stoploss when not stopplossed and out of range
+     * @return
+     */
+    function _canStoploss(Ticks memory _ticks) internal view returns (bool) {
+        return (!stoplossed && _isOutOfRange(_ticks));
+    }
+
+    /**
      * @notice Stopped loss executed or current tick out of range
      * @param _ticks current and range ticks
      * @return
      */
-    function _isOutOfRange(Ticks memory _ticks) internal view returns (bool) {
-        return
-            stoplossed ||
-            (_ticks.currentTick > _ticks.upperTick ||
-                _ticks.currentTick < _ticks.lowerTick);
+    function _isOutOfRange(Ticks memory _ticks) internal pure returns (bool) {
+        return (_ticks.currentTick > _ticks.upperTick ||
+            _ticks.currentTick < _ticks.lowerTick);
     }
 
     /**
@@ -726,7 +756,7 @@ contract OrangeAlphaVault is
         uint128 _liquidity;
         uint256 _amountDeposited0;
         uint256 _amountDeposited1;
-        if (!_isOutOfRange(_ticks)) {
+        if (!stoplossed && !_isOutOfRange(_ticks)) {
             // 2. Supply USDC(Collateral)
             (_supply, _borrow) = _computeSupplyAndBorrow(_assets, _ticks);
             aave.supply(address(token1), _supply, address(this), 0);
@@ -871,8 +901,8 @@ contract OrangeAlphaVault is
     /// @inheritdoc IOrangeAlphaVault
     function stoploss() external {
         Ticks memory _ticks = _getTicksByStorage();
-        if (!_isOutOfRange(_ticks)) {
-            revert OnlyOutOfRange();
+        if (!_canStoploss(_ticks)) {
+            revert WhenCanStoploss();
         }
         stoplossed = true;
         _ticks = _removeAllPosition(_ticks);

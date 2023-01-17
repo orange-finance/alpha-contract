@@ -219,5 +219,5 @@ interface IOrangeAlphaVault {
     error HighSlippage();
     error NewLiquidityZero();
     error CallbackCaller();
-    error OnlyOutOfRange();
+    error WhenCanStoploss();
 }

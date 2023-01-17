@@ -517,29 +517,43 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertEq(vault.depositCap(alice), DEPOSIT_CAP);
     }
 
-    function test_isOutOfRange_Success1() public {
-        assertEq(vault.isOutOfRange(), false);
+    function test_canStoploss_Success1() public {
+        assertEq(vault.canStoploss(), false);
+        swapByCarol(true, 1000 ether); //current price under lowerPrice
+        assertEq(vault.canStoploss(), true);
         vault.setStoplossed(true); //stoploss
-        assertEq(vault.isOutOfRange(), true);
-        //reset
-        vault.setStoplossed(false);
-        assertEq(vault.isOutOfRange(), false);
+        assertEq(vault.canStoploss(), false);
     }
 
-    function test_isOutOfRange_Success2() public {
+    function test_isOutOfRange_Success1() public {
         assertEq(vault.isOutOfRange(), false);
         //out of range
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         assertEq(vault.isOutOfRange(), true);
     }
 
-    function test_isOutOfRange_Success3() public {
+    function test_isOutOfRange_Success2() public {
         assertEq(vault.isOutOfRange(), false);
         swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
         assertEq(vault.isOutOfRange(), true);
         //backed in range
         swapByCarol(true, 800 ether); //current price under lowerPrice
         assertEq(vault.isOutOfRange(), false);
+    }
+
+    function test_checker_Success() public {
+        bool canExec;
+        bytes memory execPayload;
+        (canExec, execPayload) = vault.checker();
+        assertEq(canExec, false);
+        assertEq(execPayload, bytes("can not stoploss"));
+        swapByCarol(true, 1000 ether); //current price under lowerPrice
+        (canExec, execPayload) = vault.checker();
+        assertEq(canExec, true);
+        assertEq(
+            execPayload,
+            abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector)
+        );
     }
 
     function test_getTicksByStorage_Success() public {
@@ -817,9 +831,16 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Success() public {
-        vault.setStoplossed(true);
+        swapByCarol(true, 1000 ether); //current price under lowerPrice
         vault.stoploss();
         assertEq(vault.stoplossed(), true);
+    }
+
+    function test_stoploss_Revert() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IOrangeAlphaVault.WhenCanStoploss.selector)
+        );
+        vault.stoploss();
     }
 
     /* ========== OWENERS FUNCTIONS ========== */
