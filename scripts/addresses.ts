@@ -24,6 +24,7 @@ export const getAddresses = () => {
         // OrangeAlphaVault: "0x25540ac2015a2Fb4993C752F0d57c91821D83713", //deposit時のemitAction eventなし
         UniswapV3PoolAccessorMock: "0xABEcB921FbA87F8157dD7c070FF797352f38Ee79",
         LiquidityAmountsMock: "0x884B0F4c8c23D4d8Fd095B24879aaE6461b32475",
+        GelatoMock: "0x12FD9A329DDad7a71Ec769Aa11225C8EAC5EbCD1",
       };
   }
 };

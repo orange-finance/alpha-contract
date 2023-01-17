@@ -34,7 +34,11 @@ const verifyMock = async () => {
   // ]);
   // await Verify(a.UniswapPool, []);
   // await Verify(a.UniswapV3PoolAccessorMock, [a.UniswapPool]);
-  await Verify(a.LiquidityAmountsMock, []);
+  // await Verify(a.LiquidityAmountsMock, []);
+  const lowerTick = -205680;
+  const upperTick = -203760;
+  const currentTick = -204760;
+  await Verify(a.GelatoMock, [lowerTick, upperTick, currentTick]);
 };
 
 const main = async () => {
