@@ -722,10 +722,11 @@ contract OrangeAlphaVault is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
-    function deposit(uint256 _assets, address _receiver)
-        external
-        returns (uint256 shares_)
-    {
+    function deposit(
+        uint256 _assets,
+        address _receiver,
+        uint256 _minShares
+    ) external returns (uint256 shares_) {
         //validation
         if (_receiver != msg.sender) {
             revert InvalidDepositReceiver();
@@ -744,6 +745,9 @@ contract OrangeAlphaVault is
 
         //mint
         shares_ = _convertToShares(_assets, _ticks);
+        if (_minShares > shares_) {
+            revert LessThenMinShares();
+        }
         _mint(_receiver, shares_);
         // console2.log("deposit1");
 
@@ -796,7 +800,8 @@ contract OrangeAlphaVault is
     function redeem(
         uint256 _shares,
         address _receiver,
-        address
+        address,
+        uint256 _minAssets
     ) external returns (uint256) {
         //validation
         if (_shares == 0) {
@@ -812,11 +817,11 @@ contract OrangeAlphaVault is
 
         // 1. Remove liquidity
         // 2. Collect fees
-        (
-            uint256 _assets0,
-            uint256 _assets1,
-            uint128 _liquidityBurned
-        ) = _burnShare(_shares, _totalSupply, _ticks);
+        (uint256 _assets0, uint256 _assets1, ) = _burnShare(
+            _shares,
+            _totalSupply,
+            _ticks
+        );
 
         // 3. Swap from USDC to ETH (if necessary)
         uint256 _repayingDebt = FullMath.mulDiv(
@@ -865,6 +870,9 @@ contract OrangeAlphaVault is
         }
 
         // 7. Transfer USDC from Vault to Pool
+        if (_minAssets > _assets1) {
+            revert LessThenMinAssets();
+        }
         token1.safeTransfer(_receiver, _assets1);
 
         //subtract deposits
@@ -880,15 +888,6 @@ contract OrangeAlphaVault is
             totalDeposits -= _assets1;
         }
 
-        emit Redeem(
-            msg.sender,
-            _receiver,
-            _assets1,
-            _shares,
-            _withdrawingCollateral,
-            _repayingDebt,
-            _liquidityBurned
-        );
         _emitAction(2, _ticks);
         return _assets1;
     }

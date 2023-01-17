@@ -161,23 +161,28 @@ interface IOrangeAlphaVault {
      * @notice deposit assets and get vault token
      * @param assets amount of assets
      * @param receiver receiver address
+     * @param minShares minimum amount of returned vault token
      * @return shares
      */
-    function deposit(uint256 assets, address receiver)
-        external
-        returns (uint256 shares);
+    function deposit(
+        uint256 assets,
+        address receiver,
+        uint256 minShares
+    ) external returns (uint256 shares);
 
     /**
      * @notice redeem vault token to assets
      * @param shares amount of vault token
      * @param receiver receiver address
      * @param owner owner address
+     * @param minAssets minimum amount of returned assets
      * @return assets
      */
     function redeem(
         uint256 shares,
         address receiver,
-        address owner
+        address owner,
+        uint256 minAssets
     ) external returns (uint256 assets);
 
     /**
@@ -220,4 +225,6 @@ interface IOrangeAlphaVault {
     error NewLiquidityZero();
     error CallbackCaller();
     error WhenCanStoploss();
+    error LessThenMinShares();
+    error LessThenMinAssets();
 }

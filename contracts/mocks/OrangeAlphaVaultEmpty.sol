@@ -82,7 +82,6 @@ contract OrangeAlphaVaultEmpty is IOrangeAlphaVault, ERC20, Ownable {
         return _getPositionID(lowerTick, upperTick);
     }
 
-    // TODO under development
     function checker()
         external
         view
@@ -104,17 +103,19 @@ contract OrangeAlphaVaultEmpty is IOrangeAlphaVault, ERC20, Ownable {
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
-    function deposit(uint256 _assets, address)
-        external
-        returns (uint256 shares_)
-    {
+    function deposit(
+        uint256 _assets,
+        address,
+        uint256
+    ) external returns (uint256 shares_) {
         return _assets;
     }
 
     function redeem(
         uint256 _shares,
         address,
-        address
+        address,
+        uint256
     ) external returns (uint256 assets_) {
         return _shares;
     }
@@ -124,7 +125,6 @@ contract OrangeAlphaVaultEmpty is IOrangeAlphaVault, ERC20, Ownable {
 
     function emitAction() external {}
 
-    // TODO under development
     function stoploss() external onlyOwner {}
 
     function removeAllPosition() external onlyOwner {}
