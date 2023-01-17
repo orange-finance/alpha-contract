@@ -28,48 +28,53 @@ contract LiquidityAmountsTest is BaseTest {
         usdc = IERC20(tokenAddr.usdcAddr);
     }
 
-    // function test_getLiquidityByAmount_success() public {
-    //     (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.slot0();
-    //     // -204720
-    //     int24 lowerTick = -184230;
-    //     int24 upperTick = -225180;
+    function test_getSqrtRatioAtTick() public {
+        console2.log(TickMath.getSqrtRatioAtTick(-265680), "265680");
+        console2.log(TickMath.getSqrtRatioAtTick(-143760), "143760");
+    }
 
-    //     uint256 amount0 = 1 ether;
-    //     uint256 amount1 = 1200 * 1e6;
+    function test_getLiquidityByAmount_success() public {
+        (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.slot0();
+        // -204720
+        int24 lowerTick = -184230;
+        int24 upperTick = -225180;
 
-    //     uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
-    //         sqrtRatioX96,
-    //         lowerTick.getSqrtRatioAtTick(),
-    //         upperTick.getSqrtRatioAtTick(),
-    //         amount0,
-    //         amount1
-    //     );
-    //     console2.log(liquidity, "liquidity");
+        uint256 amount0 = 1 ether;
+        uint256 amount1 = 1200 * 1e6;
 
-    //     (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-    //         .getAmountsForLiquidity(
-    //             sqrtRatioX96,
-    //             lowerTick.getSqrtRatioAtTick(),
-    //             upperTick.getSqrtRatioAtTick(),
-    //             liquidity
-    //         );
-    //     console2.log(amount0_, "amount0_");
-    //     console2.log(amount1_, "amount1_");
+        uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            amount0,
+            amount1
+        );
+        // console2.log(liquidity, "liquidity");
 
-    //     uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
-    //         lowerTick.getSqrtRatioAtTick(),
-    //         tick.getSqrtRatioAtTick(),
-    //         amount0
-    //     );
-    //     console2.log(liquidity0, "liquidity0");
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                sqrtRatioX96,
+                lowerTick.getSqrtRatioAtTick(),
+                upperTick.getSqrtRatioAtTick(),
+                liquidity
+            );
+        // console2.log(amount0_, "amount0_");
+        // console2.log(amount1_, "amount1_");
 
-    //     uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(
-    //         tick.getSqrtRatioAtTick(),
-    //         upperTick.getSqrtRatioAtTick(),
-    //         amount1
-    //     );
-    //     console2.log(liquidity1, "liquidity1");
-    // }
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
+            lowerTick.getSqrtRatioAtTick(),
+            tick.getSqrtRatioAtTick(),
+            amount0
+        );
+        // console2.log(liquidity0, "liquidity0");
+
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(
+            tick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            amount1
+        );
+        // console2.log(liquidity1, "liquidity1");
+    }
 
     function test_getLiquidityByUsdc_success() public {
         uint256 amount1 = 2000 * 1e6;
