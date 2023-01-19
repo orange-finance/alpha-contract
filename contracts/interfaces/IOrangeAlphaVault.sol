@@ -82,8 +82,17 @@ interface IOrangeAlphaVault {
         uint256 fee1
     );
 
+    /**
+     * @notice actionTypes
+     * 0. executed manually
+     * 1. deposit
+     * 2. redeem
+     * 3. rebalance
+     * 4. stoploss
+     */
     event Action(
-        uint8 actionType,
+        uint8 indexed actionType,
+        address indexed caller,
         uint256 amount0Debt,
         uint256 amount1Supply,
         UnderlyingAssets underlyingAssets,
@@ -206,25 +215,4 @@ interface IOrangeAlphaVault {
      * @notice Remove all positions
      */
     function removeAllPosition() external;
-
-    /* ========== ERRORS ========== */
-    error InvalidAaveTokenAddress();
-    error InvalidTicks();
-    error InvalidDepositReceiver();
-    error InvalidDepositCapOver();
-    error InvalidTotalDepositCapOver();
-    error InvalidDepositZero();
-    error InvalidRedeemZero();
-    error InvalidAddLiquidityAmounts();
-    error InvalidParamsCap();
-    error InvalidParamsBps();
-    error InvalidParamsInterval();
-    error InvalidParamsLtv();
-    error IncorrectLength();
-    error HighSlippage();
-    error NewLiquidityZero();
-    error CallbackCaller();
-    error WhenCanStoploss();
-    error LessThenMinShares();
-    error LessThenMinAssets();
 }

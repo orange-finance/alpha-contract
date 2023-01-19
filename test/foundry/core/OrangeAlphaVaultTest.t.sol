@@ -11,6 +11,7 @@ import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import {Errors} from "../../../contracts/libs/Errors.sol";
 import {OrangeAlphaVaultMock} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
 import {IOrangeAlphaVault} from "../../../contracts/interfaces/IOrangeAlphaVault.sol";
 import {TickMath} from "../../../contracts/vendor/uniswap/TickMath.sol";
@@ -145,11 +146,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_constructor_RevertAaveToken() public {
         AaveMock _aave = new AaveMock();
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidAaveTokenAddress.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.AAVE_TOKEN_ADDRESS));
         new OrangeAlphaVaultMock(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
@@ -161,9 +158,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_constructor_RevertTickSpacine() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
-        );
+        vm.expectRevert(bytes(Errors.TICKS));
         new OrangeAlphaVaultMock(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
@@ -571,93 +566,104 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function test_validateTicks_Success() public {
         vault.validateTicks(60, 120);
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
-        );
+        vm.expectRevert(bytes(Errors.TICKS));
         vault.validateTicks(120, 60);
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
-        );
+        vm.expectRevert(bytes(Errors.TICKS));
         vault.validateTicks(61, 120);
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
-        );
+        vm.expectRevert(bytes(Errors.TICKS));
         vault.validateTicks(60, 121);
     }
 
-    function test_checkSlippage_Success0() public {
-        //_zeroForOne true
-        uint160 _swapThresholdPrice = vault.checkSlippage(
-            _ticks.sqrtRatioX96,
-            true
-        );
+    // function test_checkSlippage_Success0() public {
+    //     //_zeroForOne true
+    //     uint160 _swapThresholdPrice = vault.checkSlippage(
+    //         _ticks.sqrtRatioX96,
+    //         true
+    //     );
 
-        uint32[] memory secondsAgo = new uint32[](2);
-        secondsAgo[0] = SLIPPAGE_INTERVAL;
-        secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+    //     uint32[] memory secondsAgo = new uint32[](2);
+    //     secondsAgo[0] = SLIPPAGE_INTERVAL;
+    //     secondsAgo[1] = 0;
+    //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
 
-        uint160 avgSqrtRatioX96;
-        unchecked {
-            int24 avgTick = int24(
-                (tickCumulatives[1] - tickCumulatives[0]) /
-                    int56(uint56(SLIPPAGE_INTERVAL))
-            );
-            avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-        }
-        uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
-        assertEq(_swapThresholdPrice, avgSqrtRatioX96 - maxSlippage);
-    }
-
-    function test_checkSlippage_RevertHighSlippage0() public {
-        //_zeroForOne true
-        uint160 _targetRatio = _ticks.sqrtRatioX96;
-        // higher slippage than SLIPPAGE_BPS
-        uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
-        _targetRatio = _targetRatio - (_slippage + 1000);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.HighSlippage.selector)
-        );
-        vault.checkSlippage(_targetRatio, true);
-    }
+    //     uint160 avgSqrtRatioX96;
+    //     unchecked {
+    //         int24 avgTick = int24(
+    //             (tickCumulatives[1] - tickCumulatives[0]) /
+    //                 int56(uint56(SLIPPAGE_INTERVAL))
+    //         );
+    //         avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
+    //     }
+    //     uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
+    //     assertEq(_swapThresholdPrice, avgSqrtRatioX96 - maxSlippage);
+    // }
 
     function test_checkSlippage_Success1() public {
-        //_zeroForOne false
-        uint160 _swapThresholdPrice = vault.checkSlippage(
-            _ticks.sqrtRatioX96,
-            false
+        assertEq(
+            vault.checkSlippage(10000, true),
+            uint160(FullMath.mulDiv(10000, SLIPPAGE_BPS, MAGIC_SCALE_1E4))
         );
-
-        uint32[] memory secondsAgo = new uint32[](2);
-        secondsAgo[0] = SLIPPAGE_INTERVAL;
-        secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-        uint160 avgSqrtRatioX96;
-        unchecked {
-            int24 avgTick = int24(
-                (tickCumulatives[1] - tickCumulatives[0]) /
-                    int56(uint56(SLIPPAGE_INTERVAL))
-            );
-            avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-        }
-        uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
-        assertEq(_swapThresholdPrice, avgSqrtRatioX96 + maxSlippage);
+        assertEq(
+            vault.checkSlippage(10000, false),
+            uint160(
+                FullMath.mulDiv(
+                    10000,
+                    SLIPPAGE_BPS + MAGIC_SCALE_1E4,
+                    MAGIC_SCALE_1E4
+                )
+            )
+        );
     }
 
-    function test_checkSlippage_RevertHighSlippage1() public {
-        //_zeroForOne false
-        uint160 _targetRatio = _ticks.sqrtRatioX96;
-        // higher slippage than SLIPPAGE_BPS
-        uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
-        _targetRatio = _targetRatio + (_slippage + 1000);
+    // function test_checkSlippage_RevertHighSlippage0() public {
+    //     //_zeroForOne true
+    //     uint160 _targetRatio = _ticks.sqrtRatioX96;
+    //     // higher slippage than SLIPPAGE_BPS
+    //     uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
+    //     _targetRatio = _targetRatio - _slippage;
 
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.HighSlippage.selector)
-        );
-        vault.checkSlippage(_targetRatio, false);
-    }
+    //     vm.expectRevert(
+    //         bytes(Errors.HIGH_SLIPPAGE)
+    //     );
+    //     vault.checkSlippage(_targetRatio, true);
+    // }
+
+    // function test_checkSlippage_Success1() public {
+    //     //_zeroForOne false
+    //     uint160 _swapThresholdPrice = vault.checkSlippage(
+    //         _ticks.sqrtRatioX96,
+    //         false
+    //     );
+
+    //     uint32[] memory secondsAgo = new uint32[](2);
+    //     secondsAgo[0] = SLIPPAGE_INTERVAL;
+    //     secondsAgo[1] = 0;
+    //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+
+    //     uint160 avgSqrtRatioX96;
+    //     unchecked {
+    //         int24 avgTick = int24(
+    //             (tickCumulatives[1] - tickCumulatives[0]) /
+    //                 int56(uint56(SLIPPAGE_INTERVAL))
+    //         );
+    //         avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
+    //     }
+    //     uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
+    //     assertEq(_swapThresholdPrice, avgSqrtRatioX96 + maxSlippage);
+    // }
+
+    // function test_checkSlippage_RevertHighSlippage1() public {
+    //     //_zeroForOne false
+    //     uint160 _targetRatio = _ticks.sqrtRatioX96;
+    //     // higher slippage than SLIPPAGE_BPS
+    //     uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
+    //     _targetRatio = _targetRatio + (_slippage + 1000);
+
+    //     vm.expectRevert(
+    //         bytes(Errors.HIGH_SLIPPAGE)
+    //     );
+    //     vault.checkSlippage(_targetRatio, false);
+    // }
 
     function test_computePercentageFromUpperRange_Success1() public {
         uint256 _currentPrice = vault.quoteEthPriceByTick(_ticks.currentTick);
@@ -703,37 +709,19 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function test_deposit_Revert1() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidDepositReceiver.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.DEPOSIT_RECEIVER));
         vault.deposit(10_000 * 1e6, alice, 9_900 * 1e6);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidDepositZero.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.DEPOSIT_ZERO));
         vault.deposit(0, address(this), 9_900 * 1e6);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidDepositCapOver.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.DEPOSIT_CAP_OVER));
         vault.deposit(1_000_001 * 1e6, address(this), 9_900 * 1e6);
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.LessThenMinShares.selector)
-        );
+        vm.expectRevert(bytes(Errors.LESS_THAN_MIN_SHARES));
         vault.deposit(10_000 * 1e6, address(this), 11_000 * 1e6);
 
         //revert with total deposit cap
         vm.prank(alice);
         vault.deposit(1_000_000 * 1e6, alice, 9_900 * 1e6);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidTotalDepositCapOver.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.TOTAL_DEPOSIT_CAP_OVER));
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
     }
 
@@ -783,16 +771,12 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Revert1() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidRedeemZero.selector)
-        );
+        vm.expectRevert(bytes(Errors.REDEEM_ZERO));
         vault.redeem(0, address(this), address(0), 9_900 * 1e6);
 
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.LessThenMinAssets.selector)
-        );
+        vm.expectRevert(bytes(Errors.LESS_THAN_MIN_ASSETS));
         vault.redeem(10_000 * 1e6, address(this), address(0), 10_000 * 1e6);
     }
 
@@ -849,9 +833,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Revert() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.WhenCanStoploss.selector)
-        );
+        vm.expectRevert(bytes(Errors.WHEN_CAN_STOPLOSS));
         vault.stoploss();
     }
 
@@ -859,9 +841,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_rebalance_RevertTickSpacing() public {
         int24 _newLowerTick = -1;
         int24 _newUpperTick = -205680;
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidTicks.selector)
-        );
+        vm.expectRevert(bytes(Errors.TICKS));
         vault.rebalance(_newLowerTick, _newUpperTick);
     }
 
@@ -993,9 +973,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setDepositCap_Success() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidParamsCap.selector)
-        );
+        vm.expectRevert(bytes(Errors.PARAMS_CAP));
         vault.setDepositCap(DEPOSIT_CAP + 1, TOTAL_DEPOSIT_CAP);
         vault.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
         assertEq(vault.depositCap(address(0)), DEPOSIT_CAP);
@@ -1003,16 +981,10 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setSlippage_Success() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidParamsBps.selector)
-        );
+        vm.expectRevert(bytes(Errors.PARAMS_BPS));
         vault.setSlippage(10001, SLIPPAGE_INTERVAL);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidParamsInterval.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.PARAMS_INTERVAL));
         vault.setSlippage(SLIPPAGE_BPS, 0);
 
         vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_INTERVAL);
@@ -1021,9 +993,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setMaxLtv_Success() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.InvalidParamsLtv.selector)
-        );
+        vm.expectRevert(bytes(Errors.PARAMS_LTV));
         vault.setMaxLtv(100000001);
         vault.setMaxLtv(MAX_LTV);
         assertEq(vault.maxLtv(), MAX_LTV);
@@ -1031,11 +1001,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
     function test_swapAndAddLiquidity_Revert1() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOrangeAlphaVault.InvalidAddLiquidityAmounts.selector
-            )
-        );
+        vm.expectRevert(bytes(Errors.ADD_LIQUIDITY_AMOUNTS));
         vault.swapAndAddLiquidity(0, 0, _ticks);
     }
 
@@ -1127,9 +1093,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     /* ========== CALLBACK FUNCTIONS ========== */
     function test_uniswapV3MintCallback_Revert() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.CallbackCaller.selector)
-        );
+        vm.expectRevert(bytes(Errors.CALLBACK_CALLER));
         vault.uniswapV3MintCallback(0, 0, "");
     }
 
@@ -1148,9 +1112,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function testuniswapV3SwapCallback_Revert() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(IOrangeAlphaVault.CallbackCaller.selector)
-        );
+        vm.expectRevert(bytes(Errors.CALLBACK_CALLER));
         vault.uniswapV3MintCallback(0, 0, "");
     }
 
@@ -1244,11 +1206,12 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_eventAction_Success() public {
-        vm.expectEmit(false, false, false, false);
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
             .getUnderlyingBalances();
+        vm.expectEmit(false, false, false, false);
         emit Action(
             0,
+            address(this),
             0,
             0,
             _underlyingAssets,

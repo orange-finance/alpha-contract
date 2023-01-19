@@ -61,7 +61,8 @@ interface IOrangeAlphaVaultEvent {
     );
 
     event Action(
-        uint8 actionType,
+        uint8 indexed actionType,
+        address indexed caller,
         uint256 amount0Debt,
         uint256 amount1Supply,
         IOrangeAlphaVault.UnderlyingAssets underlyingAssets,

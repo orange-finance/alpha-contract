@@ -9,6 +9,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
 import {IAaveV3Pool} from "../interfaces/IAaveV3Pool.sol";
@@ -85,14 +86,14 @@ contract OrangeAlphaVault is
             .getReserveData(address(token0))
             .variableDebtTokenAddress;
         if (_variableDebtTokenAddress == address(0)) {
-            revert InvalidAaveTokenAddress();
+            revert(Errors.AAVE_TOKEN_ADDRESS);
         }
         debtToken0 = IERC20(_variableDebtTokenAddress);
         address _aTokenAddress = aave
             .getReserveData(address(token1))
             .aTokenAddress;
         if (_aTokenAddress == address(0)) {
-            revert InvalidAaveTokenAddress();
+            revert(Errors.AAVE_TOKEN_ADDRESS);
         }
         aToken1 = IERC20(_aTokenAddress);
         //this decimal is same as token1's decimal
@@ -617,7 +618,7 @@ contract OrangeAlphaVault is
         ) {
             return;
         }
-        revert InvalidTicks();
+        revert(Errors.TICKS);
     }
 
     /**
@@ -658,36 +659,55 @@ contract OrangeAlphaVault is
         view
         returns (uint160 _swapThresholdPrice)
     {
-        uint32[] memory secondsAgo = new uint32[](2);
-        secondsAgo[0] = slippageInterval;
-        secondsAgo[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-        if (tickCumulatives.length != 2) {
-            revert IncorrectLength();
-        }
-        uint160 avgSqrtRatioX96;
-        unchecked {
-            int24 avgTick = int24(
-                (tickCumulatives[1] - tickCumulatives[0]) /
-                    int56(uint56(slippageInterval))
-            );
-            avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-        }
-
-        uint160 maxSlippage = (avgSqrtRatioX96 * slippageBPS) / MAGIC_SCALE_1E4;
         if (_zeroForOne) {
-            _swapThresholdPrice = avgSqrtRatioX96 - maxSlippage;
-            if (_currentSqrtRatioX96 < _swapThresholdPrice) {
-                revert HighSlippage();
-            }
+            return
+                uint160(
+                    FullMath.mulDiv(
+                        _currentSqrtRatioX96,
+                        slippageBPS,
+                        MAGIC_SCALE_1E4
+                    )
+                );
         } else {
-            _swapThresholdPrice = avgSqrtRatioX96 + maxSlippage;
-            if (_currentSqrtRatioX96 > _swapThresholdPrice) {
-                revert HighSlippage();
-            }
+            return
+                uint160(
+                    FullMath.mulDiv(
+                        _currentSqrtRatioX96,
+                        MAGIC_SCALE_1E4 + slippageBPS,
+                        MAGIC_SCALE_1E4
+                    )
+                );
         }
+        // uint32[] memory secondsAgo = new uint32[](2);
+        // secondsAgo[0] = slippageInterval;
+        // secondsAgo[1] = 0;
+
+        // (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+
+        // if (tickCumulatives.length != 2) {
+        //     revert(Errors.INCORRECT_LENGTH);
+        // }
+        // uint160 avgSqrtRatioX96;
+        // unchecked {
+        //     int24 avgTick = int24(
+        //         (tickCumulatives[1] - tickCumulatives[0]) /
+        //             int56(uint56(slippageInterval))
+        //     );
+        //     avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
+        // }
+
+        // uint160 maxSlippage = (avgSqrtRatioX96 * slippageBPS) / MAGIC_SCALE_1E4;
+        // if (_zeroForOne) {
+        //     _swapThresholdPrice = avgSqrtRatioX96 - maxSlippage;
+        //     if (_currentSqrtRatioX96 < _swapThresholdPrice) {
+        //         revert(Errors.HIGH_SLIPPAGE);
+        //     }
+        // } else {
+        //     _swapThresholdPrice = avgSqrtRatioX96 + maxSlippage;
+        //     if (_currentSqrtRatioX96 > _swapThresholdPrice) {
+        //         revert(Errors.HIGH_SLIPPAGE);
+        //     }
+        // }
     }
 
     /**
@@ -729,15 +749,15 @@ contract OrangeAlphaVault is
     ) external returns (uint256 shares_) {
         //validation
         if (_receiver != msg.sender) {
-            revert InvalidDepositReceiver();
+            revert(Errors.DEPOSIT_RECEIVER);
         }
-        if (_assets == 0) revert InvalidDepositZero();
+        if (_assets == 0) revert(Errors.DEPOSIT_ZERO);
         if (deposits[_receiver].assets + _assets > depositCap(_receiver)) {
-            revert InvalidDepositCapOver();
+            revert(Errors.DEPOSIT_CAP_OVER);
         }
         deposits[_receiver].assets += _assets;
         if (totalDeposits + _assets > totalDepositCap) {
-            revert InvalidTotalDepositCapOver();
+            revert(Errors.TOTAL_DEPOSIT_CAP_OVER);
         }
         totalDeposits += _assets;
 
@@ -746,7 +766,7 @@ contract OrangeAlphaVault is
         //mint
         shares_ = _convertToShares(_assets, _ticks);
         if (_minShares > shares_) {
-            revert LessThenMinShares();
+            revert(Errors.LESS_THAN_MIN_SHARES);
         }
         _mint(_receiver, shares_);
         // console2.log("deposit1");
@@ -763,10 +783,14 @@ contract OrangeAlphaVault is
         if (!stoplossed && !_isOutOfRange(_ticks)) {
             // 2. Supply USDC(Collateral)
             (_supply, _borrow) = _computeSupplyAndBorrow(_assets, _ticks);
-            aave.supply(address(token1), _supply, address(this), 0);
+            if (_supply > 0) {
+                aave.supply(address(token1), _supply, address(this), 0);
+            }
 
             // 3. Borrow ETH
-            aave.borrow(address(token0), _borrow, 2, 0, address(this));
+            if (_borrow > 0) {
+                aave.borrow(address(token0), _borrow, 2, 0, address(this));
+            }
             // console2.log("deposit3");
 
             // 4. Swap from USDC to ETH (if necessary)
@@ -805,7 +829,7 @@ contract OrangeAlphaVault is
     ) external returns (uint256) {
         //validation
         if (_shares == 0) {
-            revert InvalidRedeemZero();
+            revert(Errors.REDEEM_ZERO);
         }
 
         uint256 _totalSupply = totalSupply();
@@ -843,8 +867,10 @@ contract OrangeAlphaVault is
         }
 
         // 4. Repay ETH
-        aave.repay(address(token0), _repayingDebt, 2, address(this));
-        _assets0 -= _repayingDebt;
+        if (_repayingDebt > 0) {
+            aave.repay(address(token0), _repayingDebt, 2, address(this));
+            _assets0 -= _repayingDebt;
+        }
 
         // 5. Withdraw USDC as collateral
         uint256 _withdrawingCollateral = FullMath.mulDiv(
@@ -852,8 +878,14 @@ contract OrangeAlphaVault is
             aToken1.balanceOf(address(this)),
             _totalSupply
         );
-        aave.withdraw(address(token1), _withdrawingCollateral, address(this));
-        _assets1 += _withdrawingCollateral;
+        if (_withdrawingCollateral > 0) {
+            aave.withdraw(
+                address(token1),
+                _withdrawingCollateral,
+                address(this)
+            );
+            _assets1 += _withdrawingCollateral;
+        }
 
         // 6. Swap from ETH to USDC (if necessary)
         if (_assets0 > 0) {
@@ -871,7 +903,7 @@ contract OrangeAlphaVault is
 
         // 7. Transfer USDC from Vault to Pool
         if (_minAssets > _assets1) {
-            revert LessThenMinAssets();
+            revert(Errors.LESS_THAN_MIN_ASSETS);
         }
         token1.safeTransfer(_receiver, _assets1);
 
@@ -901,7 +933,7 @@ contract OrangeAlphaVault is
     function stoploss() external {
         Ticks memory _ticks = _getTicksByStorage();
         if (!_canStoploss(_ticks)) {
-            revert WhenCanStoploss();
+            revert(Errors.WHEN_CAN_STOPLOSS);
         }
         stoplossed = true;
         _ticks = _removeAllPosition(_ticks);
@@ -993,7 +1025,7 @@ contract OrangeAlphaVault is
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         if (newLiquidity == 0) {
-            revert NewLiquidityZero();
+            revert(Errors.NEW_LIQUIDITY_ZERO);
         }
 
         emit Rebalance(_newLowerTick, _newUpperTick, liquidity, newLiquidity);
@@ -1020,7 +1052,7 @@ contract OrangeAlphaVault is
         onlyOwner
     {
         if (__depositCap > _totalDepositCap) {
-            revert InvalidParamsCap();
+            revert(Errors.PARAMS_CAP);
         }
         _depositCap = __depositCap;
         totalDepositCap = _totalDepositCap;
@@ -1037,10 +1069,10 @@ contract OrangeAlphaVault is
         onlyOwner
     {
         if (_slippageBPS > MAGIC_SCALE_1E4) {
-            revert InvalidParamsBps();
+            revert(Errors.PARAMS_BPS);
         }
         if (_slippageInterval == 0) {
-            revert InvalidParamsInterval();
+            revert(Errors.PARAMS_INTERVAL);
         }
         slippageBPS = _slippageBPS;
         slippageInterval = _slippageInterval;
@@ -1053,7 +1085,7 @@ contract OrangeAlphaVault is
      */
     function setMaxLtv(uint32 _maxLtv) external onlyOwner {
         if (_maxLtv > MAGIC_SCALE_1E8) {
-            revert InvalidParamsLtv();
+            revert(Errors.PARAMS_LTV);
         }
         maxLtv = _maxLtv;
         emit UpdateMaxLtv(_maxLtv);
@@ -1083,7 +1115,8 @@ contract OrangeAlphaVault is
             uint256 amountDeposited1_
         )
     {
-        if (_amount0 == 0 && _amount1 == 0) revert InvalidAddLiquidityAmounts();
+        if (_amount0 == 0 && _amount1 == 0)
+            revert(Errors.ADD_LIQUIDITY_AMOUNTS);
 
         (bool _zeroForOne, int256 _swapAmount) = _computeSwapAmount(
             _amount0,
@@ -1328,6 +1361,7 @@ contract OrangeAlphaVault is
 
         emit Action(
             _actionType,
+            msg.sender,
             amount0Debt,
             amount1Supply,
             _underlyingAssets,
@@ -1348,7 +1382,7 @@ contract OrangeAlphaVault is
         bytes calldata /*_data*/
     ) external override {
         if (msg.sender != address(pool)) {
-            revert CallbackCaller();
+            revert(Errors.CALLBACK_CALLER);
         }
 
         if (amount0Owed > 0) {
@@ -1366,7 +1400,7 @@ contract OrangeAlphaVault is
         bytes calldata /*data*/
     ) external override {
         if (msg.sender != address(pool)) {
-            revert CallbackCaller();
+            revert(Errors.CALLBACK_CALLER);
         }
 
         if (amount0Delta > 0) {
