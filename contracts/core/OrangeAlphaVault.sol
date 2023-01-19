@@ -868,7 +868,10 @@ contract OrangeAlphaVault is
 
         // 4. Repay ETH
         if (_repayingDebt > 0) {
-            aave.repay(address(token0), _repayingDebt, 2, address(this));
+            if (
+                _repayingDebt !=
+                aave.repay(address(token0), _repayingDebt, 2, address(this))
+            ) revert(Errors.AAVE_MISMATCH);
             _assets0 -= _repayingDebt;
         }
 
@@ -879,11 +882,14 @@ contract OrangeAlphaVault is
             _totalSupply
         );
         if (_withdrawingCollateral > 0) {
-            aave.withdraw(
-                address(token1),
-                _withdrawingCollateral,
-                address(this)
-            );
+            if (
+                _withdrawingCollateral !=
+                aave.withdraw(
+                    address(token1),
+                    _withdrawingCollateral,
+                    address(this)
+                )
+            ) revert(Errors.AAVE_MISMATCH);
             _assets1 += _withdrawingCollateral;
         }
 
@@ -989,7 +995,8 @@ contract OrangeAlphaVault is
             //do nothing
         } else if (_debtBalance > _newBorrow) {
             //swap and repay
-            if (_debtBalance - _newBorrow > token0.balanceOf(address(this))) {
+            uint256 _repayingDebt = _debtBalance - _newBorrow;
+            if (_repayingDebt > token0.balanceOf(address(this))) {
                 pool.swap(
                     address(this),
                     false, //token1 to token0
@@ -999,12 +1006,10 @@ contract OrangeAlphaVault is
                 );
                 _ticks = _getTicksByStorage(); //retrieve ticks
             }
-            aave.repay(
-                address(token0),
-                _debtBalance - _newBorrow,
-                2,
-                address(this)
-            );
+            if (
+                _repayingDebt !=
+                aave.repay(address(token0), _repayingDebt, 2, address(this))
+            ) revert(Errors.AAVE_MISMATCH);
         } else {
             //borrow
             aave.borrow(
@@ -1303,17 +1308,22 @@ contract OrangeAlphaVault is
 
         // 4. Repay ETH
         if (_repayingDebt > 0) {
-            aave.repay(address(token0), _repayingDebt, 2, address(this));
+            if (
+                _repayingDebt !=
+                aave.repay(address(token0), _repayingDebt, 2, address(this))
+            ) revert(Errors.AAVE_MISMATCH);
         }
-
         // 5. Withdraw USDC as collateral
         uint256 _withdrawingCollateral = aToken1.balanceOf(address(this));
         if (_withdrawingCollateral > 0) {
-            aave.withdraw(
-                address(token1),
-                _withdrawingCollateral,
-                address(this)
-            );
+            if (
+                _withdrawingCollateral !=
+                aave.withdraw(
+                    address(token1),
+                    _withdrawingCollateral,
+                    address(this)
+                )
+            ) revert(Errors.AAVE_MISMATCH);
         }
 
         // swap ETH to USDC

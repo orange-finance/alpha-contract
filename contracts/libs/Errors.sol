@@ -21,4 +21,5 @@ library Errors {
     string public constant WHEN_CAN_STOPLOSS = "WhenCanStoploss";
     string public constant LESS_THAN_MIN_SHARES = "LessThanMinShares";
     string public constant LESS_THAN_MIN_ASSETS = "LessThanMinAssets";
+    string public constant AAVE_MISMATCH = "AaveMismatch";
 }
