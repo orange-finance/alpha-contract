@@ -59,52 +59,56 @@ contract OrangeAlphaVault is
     uint256 _depositCap;
     /// @inheritdoc IOrangeAlphaVault
     uint256 public override totalDepositCap;
+    uint256 public initialDeposit;
     uint16 public slippageBPS;
-    uint32 public slippageInterval;
+    uint24 public tickSlippageBPS;
     uint32 public maxLtv;
+    uint40 public lockupPeriod;
+    address public gelato;
+
+    /* ========== MODIFIER ========== */
+    modifier onlyGelato() {
+        _checkGelato();
+        _;
+    }
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
         string memory _symbol,
+        uint8 __decimal,
         address _pool,
+        address _token0,
+        address _token1,
         address _aave,
+        address _debtToken0,
+        address _aToken1,
         int24 _lowerTick,
         int24 _upperTick
     ) ERC20(_name, _symbol) {
+        _decimal = __decimal;
+
         // setting adresses and approving
         pool = IUniswapV3Pool(_pool);
-        token0 = IERC20(pool.token0());
-        token1 = IERC20(pool.token1());
+        token0 = IERC20(_token0);
+        token1 = IERC20(_token1);
         token0.safeApprove(_pool, type(uint256).max);
         token1.safeApprove(_pool, type(uint256).max);
 
         aave = IAaveV3Pool(_aave);
+        debtToken0 = IERC20(_debtToken0);
+        aToken1 = IERC20(_aToken1);
         token0.safeApprove(_aave, type(uint256).max);
         token1.safeApprove(_aave, type(uint256).max);
-        address _variableDebtTokenAddress = aave
-            .getReserveData(address(token0))
-            .variableDebtTokenAddress;
-        if (_variableDebtTokenAddress == address(0)) {
-            revert(Errors.AAVE_TOKEN_ADDRESS);
-        }
-        debtToken0 = IERC20(_variableDebtTokenAddress);
-        address _aTokenAddress = aave
-            .getReserveData(address(token1))
-            .aTokenAddress;
-        if (_aTokenAddress == address(0)) {
-            revert(Errors.AAVE_TOKEN_ADDRESS);
-        }
-        aToken1 = IERC20(_aTokenAddress);
-        //this decimal is same as token1's decimal
-        _decimal = IERC20Decimals(address(token1)).decimals();
 
         // these variables can be udpated by the manager
         _depositCap = 1_000_000 * 1e6;
         totalDepositCap = 1_000_000 * 1e6;
+        initialDeposit = 1_000 * 1e6;
         slippageBPS = 500; // default: 5% slippage
-        slippageInterval = 5 minutes;
+        tickSlippageBPS = 10;
         maxLtv = 70000000; //70%
+        lockupPeriod = 7 days;
 
         //setting ticks
         _validateTicks(_lowerTick, _upperTick);
@@ -337,12 +341,14 @@ contract OrangeAlphaVault is
                 amount0deducted;
         } else {
             uint256 amount0Added = amount0Current - amount0Debt;
-            amount0Added = OracleLibrary.getQuoteAtTick(
-                _ticks.currentTick,
-                uint128(amount0Added),
-                address(token0),
-                address(token1)
-            );
+            if (amount0Added > 0) {
+                amount0Added = OracleLibrary.getQuoteAtTick(
+                    _ticks.currentTick,
+                    uint128(amount0Added),
+                    address(token0),
+                    address(token1)
+                );
+            }
             totalAlignedAssets = amount1Current + amount1Supply + amount0Added;
         }
     }
@@ -676,36 +682,18 @@ contract OrangeAlphaVault is
                     )
                 );
         }
-        // uint32[] memory secondsAgo = new uint32[](2);
-        // secondsAgo[0] = slippageInterval;
-        // secondsAgo[1] = 0;
+    }
 
-        // (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-        // if (tickCumulatives.length != 2) {
-        //     revert(Errors.INCORRECT_LENGTH);
-        // }
-        // uint160 avgSqrtRatioX96;
-        // unchecked {
-        //     int24 avgTick = int24(
-        //         (tickCumulatives[1] - tickCumulatives[0]) /
-        //             int56(uint56(slippageInterval))
-        //     );
-        //     avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-        // }
-
-        // uint160 maxSlippage = (avgSqrtRatioX96 * slippageBPS) / MAGIC_SCALE_1E4;
-        // if (_zeroForOne) {
-        //     _swapThresholdPrice = avgSqrtRatioX96 - maxSlippage;
-        //     if (_currentSqrtRatioX96 < _swapThresholdPrice) {
-        //         revert(Errors.HIGH_SLIPPAGE);
-        //     }
-        // } else {
-        //     _swapThresholdPrice = avgSqrtRatioX96 + maxSlippage;
-        //     if (_currentSqrtRatioX96 > _swapThresholdPrice) {
-        //         revert(Errors.HIGH_SLIPPAGE);
-        //     }
-        // }
+    function _checkTickSlippage(int24 _inputTick, int24 _currentTick)
+        internal
+        view
+    {
+        if (
+            _currentTick > _inputTick + int24(tickSlippageBPS) ||
+            _currentTick < _inputTick - int24(tickSlippageBPS)
+        ) {
+            revert(Errors.HIGH_SLIPPAGE);
+        }
     }
 
     /**
@@ -738,6 +726,15 @@ contract OrangeAlphaVault is
             _maxPriceRange;
     }
 
+    /**
+     * @dev Throws if the sender is not the owner.
+     */
+    function _checkGelato() internal view {
+        if (gelato != msg.sender) {
+            revert(Errors.ONLY_GELATO);
+        }
+    }
+
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
     function deposit(
@@ -754,10 +751,16 @@ contract OrangeAlphaVault is
             revert(Errors.DEPOSIT_CAP_OVER);
         }
         deposits[_receiver].assets += _assets;
-        if (totalDeposits + _assets > totalDepositCap) {
+        deposits[_receiver].timestamp = uint40(block.timestamp);
+        uint256 _totalDeposits = totalDeposits;
+        if (_totalDeposits + _assets > totalDepositCap) {
             revert(Errors.TOTAL_DEPOSIT_CAP_OVER);
         }
-        totalDeposits += _assets;
+        //check minimum deposit amount at initial deposit
+        if (_totalDeposits == 0 && _assets < initialDeposit) {
+            revert(Errors.DEPOSIT_INITIAL);
+        }
+        totalDeposits = _totalDeposits + _assets;
 
         Ticks memory _ticks = _getTicksByStorage();
 
@@ -828,6 +831,9 @@ contract OrangeAlphaVault is
         //validation
         if (_shares == 0) {
             revert(Errors.REDEEM_ZERO);
+        }
+        if (block.timestamp < deposits[msg.sender].timestamp + lockupPeriod) {
+            revert(Errors.LOCKUP);
         }
 
         uint256 _totalSupply = totalSupply();
@@ -934,13 +940,13 @@ contract OrangeAlphaVault is
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss() external {
+    function stoploss(int24 _inputTick) external onlyGelato {
         Ticks memory _ticks = _getTicksByStorage();
         if (!_canStoploss(_ticks)) {
             revert(Errors.WHEN_CAN_STOPLOSS);
         }
         stoplossed = true;
-        _ticks = _removeAllPosition(_ticks);
+        _ticks = _removeAllPosition(_ticks, _inputTick);
         _emitAction(4, _ticks);
     }
 
@@ -948,20 +954,24 @@ contract OrangeAlphaVault is
 
     /// @inheritdoc IOrangeAlphaVault
     /// @dev similar to Arrakis' executiveRebalance
-    function rebalance(int24 _newLowerTick, int24 _newUpperTick)
-        external
-        onlyOwner
-    {
+    function rebalance(
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        int24 _inputTick
+    ) external onlyOwner {
         // 1. Check tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
 
-        Ticks memory _ticks = _getTicksByStorage();
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
             lowerTick = _newLowerTick;
             upperTick = _newUpperTick;
             return;
         }
+
+        Ticks memory _ticks = _getTicksByStorage();
+        //check slippage by tick
+        _checkTickSlippage(_inputTick, _ticks.currentTick);
 
         // 2. Remove liquidity
         // 3. Collect fees
@@ -1035,9 +1045,9 @@ contract OrangeAlphaVault is
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function removeAllPosition() external onlyOwner {
+    function removeAllPosition(int24 _inputTick) external onlyOwner {
         Ticks memory _ticks = _getTicksByStorage();
-        _ticks = _removeAllPosition(_ticks);
+        _ticks = _removeAllPosition(_ticks, _inputTick);
         _emitAction(5, _ticks);
     }
 
@@ -1061,21 +1071,18 @@ contract OrangeAlphaVault is
     /**
      * @notice Set parameters of slippage
      * @param _slippageBPS Slippage BPS
-     * @param _slippageInterval Check prices interval
+     * @param _tickSlippageBPS Check ticks BPS
      */
-    function setSlippage(uint16 _slippageBPS, uint32 _slippageInterval)
+    function setSlippage(uint16 _slippageBPS, uint24 _tickSlippageBPS)
         external
         onlyOwner
     {
         if (_slippageBPS > MAGIC_SCALE_1E4) {
             revert(Errors.PARAMS_BPS);
         }
-        if (_slippageInterval == 0) {
-            revert(Errors.PARAMS_INTERVAL);
-        }
         slippageBPS = _slippageBPS;
-        slippageInterval = _slippageInterval;
-        emit UpdateSlippage(_slippageBPS, _slippageInterval);
+        tickSlippageBPS = _tickSlippageBPS;
+        emit UpdateSlippage(_slippageBPS, _tickSlippageBPS);
     }
 
     /**
@@ -1088,6 +1095,22 @@ contract OrangeAlphaVault is
         }
         maxLtv = _maxLtv;
         emit UpdateMaxLtv(_maxLtv);
+    }
+
+    /**
+     * @notice Set parameters of lockup period
+     * @param _lockupPeriod Lockup period
+     */
+    function setLockupPeriod(uint40 _lockupPeriod) external onlyOwner {
+        lockupPeriod = _lockupPeriod;
+    }
+
+    /**
+     * @notice Set parameters of gelato
+     * @param _gelato gelato address
+     */
+    function setGelato(address _gelato) external onlyOwner {
+        gelato = _gelato;
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1270,13 +1293,16 @@ contract OrangeAlphaVault is
     }
 
     ///@notice internal function of removeAllPosition
-    function _removeAllPosition(Ticks memory _ticks)
+    function _removeAllPosition(Ticks memory _ticks, int24 _inputTick)
         internal
         returns (Ticks memory ticks_)
     {
         if (totalSupply() == 0) {
             return _ticks;
         }
+
+        //check slippage by tick
+        _checkTickSlippage(_inputTick, _ticks.currentTick);
 
         // 1. Remove liquidity
         // 2. Collect fees

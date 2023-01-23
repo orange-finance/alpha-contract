@@ -41,7 +41,7 @@ interface IOrangeAlphaVaultEvent {
     );
 
     event UpdateDepositCap(uint256 depositCap, uint256 totalDepositCap);
-    event UpdateSlippage(uint16 slippageBPS, uint32 slippageInterval);
+    event UpdateSlippage(uint16 slippageBPS, uint24 tickSlippageBPS);
     event UpdateMaxLtv(uint32 maxLtv);
 
     event SwapAndAddLiquidity(

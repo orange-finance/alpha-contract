@@ -63,7 +63,7 @@ interface IOrangeAlphaVault {
     );
 
     event UpdateDepositCap(uint256 depositCap, uint256 totalDepositCap);
-    event UpdateSlippage(uint16 slippageBPS, uint32 slippageInterval);
+    event UpdateSlippage(uint16 slippageBPS, uint24 tickSlippageBPS);
     event UpdateMaxLtv(uint32 maxLtv);
 
     event SwapAndAddLiquidity(
@@ -203,16 +203,23 @@ interface IOrangeAlphaVault {
      * @notice Change the range of underlying UniswapV3 position
      * @param newLowerTick The new lower bound of the position's range
      * @param newUpperTick The new upper bound of the position's range
+     * @param inputTick Input tick for slippage checking
      */
-    function rebalance(int24 newLowerTick, int24 newUpperTick) external;
+    function rebalance(
+        int24 newLowerTick,
+        int24 newUpperTick,
+        int24 inputTick
+    ) external;
 
     /**
      * @notice Remove all positions only when current price is out of range
+     * @param inputTick Input tick for slippage checking
      */
-    function stoploss() external;
+    function stoploss(int24 inputTick) external;
 
     /**
      * @notice Remove all positions
+     * @param inputTick Input tick for slippage checking
      */
-    function removeAllPosition() external;
+    function removeAllPosition(int24 inputTick) external;
 }

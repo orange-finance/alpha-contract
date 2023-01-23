@@ -11,11 +11,30 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     constructor(
         string memory _name,
         string memory _symbol,
+        uint8 __decimal,
         address _pool,
+        address _token0,
+        address _token1,
         address _aave,
+        address _debtToken0,
+        address _aToken1,
         int24 _lowerTick,
         int24 _upperTick
-    ) OrangeAlphaVault(_name, _symbol, _pool, _aave, _lowerTick, _upperTick) {}
+    )
+        OrangeAlphaVault(
+            _name,
+            _symbol,
+            __decimal,
+            _pool,
+            _token0,
+            _token1,
+            _aave,
+            _debtToken0,
+            _aToken1,
+            _lowerTick,
+            _upperTick
+        )
+    {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
@@ -35,16 +54,19 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    // function getTicksByStorage() external view returns (Ticks memory) {
-    //     return _getTicksByStorage();
-    // }
-
     function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         external
         view
         returns (uint160 _swapThresholdPrice)
     {
         return _checkSlippage(_currentSqrtRatioX96, _zeroForOne);
+    }
+
+    function checkTickSlippage(int24 _inputTick, int24 _currentTick)
+        external
+        view
+    {
+        return _checkTickSlippage(_inputTick, _currentTick);
     }
 
     function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {

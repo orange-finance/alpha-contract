@@ -53,8 +53,9 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     uint256 constant DEPOSIT_CAP = 1_000_000 * 1e6;
     uint256 constant TOTAL_DEPOSIT_CAP = 1_000_000 * 1e6;
     uint16 constant SLIPPAGE_BPS = 500;
-    uint32 constant SLIPPAGE_INTERVAL = 5;
+    uint24 constant SLIPPAGE_TICK_BPS = 10;
     uint32 constant MAX_LTV = 70000000;
+    uint32 constant LOCKUP_PERIOD = 7 days;
 
     function setUp() public {
         (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(
@@ -72,14 +73,21 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault = new OrangeAlphaVaultMock(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
+            6,
             address(pool),
+            address(weth),
+            address(usdc),
             address(aave),
+            address(debtToken0),
+            address(aToken1),
             lowerTick,
             upperTick
         );
         vault.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
-        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_INTERVAL);
+        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
         vault.setMaxLtv(MAX_LTV);
+        vault.setLockupPeriod(LOCKUP_PERIOD);
+        vault.setGelato(address(this));
 
         //set Ticks for testing
         (uint160 _sqrtRatioX96, int24 _tick, , , , , ) = pool.slot0();
@@ -106,6 +114,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         weth.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         vm.stopPrank();
+    }
+
+    /* ========== MODIFIER ========== */
+    function test_onlyGelato_Revert() public {
+        vm.expectRevert(bytes(Errors.ONLY_GELATO));
+        vm.prank(alice);
+        vault.stoploss(1);
     }
 
     /* ========== CONSTRUCTOR ========== */
@@ -137,33 +152,25 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertEq(vault.depositCap(address(0)), DEPOSIT_CAP);
         assertEq(vault.totalDepositCap(), TOTAL_DEPOSIT_CAP);
         assertEq(vault.slippageBPS(), SLIPPAGE_BPS);
-        assertEq(vault.slippageInterval(), SLIPPAGE_INTERVAL);
+        assertEq(vault.tickSlippageBPS(), SLIPPAGE_TICK_BPS);
         assertEq(vault.maxLtv(), MAX_LTV);
 
         assertEq(vault.lowerTick(), lowerTick);
         assertEq(vault.upperTick(), upperTick);
     }
 
-    function test_constructor_RevertAaveToken() public {
-        AaveMock _aave = new AaveMock();
-        vm.expectRevert(bytes(Errors.AAVE_TOKEN_ADDRESS));
-        new OrangeAlphaVaultMock(
-            "OrangeAlphaVault",
-            "ORANGE_ALPHA_VAULT",
-            address(pool),
-            address(_aave),
-            lowerTick,
-            upperTick
-        );
-    }
-
-    function test_constructor_RevertTickSpacine() public {
+    function test_constructor_RevertTickSpacing() public {
         vm.expectRevert(bytes(Errors.TICKS));
         new OrangeAlphaVaultMock(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
+            6,
             address(pool),
+            address(weth),
+            address(usdc),
             address(aave),
+            address(debtToken0),
+            address(aToken1),
             101,
             upperTick
         );
@@ -203,6 +210,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_alignTotalAsset_Success0() public {
+        //amount0Current == amount0Debt
         uint256 totalAlignedAssets = vault.alignTotalAsset(
             10 ether,
             10000 * 1e6,
@@ -214,6 +222,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_alignTotalAsset_Success1() public {
+        //amount0Current < amount0Debt
         uint256 totalAlignedAssets = vault.alignTotalAsset(
             10 ether,
             10000 * 1e6,
@@ -236,6 +245,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_alignTotalAsset_Success2() public {
+        //amount0Current > amount0Debt
         uint256 totalAlignedAssets = vault.alignTotalAsset(
             12 ether,
             10000 * 1e6,
@@ -574,30 +584,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.validateTicks(60, 121);
     }
 
-    // function test_checkSlippage_Success0() public {
-    //     //_zeroForOne true
-    //     uint160 _swapThresholdPrice = vault.checkSlippage(
-    //         _ticks.sqrtRatioX96,
-    //         true
-    //     );
-
-    //     uint32[] memory secondsAgo = new uint32[](2);
-    //     secondsAgo[0] = SLIPPAGE_INTERVAL;
-    //     secondsAgo[1] = 0;
-    //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-    //     uint160 avgSqrtRatioX96;
-    //     unchecked {
-    //         int24 avgTick = int24(
-    //             (tickCumulatives[1] - tickCumulatives[0]) /
-    //                 int56(uint56(SLIPPAGE_INTERVAL))
-    //         );
-    //         avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-    //     }
-    //     uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
-    //     assertEq(_swapThresholdPrice, avgSqrtRatioX96 - maxSlippage);
-    // }
-
     function test_checkSlippage_Success1() public {
         assertEq(
             vault.checkSlippage(10000, true),
@@ -615,55 +601,11 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         );
     }
 
-    // function test_checkSlippage_RevertHighSlippage0() public {
-    //     //_zeroForOne true
-    //     uint160 _targetRatio = _ticks.sqrtRatioX96;
-    //     // higher slippage than SLIPPAGE_BPS
-    //     uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
-    //     _targetRatio = _targetRatio - _slippage;
-
-    //     vm.expectRevert(
-    //         bytes(Errors.HIGH_SLIPPAGE)
-    //     );
-    //     vault.checkSlippage(_targetRatio, true);
-    // }
-
-    // function test_checkSlippage_Success1() public {
-    //     //_zeroForOne false
-    //     uint160 _swapThresholdPrice = vault.checkSlippage(
-    //         _ticks.sqrtRatioX96,
-    //         false
-    //     );
-
-    //     uint32[] memory secondsAgo = new uint32[](2);
-    //     secondsAgo[0] = SLIPPAGE_INTERVAL;
-    //     secondsAgo[1] = 0;
-    //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-    //     uint160 avgSqrtRatioX96;
-    //     unchecked {
-    //         int24 avgTick = int24(
-    //             (tickCumulatives[1] - tickCumulatives[0]) /
-    //                 int56(uint56(SLIPPAGE_INTERVAL))
-    //         );
-    //         avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-    //     }
-    //     uint160 maxSlippage = (avgSqrtRatioX96 * SLIPPAGE_BPS) / 10000;
-    //     assertEq(_swapThresholdPrice, avgSqrtRatioX96 + maxSlippage);
-    // }
-
-    // function test_checkSlippage_RevertHighSlippage1() public {
-    //     //_zeroForOne false
-    //     uint160 _targetRatio = _ticks.sqrtRatioX96;
-    //     // higher slippage than SLIPPAGE_BPS
-    //     uint160 _slippage = (_targetRatio * (SLIPPAGE_BPS + 50)) / 10000;
-    //     _targetRatio = _targetRatio + (_slippage + 1000);
-
-    //     vm.expectRevert(
-    //         bytes(Errors.HIGH_SLIPPAGE)
-    //     );
-    //     vault.checkSlippage(_targetRatio, false);
-    // }
+    function test_checkTickSlippage_Success1() public {
+        vault.checkTickSlippage(0, 0);
+        vm.expectRevert(bytes(Errors.HIGH_SLIPPAGE));
+        vault.checkTickSlippage(10, 21);
+    }
 
     function test_computePercentageFromUpperRange_Success1() public {
         uint256 _currentPrice = vault.quoteEthPriceByTick(_ticks.currentTick);
@@ -717,6 +659,10 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.deposit(1_000_001 * 1e6, address(this), 9_900 * 1e6);
         vm.expectRevert(bytes(Errors.LESS_THAN_MIN_SHARES));
         vault.deposit(10_000 * 1e6, address(this), 11_000 * 1e6);
+
+        //revert with initial deposit
+        vm.expectRevert(bytes(Errors.DEPOSIT_INITIAL));
+        vault.deposit(1_00 * 1e6, address(this), 9_900 * 1e6);
 
         //revert with total deposit cap
         vm.prank(alice);
@@ -776,13 +722,18 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
+        vm.expectRevert(bytes(Errors.LOCKUP));
+        vault.redeem(10_000 * 1e6, address(this), address(0), 9_900 * 1e6);
+
+        vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
+        skip(8 days);
         vm.expectRevert(bytes(Errors.LESS_THAN_MIN_ASSETS));
         vault.redeem(10_000 * 1e6, address(this), address(0), 10_000 * 1e6);
     }
 
     function test_redeem_Success1Max() public {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
-        skip(1);
+        skip(8 days);
         vault.redeem(10_000 * 1e6, address(this), address(0), 9_900 * 1e6);
         //assertion
         assertEq(vault.balanceOf(address(this)), 0);
@@ -801,7 +752,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_redeem_Success2Quater() public {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
-        skip(1);
+        skip(8 days);
         // prepare for assetion
         (uint128 _liquidity0, , , , ) = pool.positions(vault.getPositionID());
         uint256 _debtToken0 = debtToken0.balanceOf(address(vault));
@@ -828,13 +779,14 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_stoploss_Success() public {
         swapByCarol(true, 1000 ether); //current price under lowerPrice
-        vault.stoploss();
+        (, int24 __tick, , , , , ) = pool.slot0();
+        vault.stoploss(__tick);
         assertEq(vault.stoplossed(), true);
     }
 
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.WHEN_CAN_STOPLOSS));
-        vault.stoploss();
+        vault.stoploss(1);
     }
 
     /* ========== OWENERS FUNCTIONS ========== */
@@ -842,14 +794,15 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         int24 _newLowerTick = -1;
         int24 _newUpperTick = -205680;
         vm.expectRevert(bytes(Errors.TICKS));
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        vault.rebalance(_newLowerTick, _newUpperTick, 1);
     }
 
     function test_rebalance_Success0() public {
         //totalSupply is zero
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        (, int24 __tick, , , , , ) = pool.slot0();
+        vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertEq(vault.stoplossed(), false);
@@ -867,7 +820,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        (, int24 __tick, , , , , ) = pool.slot0();
+        vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
 
@@ -891,7 +845,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -204600;
         int24 _newUpperTick = -202500;
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertLt(debtToken0.balanceOf(address(vault)), _debtToken0); //less borrowing than before
@@ -913,7 +867,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -205620;
         int24 _newUpperTick = -203820;
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertApproxEqRel(
@@ -927,7 +881,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_removeAllPosition_Success0() public {
-        vault.removeAllPosition();
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.removeAllPosition(_tick);
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
         assertEq(__ticks.sqrtRatioX96, _ticks.sqrtRatioX96);
         assertEq(__ticks.currentTick, _ticks.currentTick);
@@ -938,7 +893,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_removeAllPosition_Success1() public {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
-        vault.removeAllPosition();
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.removeAllPosition(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -956,9 +912,10 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //removeAllPosition when vault has no position
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
-        vault.removeAllPosition();
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.removeAllPosition(_tick);
         skip(1);
-        vault.removeAllPosition();
+        vault.removeAllPosition(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -982,14 +939,11 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_setSlippage_Success() public {
         vm.expectRevert(bytes(Errors.PARAMS_BPS));
-        vault.setSlippage(10001, SLIPPAGE_INTERVAL);
+        vault.setSlippage(10001, SLIPPAGE_TICK_BPS);
 
-        vm.expectRevert(bytes(Errors.PARAMS_INTERVAL));
-        vault.setSlippage(SLIPPAGE_BPS, 0);
-
-        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_INTERVAL);
+        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
         assertEq(vault.slippageBPS(), SLIPPAGE_BPS);
-        assertEq(vault.slippageInterval(), SLIPPAGE_INTERVAL);
+        assertEq(vault.tickSlippageBPS(), SLIPPAGE_TICK_BPS);
     }
 
     function test_setMaxLtv_Success() public {
@@ -997,6 +951,16 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.setMaxLtv(100000001);
         vault.setMaxLtv(MAX_LTV);
         assertEq(vault.maxLtv(), MAX_LTV);
+    }
+
+    function test_setLockupPeriod_Success() public {
+        vault.setLockupPeriod(1);
+        assertEq(vault.lockupPeriod(), 1);
+    }
+
+    function test_setGelato_Success() public {
+        vault.setGelato(alice);
+        assertEq(vault.gelato(), alice);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1155,17 +1119,19 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
+        (, int24 _tick, , , , , ) = pool.slot0();
         vm.expectEmit(false, false, false, false);
         emit Rebalance(0, 0, 0, 0);
-        vault.rebalance(_newLowerTick, _newUpperTick);
+        vault.rebalance(_newLowerTick, _newUpperTick, _tick);
     }
 
     function test_eventRemoveAllPosition_Success() public {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
+        (, int24 _tick, , , , , ) = pool.slot0();
         vm.expectEmit(false, false, false, false);
         emit RemoveAllPosition(0, 0, 0);
-        vault.removeAllPosition();
+        vault.removeAllPosition(_tick);
     }
 
     function test_eventUpdateDepositCap_Success() public {
@@ -1176,8 +1142,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_eventUpdateSlippage_Success() public {
         vm.expectEmit(false, false, false, false);
-        emit UpdateSlippage(0, 0);
-        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_INTERVAL);
+        emit UpdateSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
+        vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
     }
 
     function test_eventUpdateMaxLtv_Success() public {
