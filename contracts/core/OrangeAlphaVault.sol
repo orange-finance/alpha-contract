@@ -540,13 +540,12 @@ contract OrangeAlphaVault is
 
         if (_liquidity0 > _liquidity1) {
             _zeroForOne = true;
-            (uint256 _mintAmount0, uint256 _mintAmount1) = LiquidityAmounts
-                .getAmountsForLiquidity(
-                    _ticks.sqrtRatioX96,
-                    _ticks.lowerTick.getSqrtRatioAtTick(),
-                    _ticks.upperTick.getSqrtRatioAtTick(),
-                    _liquidity1
-                );
+            (uint256 _mintAmount0, ) = LiquidityAmounts.getAmountsForLiquidity(
+                _ticks.sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _liquidity1
+            );
             uint256 _surplusAmount = _amount0 - _mintAmount0;
             //compute how much amount should be swapped by price rate
             _swapAmount = SafeCast.toInt256(
@@ -554,13 +553,12 @@ contract OrangeAlphaVault is
                     MAGIC_SCALE_1E8
             );
         } else {
-            (uint256 _mintAmount0, uint256 _mintAmount1) = LiquidityAmounts
-                .getAmountsForLiquidity(
-                    _ticks.sqrtRatioX96,
-                    _ticks.lowerTick.getSqrtRatioAtTick(),
-                    _ticks.upperTick.getSqrtRatioAtTick(),
-                    _liquidity0
-                );
+            (, uint256 _mintAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+                _ticks.sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _liquidity0
+            );
             uint256 _surplusAmount = _amount1 - _mintAmount1;
             _swapAmount = SafeCast.toInt256(
                 (_surplusAmount *
@@ -971,11 +969,7 @@ contract OrangeAlphaVault is
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         if (liquidity > 0) {
-            (uint256 _burn0, uint256 _burn1, , , , ) = _burnAndCollectFees(
-                _ticks.lowerTick,
-                _ticks.upperTick,
-                liquidity
-            );
+            _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
         }
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
