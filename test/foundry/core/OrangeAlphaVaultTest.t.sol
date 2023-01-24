@@ -512,12 +512,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assert_computeSwapAmount(_amount0, _amount1);
     }
 
-    function test_getAavePoolLtv_Success() public {
-        assertEq(vault.getAavePoolLtv(), 0);
-        vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
-        assertApproxEqRel(vault.getAavePoolLtv(), vault.getLtvByRange(), 1e16);
-    }
-
     function test_depositCap_Success() public {
         assertEq(vault.depositCap(alice), DEPOSIT_CAP);
     }
@@ -654,11 +648,11 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_deposit_Revert1() public {
         vm.expectRevert(bytes(Errors.DEPOSIT_RECEIVER));
         vault.deposit(10_000 * 1e6, alice, 9_900 * 1e6);
-        vm.expectRevert(bytes(Errors.DEPOSIT_ZERO));
+        vm.expectRevert(bytes(Errors.ZERO));
         vault.deposit(0, address(this), 9_900 * 1e6);
-        vm.expectRevert(bytes(Errors.DEPOSIT_CAP_OVER));
+        vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(1_000_001 * 1e6, address(this), 9_900 * 1e6);
-        vm.expectRevert(bytes(Errors.LESS_THAN_MIN_SHARES));
+        vm.expectRevert(bytes(Errors.LESS));
         vault.deposit(10_000 * 1e6, address(this), 11_000 * 1e6);
 
         //revert with initial deposit
@@ -668,7 +662,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //revert with total deposit cap
         vm.prank(alice);
         vault.deposit(1_000_000 * 1e6, alice, 9_900 * 1e6);
-        vm.expectRevert(bytes(Errors.TOTAL_DEPOSIT_CAP_OVER));
+        vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
     }
 
@@ -718,7 +712,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Revert1() public {
-        vm.expectRevert(bytes(Errors.REDEEM_ZERO));
+        vm.expectRevert(bytes(Errors.ZERO));
         vault.redeem(0, address(this), address(0), 9_900 * 1e6);
 
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
@@ -728,7 +722,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(8 days);
-        vm.expectRevert(bytes(Errors.LESS_THAN_MIN_ASSETS));
+        vm.expectRevert(bytes(Errors.LESS));
         vault.redeem(10_000 * 1e6, address(this), address(0), 10_000 * 1e6);
     }
 
@@ -931,7 +925,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setDepositCap_Success() public {
-        vm.expectRevert(bytes(Errors.PARAMS_CAP));
+        vm.expectRevert(bytes(Errors.PARAMS));
         vault.setDepositCap(DEPOSIT_CAP + 1, TOTAL_DEPOSIT_CAP);
         vault.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
         assertEq(vault.depositCap(address(0)), DEPOSIT_CAP);
@@ -939,7 +933,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setSlippage_Success() public {
-        vm.expectRevert(bytes(Errors.PARAMS_BPS));
+        vm.expectRevert(bytes(Errors.PARAMS));
         vault.setSlippage(10001, SLIPPAGE_TICK_BPS);
 
         vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
@@ -948,7 +942,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_setMaxLtv_Success() public {
-        vm.expectRevert(bytes(Errors.PARAMS_LTV));
+        vm.expectRevert(bytes(Errors.PARAMS));
         vault.setMaxLtv(100000001);
         vault.setMaxLtv(MAX_LTV);
         assertEq(vault.maxLtv(), MAX_LTV);
@@ -1247,7 +1241,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 import {DataTypes} from "../../../contracts/vendor/aave/DataTypes.sol";
 
 contract AaveMock {
-    function getReserveData(address asset)
+    function getReserveData(address)
         external
         pure
         returns (DataTypes.ReserveData memory reserveData_)

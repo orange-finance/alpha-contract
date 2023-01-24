@@ -3,10 +3,13 @@ pragma solidity 0.8.16;
 
 import {OrangeAlphaVault} from "../core/OrangeAlphaVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {FullMath} from "../vendor/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 
 contract OrangeAlphaVaultMock is OrangeAlphaVault {
+    // uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
+
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -51,6 +54,18 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
 
     function setStoplossed(bool _stoplossed) external {
         stoplossed = _stoplossed;
+    }
+
+    function getAavePoolLtv() external view returns (uint256) {
+        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave
+            .getUserAccountData(address(this));
+        if (totalCollateralBase == 0) return 0;
+        return
+            FullMath.mulDiv(
+                MAGIC_SCALE_1E8,
+                totalDebtBase,
+                totalCollateralBase
+            );
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */

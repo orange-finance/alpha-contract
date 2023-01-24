@@ -7,8 +7,8 @@ import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+import {Ownable} from "../libs/Ownable.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
@@ -35,8 +35,8 @@ contract OrangeAlphaVault is
     using FullMath for uint256;
 
     /* ========== CONSTANTS ========== */
-    uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-    uint16 MAGIC_SCALE_1E4 = 10000; //for slippage
+    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
+    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== STORAGES ========== */
     /// @inheritdoc IOrangeAlphaVault
@@ -197,18 +197,6 @@ contract OrangeAlphaVault is
         returns (bool _zeroForOne, int256 _swapAmount)
     {
         return _computeSwapAmount(_amount0, _amount1, _getTicksByStorage());
-    }
-
-    /**
-     * @notice Get LTV from aave oracle
-     * @dev not necessary
-     * @return
-     */
-    function getAavePoolLtv() external view returns (uint256) {
-        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave
-            .getUserAccountData(address(this));
-        if (totalCollateralBase == 0) return 0;
-        return MAGIC_SCALE_1E8.mulDiv(totalDebtBase, totalCollateralBase);
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -748,15 +736,15 @@ contract OrangeAlphaVault is
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);
         }
-        if (_assets == 0) revert(Errors.DEPOSIT_ZERO);
+        if (_assets == 0) revert(Errors.ZERO);
         if (deposits[_receiver].assets + _assets > depositCap(_receiver)) {
-            revert(Errors.DEPOSIT_CAP_OVER);
+            revert(Errors.CAPOVER);
         }
         deposits[_receiver].assets += _assets;
         deposits[_receiver].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
         if (_totalDeposits + _assets > totalDepositCap) {
-            revert(Errors.TOTAL_DEPOSIT_CAP_OVER);
+            revert(Errors.CAPOVER);
         }
         //check minimum deposit amount at initial deposit
         if (_totalDeposits == 0 && _assets < initialDeposit) {
@@ -769,7 +757,7 @@ contract OrangeAlphaVault is
         //mint
         shares_ = _convertToShares(_assets, _ticks);
         if (_minShares > shares_) {
-            revert(Errors.LESS_THAN_MIN_SHARES);
+            revert(Errors.LESS);
         }
         _mint(_receiver, shares_);
         // console2.log("deposit1");
@@ -832,7 +820,7 @@ contract OrangeAlphaVault is
     ) external returns (uint256) {
         //validation
         if (_shares == 0) {
-            revert(Errors.REDEEM_ZERO);
+            revert(Errors.ZERO);
         }
         if (block.timestamp < deposits[msg.sender].timestamp + lockupPeriod) {
             revert(Errors.LOCKUP);
@@ -915,7 +903,7 @@ contract OrangeAlphaVault is
 
         // 7. Transfer USDC from Vault to Pool
         if (_minAssets > _assets1) {
-            revert(Errors.LESS_THAN_MIN_ASSETS);
+            revert(Errors.LESS);
         }
         token1.safeTransfer(_receiver, _assets1);
 
@@ -1036,7 +1024,7 @@ contract OrangeAlphaVault is
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         if (newLiquidity == 0) {
-            revert(Errors.NEW_LIQUIDITY_ZERO);
+            revert(Errors.ZERO);
         }
 
         emit Rebalance(_newLowerTick, _newUpperTick, liquidity, newLiquidity);
@@ -1063,7 +1051,7 @@ contract OrangeAlphaVault is
         onlyOwner
     {
         if (__depositCap > _totalDepositCap) {
-            revert(Errors.PARAMS_CAP);
+            revert(Errors.PARAMS);
         }
         _depositCap = __depositCap;
         totalDepositCap = _totalDepositCap;
@@ -1080,7 +1068,7 @@ contract OrangeAlphaVault is
         onlyOwner
     {
         if (_slippageBPS > MAGIC_SCALE_1E4) {
-            revert(Errors.PARAMS_BPS);
+            revert(Errors.PARAMS);
         }
         slippageBPS = _slippageBPS;
         tickSlippageBPS = _tickSlippageBPS;
@@ -1093,7 +1081,7 @@ contract OrangeAlphaVault is
      */
     function setMaxLtv(uint32 _maxLtv) external onlyOwner {
         if (_maxLtv > MAGIC_SCALE_1E8) {
-            revert(Errors.PARAMS_LTV);
+            revert(Errors.PARAMS);
         }
         maxLtv = _maxLtv;
         emit UpdateMaxLtv(_maxLtv);
