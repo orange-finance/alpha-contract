@@ -12,7 +12,12 @@ export const getAddresses = () => {
         VDebtWeth: "0x2Bb51435e2fd8d5FA43ef5287821D01faA01f1f8",
         AUsdc: "0xe822F2c0AF9be5B11EDeEd50e617B572567b67E0",
         UniswapPool: "0x5D5c8Aa7E4Df82D5f5e33b77c39524EBbc8988bF",
-        OrangeAlphaVault: "0x65B95573B3d757cDE0678E38987F5557E5020845",
+        // OrangeAlphaVault: "0x65B95573B3d757cDE0678E38987F5557E5020845",
+        // OrangeAlphaVault: "0x6d685D2158001FcCE69ebD4Deb7374131CAA1b3B",
+        // OrangeAlphaVault: "0x1CA3E61A06EBC31E9b6999BC3D0bd6cEcb75289A",
+        // OrangeAlphaVault: "0x65b0661C10eA4beC7Dd9EbF578e6B6ac27b6f82F",
+
+        OrangeAlphaVault: "0xe29cFfC35E01b9a839F29A1a460181C942a2284A",
 
         // AavePool: "0x76F3b1DB35040D231245a039fC67561CF4b85953",
         // VDebtWeth: "0x3B395ECbDf98c18AE09d1f6e6e5B8f8Fe292912e",
@@ -24,7 +29,7 @@ export const getAddresses = () => {
         // OrangeAlphaVault: "0x25540ac2015a2Fb4993C752F0d57c91821D83713", //deposit時のemitAction eventなし
         UniswapV3PoolAccessorMock: "0xABEcB921FbA87F8157dD7c070FF797352f38Ee79",
         LiquidityAmountsMock: "0x884B0F4c8c23D4d8Fd095B24879aaE6461b32475",
-        GelatoMock: "0x12FD9A329DDad7a71Ec769Aa11225C8EAC5EbCD1",
+        GelatoMock: "0x2461B62c06500C0256c324f57d4b71F9A5557e16",
       };
   }
 };

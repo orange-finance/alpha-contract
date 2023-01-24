@@ -16,8 +16,13 @@ const verify = async () => {
   await Verify(a.OrangeAlphaVault, [
     vaultMeta.name,
     vaultMeta.symbol,
+    vaultMeta.decimals,
     a.UniswapPool,
+    a.Weth,
+    a.Usdc,
     a.AavePool,
+    a.VDebtWeth,
+    a.AUsdc,
     lowerTick,
     upperTick,
   ]);
