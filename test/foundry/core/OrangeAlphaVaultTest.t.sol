@@ -553,11 +553,12 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertEq(canExec, false);
         assertEq(execPayload, bytes("can not stoploss"));
         swapByCarol(true, 1000 ether); //current price under lowerPrice
+        (, int24 __tick, , , , , ) = pool.slot0();
         (canExec, execPayload) = vault.checker();
         assertEq(canExec, true);
         assertEq(
             execPayload,
-            abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector)
+            abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector, __tick)
         );
     }
 

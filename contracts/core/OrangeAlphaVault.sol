@@ -243,9 +243,11 @@ contract OrangeAlphaVault is
         override
         returns (bool canExec, bytes memory execPayload)
     {
-        if (_canStoploss(_getTicksByStorage())) {
+        Ticks memory _ticks = _getTicksByStorage();
+        if (_canStoploss(_ticks)) {
             execPayload = abi.encodeWithSelector(
-                IOrangeAlphaVault.stoploss.selector
+                IOrangeAlphaVault.stoploss.selector,
+                _ticks.currentTick
             );
             return (true, execPayload);
         } else {
@@ -727,7 +729,7 @@ contract OrangeAlphaVault is
     }
 
     /**
-     * @dev Throws if the sender is not the owner.
+     * @dev Throws if the sender is not Gelato used by modifier
      */
     function _checkGelato() internal view {
         if (gelato != msg.sender) {

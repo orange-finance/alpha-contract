@@ -30,7 +30,10 @@ contract GelatoMock is IResolver {
         returns (bool canExec, bytes memory execPayload)
     {
         if (canStoploss()) {
-            execPayload = abi.encodeWithSelector(GelatoMock.stoploss.selector);
+            execPayload = abi.encodeWithSelector(
+                GelatoMock.stoploss.selector,
+                currentTick + 1
+            );
             return (true, execPayload);
         } else {
             return (false, bytes("in range"));
@@ -45,11 +48,12 @@ contract GelatoMock is IResolver {
         return (!stoplossed && _isOutOfRange());
     }
 
-    function stoploss() external {
+    function stoploss(int24 _inputTick) external {
         if (!canStoploss()) {
             revert("cannot stoploss");
         }
         stoplossed = true;
+        currentTick = _inputTick;
     }
 
     function setCurrentTick(int24 _currentTick) external {
