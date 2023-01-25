@@ -16,5 +16,4 @@ library Errors {
     string public constant LESS = "Less";
     string public constant AAVE_MISMATCH = "Aave";
     string public constant LOCKUP = "Lockup";
-    string public constant ONLY_GELATO = "Gelato";
 }

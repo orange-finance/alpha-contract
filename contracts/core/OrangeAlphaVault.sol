@@ -11,7 +11,8 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable} from "../libs/Ownable.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
-import {IResolver} from "../interfaces/IResolver.sol";
+import {IResolver} from "../vendor/gelato/IResolver.sol";
+import {GelatoOps} from "../vendor/gelato/GelatoOps.sol";
 import {IAaveV3Pool} from "../interfaces/IAaveV3Pool.sol";
 import {DataTypes} from "../vendor/aave/DataTypes.sol";
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
@@ -28,7 +29,8 @@ contract OrangeAlphaVault is
     IUniswapV3SwapCallback,
     ERC20,
     Ownable,
-    IResolver
+    IResolver,
+    GelatoOps
 {
     using SafeERC20 for IERC20;
     using TickMath for int24;
@@ -64,13 +66,6 @@ contract OrangeAlphaVault is
     uint24 public tickSlippageBPS;
     uint32 public maxLtv;
     uint40 public lockupPeriod;
-    address public gelato;
-
-    /* ========== MODIFIER ========== */
-    modifier onlyGelato() {
-        _checkGelato();
-        _;
-    }
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -716,15 +711,6 @@ contract OrangeAlphaVault is
             _maxPriceRange;
     }
 
-    /**
-     * @dev Throws if the sender is not Gelato used by modifier
-     */
-    function _checkGelato() internal view {
-        if (gelato != msg.sender) {
-            revert(Errors.ONLY_GELATO);
-        }
-    }
-
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
     function deposit(
@@ -930,14 +916,9 @@ contract OrangeAlphaVault is
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss(int24 _inputTick) external onlyGelato {
+    function stoploss(int24 _inputTick) external onlyDedicatedMsgSender {
         Ticks memory _ticks = _getTicksByStorage();
-        if (!_canStoploss(_ticks)) {
-            revert(Errors.WHEN_CAN_STOPLOSS);
-        }
-        stoplossed = true;
-        _ticks = _removeAllPosition(_ticks, _inputTick);
-        _emitAction(4, _ticks);
+        _stoploss(_ticks, _inputTick);
     }
 
     /* ========== OWENERS FUNCTIONS ========== */
@@ -1093,14 +1074,6 @@ contract OrangeAlphaVault is
      */
     function setLockupPeriod(uint40 _lockupPeriod) external onlyOwner {
         lockupPeriod = _lockupPeriod;
-    }
-
-    /**
-     * @notice Set parameters of gelato
-     * @param _gelato gelato address
-     */
-    function setGelato(address _gelato) external onlyOwner {
-        gelato = _gelato;
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1280,6 +1253,16 @@ contract OrangeAlphaVault is
         fee0_ = token0.balanceOf(address(this)) - preBalance0_ - burn0_;
         fee1_ = token1.balanceOf(address(this)) - preBalance1_ - burn1_;
         emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
+    }
+
+    ///@notice internal function of stoploss
+    function _stoploss(Ticks memory _ticks, int24 _inputTick) internal {
+        if (!_canStoploss(_ticks)) {
+            revert(Errors.WHEN_CAN_STOPLOSS);
+        }
+        stoplossed = true;
+        _ticks = _removeAllPosition(_ticks, _inputTick);
+        _emitAction(4, _ticks);
     }
 
     ///@notice internal function of removeAllPosition

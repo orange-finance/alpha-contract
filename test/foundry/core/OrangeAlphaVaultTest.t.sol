@@ -87,7 +87,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
         vault.setMaxLtv(MAX_LTV);
         vault.setLockupPeriod(LOCKUP_PERIOD);
-        vault.setGelato(address(this));
 
         //set Ticks for testing
         (uint160 _sqrtRatioX96, int24 _tick, , , , , ) = pool.slot0();
@@ -114,13 +113,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         weth.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         vm.stopPrank();
-    }
-
-    /* ========== MODIFIER ========== */
-    function test_onlyGelato_Revert() public {
-        vm.expectRevert(bytes(Errors.ONLY_GELATO));
-        vm.prank(alice);
-        vault.stoploss(1);
     }
 
     /* ========== CONSTRUCTOR ========== */
@@ -775,13 +767,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_stoploss_Success() public {
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         (, int24 __tick, , , , , ) = pool.slot0();
-        vault.stoploss(__tick);
+        vault.stoplossMock(__tick);
         assertEq(vault.stoplossed(), true);
     }
 
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.WHEN_CAN_STOPLOSS));
-        vault.stoploss(1);
+        vault.stoplossMock(1);
     }
 
     /* ========== OWENERS FUNCTIONS ========== */
@@ -951,11 +943,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_setLockupPeriod_Success() public {
         vault.setLockupPeriod(1);
         assertEq(vault.lockupPeriod(), 1);
-    }
-
-    function test_setGelato_Success() public {
-        vault.setGelato(alice);
-        assertEq(vault.gelato(), alice);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */

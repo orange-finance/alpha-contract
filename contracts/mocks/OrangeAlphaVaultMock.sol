@@ -97,6 +97,10 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
+    function stoplossMock(int24 _inputTick) external {
+        Ticks memory _ticks = _getTicksByStorage();
+        _stoploss(_ticks, _inputTick);
+    }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
     function swapAndAddLiquidity(

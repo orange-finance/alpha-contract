@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
-import {IResolver} from "../interfaces/IResolver.sol";
+import {IResolver} from "../vendor/gelato/IResolver.sol";
 
 contract GelatoMock is IResolver {
     using TickMath for int24;
