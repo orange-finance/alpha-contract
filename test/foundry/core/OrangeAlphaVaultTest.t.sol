@@ -14,6 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Errors} from "../../../contracts/libs/Errors.sol";
 import {OrangeAlphaVaultMock} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
 import {IOrangeAlphaVault} from "../../../contracts/interfaces/IOrangeAlphaVault.sol";
+import {IOpsProxyFactory} from "../../../contracts/vendor/gelato/GelatoOps.sol";
 import {TickMath} from "../../../contracts/vendor/uniswap/TickMath.sol";
 import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol";
 import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
@@ -113,6 +114,34 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         weth.approve(address(router), type(uint256).max);
         usdc.approve(address(router), type(uint256).max);
         vm.stopPrank();
+    }
+
+    /* ========== MODIFIER ========== */
+    function test_onlyOwner() public {
+        vm.startPrank(alice);
+        //test rebalance
+        vm.expectRevert("Ownable");
+        vault.rebalance(0, 0, 0);
+        //test removeAllPosition
+        vm.expectRevert("Ownable");
+        vault.removeAllPosition(0);
+        //test setDepositCap
+        vm.expectRevert("Ownable");
+        vault.setDepositCap(0, 0);
+        //test setSlippage
+        vm.expectRevert("Ownable");
+        vault.setSlippage(0, 0);
+        //test setMaxLtv
+        vm.expectRevert("Ownable");
+        vault.setMaxLtv(0);
+        //test setLockupPeriod
+        vm.expectRevert("Ownable");
+        vault.setLockupPeriod(0);
+    }
+
+    function test_onlyDedicatedMsgSender() public {
+        vm.expectRevert("Only dedicated msg.sender");
+        vault.stoploss(0);
     }
 
     /* ========== CONSTRUCTOR ========== */
@@ -767,16 +796,18 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_stoploss_Success() public {
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         (, int24 __tick, , , , , ) = pool.slot0();
-        vault.stoplossMock(__tick);
+        vm.prank(vault.dedicatedMsgSender());
+        vault.stoploss(__tick);
         assertEq(vault.stoplossed(), true);
     }
 
     function test_stoploss_Revert() public {
+        vm.prank(vault.dedicatedMsgSender());
         vm.expectRevert(bytes(Errors.WHEN_CAN_STOPLOSS));
-        vault.stoplossMock(1);
+        vault.stoploss(1);
     }
 
-    /* ========== OWENERS FUNCTIONS ========== */
+    /* ========== OWNERS FUNCTIONS ========== */
     function test_rebalance_RevertTickSpacing() public {
         int24 _newLowerTick = -1;
         int24 _newUpperTick = -205680;

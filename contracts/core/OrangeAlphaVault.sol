@@ -746,11 +746,9 @@ contract OrangeAlphaVault is
             revert(Errors.LESS);
         }
         _mint(_receiver, shares_);
-        // console2.log("deposit1");
 
         // 1. Transfer USDC from depositer to Vault
         token1.safeTransferFrom(msg.sender, address(this), _assets);
-        // console2.log("deposit2");
 
         uint256 _supply;
         uint256 _borrow;
@@ -768,7 +766,6 @@ contract OrangeAlphaVault is
             if (_borrow > 0) {
                 aave.borrow(address(token0), _borrow, 2, 0, address(this));
             }
-            // console2.log("deposit3");
 
             // 4. Swap from USDC to ETH (if necessary)
             // 5. Add liquidity
@@ -778,7 +775,6 @@ contract OrangeAlphaVault is
                 _amountDeposited0,
                 _amountDeposited1
             ) = _swapAndAddLiquidity(_borrow, _addingUsdc, _ticks);
-            // console2.log("deposit4");
         }
 
         emit Deposit(
@@ -794,7 +790,6 @@ contract OrangeAlphaVault is
         );
 
         _emitAction(1, _ticks);
-        // console2.log("deposit5");
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -921,7 +916,7 @@ contract OrangeAlphaVault is
         _stoploss(_ticks, _inputTick);
     }
 
-    /* ========== OWENERS FUNCTIONS ========== */
+    /* ========== OWNERS FUNCTIONS ========== */
 
     /// @inheritdoc IOrangeAlphaVault
     /// @dev similar to Arrakis' executiveRebalance
@@ -958,10 +953,21 @@ contract OrangeAlphaVault is
         _ticks.upperTick = _newUpperTick;
 
         //calculate repay or borrow amount
-        (, uint256 _newBorrow) = _computeSupplyAndBorrow(
+        (uint256 _newSupply, uint256 _newBorrow) = _computeSupplyAndBorrow(
             _totalAssets(_ticks),
             _ticks
         );
+
+        //after stoploss, need to supply collateral
+        uint256 _supplyBalance = aToken1.balanceOf(address(this));
+        if (_supplyBalance < _newSupply) {
+            aave.supply(
+                address(token1),
+                _newSupply - _supplyBalance,
+                address(this),
+                0
+            );
+        }
 
         // 4. Swap
         // 5. Repay or borrow (if swapping from ETH to USDC, do borrow)
@@ -1126,7 +1132,6 @@ contract OrangeAlphaVault is
             _amount1 = uint256(SafeCast.toInt256(_amount1) - amount1Delta);
         }
 
-        // console2.log("_swapAndAddLiquidity 3");
         liquidity_ = LiquidityAmounts.getLiquidityForAmounts(
             _ticks.sqrtRatioX96,
             _ticks.lowerTick.getSqrtRatioAtTick(),
@@ -1136,9 +1141,7 @@ contract OrangeAlphaVault is
         );
 
         //mint
-        // console2.log("_swapAndAddLiquidity 4");
         if (liquidity_ > 0) {
-            // console2.log("_swapAndAddLiquidity 5");
             (amountDeposited0_, amountDeposited1_) = pool.mint(
                 address(this),
                 _ticks.lowerTick,
@@ -1147,7 +1150,6 @@ contract OrangeAlphaVault is
                 ""
             );
         }
-        // console2.log("_swapAndAddLiquidity 6");
         emit SwapAndAddLiquidity(
             _zeroForOne,
             amount0Delta,
