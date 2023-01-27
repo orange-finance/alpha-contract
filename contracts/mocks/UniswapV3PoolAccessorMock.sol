@@ -31,6 +31,13 @@ contract UniswapV3PoolAccessorMock is
         token1 = IERC20(pool.token1());
     }
 
+    /* ========== VIWE FUNCTIONS ========== */
+    function getSqrtRatioX96() external view returns (uint160) {
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        return _sqrtRatioX96;
+    }
+
+    /* ========== EXTERNAL FUNCTIONS ========== */
     function mint(
         int24 _lowerTick,
         int24 _upperTick,
@@ -71,45 +78,23 @@ contract UniswapV3PoolAccessorMock is
         );
     }
 
-    function getSlippage(bool _zeroForOne)
-        external
-        view
-        returns (uint160 _swapThresholdPrice)
-    {
-        (uint160 _currentSqrtRatioX96, , , , , , ) = pool.slot0();
-
-        uint32 slippageInterval = 5;
-        uint16 slippageBPS = 500;
-        uint32[] memory secondsAgo = new uint32[](2);
-        secondsAgo[0] = slippageInterval;
-        secondsAgo[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
-        if (tickCumulatives.length != 2) {
-            revert("IncorrectLength");
-        }
-        uint160 avgSqrtRatioX96;
-        unchecked {
-            int24 avgTick = int24(
-                (tickCumulatives[1] - tickCumulatives[0]) /
-                    int56(uint56(slippageInterval))
+    function burn(
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint128 _liquidity
+    ) external {
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (uint256 amount0, uint256 amount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _sqrtRatioX96,
+                _lowerTick.getSqrtRatioAtTick(),
+                _upperTick.getSqrtRatioAtTick(),
+                _liquidity
             );
-            avgSqrtRatioX96 = avgTick.getSqrtRatioAtTick();
-        }
+        token0.safeTransfer(msg.sender, amount0);
+        token1.safeTransfer(msg.sender, amount1);
 
-        uint160 maxSlippage = (avgSqrtRatioX96 * slippageBPS) / 10000;
-        if (_zeroForOne) {
-            _swapThresholdPrice = avgSqrtRatioX96 - maxSlippage;
-            if (_currentSqrtRatioX96 < _swapThresholdPrice) {
-                revert("HighSlippage");
-            }
-        } else {
-            _swapThresholdPrice = avgSqrtRatioX96 + maxSlippage;
-            if (_currentSqrtRatioX96 > _swapThresholdPrice) {
-                revert("HighSlippage");
-            }
-        }
+        pool.burn(_lowerTick, _upperTick, _liquidity);
     }
 
     /// @notice Uniswap V3 callback fn, called back on pool.mint

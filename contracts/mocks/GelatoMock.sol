@@ -3,8 +3,9 @@ pragma solidity 0.8.16;
 
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {IResolver} from "../vendor/gelato/IResolver.sol";
+import {GelatoOps} from "../vendor/gelato/GelatoOps.sol";
 
-contract GelatoMock is IResolver {
+contract GelatoMock is IResolver, GelatoOps {
     using TickMath for int24;
 
     bool public stoplossed;
@@ -48,7 +49,7 @@ contract GelatoMock is IResolver {
         return (!stoplossed && _isOutOfRange());
     }
 
-    function stoploss(int24 _inputTick) external {
+    function stoploss(int24 _inputTick) external onlyDedicatedMsgSender {
         if (!canStoploss()) {
             revert("cannot stoploss");
         }

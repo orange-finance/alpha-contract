@@ -130,23 +130,6 @@ contract OrangeAlphaVault is
         return _convertToAssets(_shares, _getTicksByStorage());
     }
 
-    ///@notice external function of _alignTotalAsset
-    function alignTotalAsset(
-        uint256 amount0Current,
-        uint256 amount1Current,
-        uint256 amount0Debt,
-        uint256 amount1Supply
-    ) external view returns (uint256 totalAlignedAssets) {
-        return
-            _alignTotalAsset(
-                _getTicksByStorage(),
-                amount0Current,
-                amount1Current,
-                amount0Debt,
-                amount1Supply
-            );
-    }
-
     ///@notice external function of _getUnderlyingBalances
     function getUnderlyingBalances()
         external
@@ -154,21 +137,6 @@ contract OrangeAlphaVault is
         returns (UnderlyingAssets memory underlyingAssets)
     {
         return _getUnderlyingBalances(_getTicksByStorage());
-    }
-
-    ///@notice external function of _computeFeesEarned
-    function computeFeesEarned(
-        bool isZero,
-        uint256 feeGrowthInsideLast,
-        uint128 liquidity
-    ) external view returns (uint256 fee) {
-        return
-            _computeFeesEarned(
-                isZero,
-                feeGrowthInsideLast,
-                liquidity,
-                _getTicksByStorage()
-            );
     }
 
     ///@notice external function of _computeSupplyAndBorrow
@@ -207,11 +175,6 @@ contract OrangeAlphaVault is
     ///@notice external function of _getTicksByStorage
     function getTicksByStorage() external view returns (Ticks memory) {
         return _getTicksByStorage();
-    }
-
-    ///@notice external function of _canStoploss
-    function canStoploss() external view returns (bool) {
-        return (!stoplossed && _isOutOfRange(_getTicksByStorage()));
     }
 
     ///@notice external function of _isOutOfRange

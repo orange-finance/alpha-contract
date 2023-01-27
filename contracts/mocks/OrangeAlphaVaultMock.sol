@@ -96,6 +96,40 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _computePercentageFromUpperRange(_ticks);
     }
 
+    function alignTotalAsset(
+        uint256 amount0Current,
+        uint256 amount1Current,
+        uint256 amount0Debt,
+        uint256 amount1Supply
+    ) external view returns (uint256 totalAlignedAssets) {
+        return
+            _alignTotalAsset(
+                _getTicksByStorage(),
+                amount0Current,
+                amount1Current,
+                amount0Debt,
+                amount1Supply
+            );
+    }
+
+    function computeFeesEarned(
+        bool isZero,
+        uint256 feeGrowthInsideLast,
+        uint128 liquidity
+    ) external view returns (uint256 fee) {
+        return
+            _computeFeesEarned(
+                isZero,
+                feeGrowthInsideLast,
+                liquidity,
+                _getTicksByStorage()
+            );
+    }
+
+    function canStoploss() external view returns (bool) {
+        return _canStoploss(_getTicksByStorage());
+    }
+
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
