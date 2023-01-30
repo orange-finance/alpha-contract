@@ -15,12 +15,12 @@ const usdcTokenMeta: ERC20metadata = {
 };
 
 async function deployWethAndUsdc() {
-  // await Deploy(
-  //   "ERC20Mock",
-  //   wethTokenMeta.name,
-  //   wethTokenMeta.symbol,
-  //   wethTokenMeta.decimals
-  // );
+  await Deploy(
+    "ERC20Mock",
+    wethTokenMeta.name,
+    wethTokenMeta.symbol,
+    wethTokenMeta.decimals
+  );
   await Deploy(
     "ERC20Mock",
     usdcTokenMeta.name,

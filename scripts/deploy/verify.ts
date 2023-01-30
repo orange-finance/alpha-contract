@@ -8,8 +8,8 @@ const vaultMeta: ERC20metadata = {
   decimals: 6,
 };
 
-const lowerTick = -205680;
-const upperTick = -203760;
+const lowerTick = -205620;
+const upperTick = -203820;
 
 const verify = async () => {
   const a = getAddresses()!;

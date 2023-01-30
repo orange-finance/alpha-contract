@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 import { getAddresses } from "../addresses";
 import { IUniswapV3Factory, IUniswapV3Pool } from "../../typechain-types/index";
 
-const sqrtPriceX96 = 2843236571771623993513305;
+const sqrtPriceX96 = BigNumber.from("2843236571771623993513305");
 
 async function createUniswapPool(
   wethAddr: string,

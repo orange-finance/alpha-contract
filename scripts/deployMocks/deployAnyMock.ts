@@ -1,11 +1,10 @@
 import { ethers } from "hardhat";
 import { Deploy } from "../common";
+import { getAddresses } from "../addresses";
 
 async function main() {
-  const lowerTick = -205680;
-  const upperTick = -203760;
-  const currentTick = -204760;
-  await Deploy("GelatoMock", lowerTick, upperTick, currentTick);
+  const a = getAddresses()!;
+  await Deploy("GelatoOpsMock", []);
 }
 
 main().catch((error) => {

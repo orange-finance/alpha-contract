@@ -55,7 +55,7 @@ contract UniswapV3PoolAccessorMock is
             _amount0,
             _amount1
         );
-        pool.mint(msg.sender, _lowerTick, _upperTick, liquidity_, "");
+        pool.mint(address(this), _lowerTick, _upperTick, liquidity_, "");
     }
 
     function swap(
@@ -91,10 +91,10 @@ contract UniswapV3PoolAccessorMock is
                 _upperTick.getSqrtRatioAtTick(),
                 _liquidity
             );
+        pool.burn(_lowerTick, _upperTick, _liquidity);
+
         token0.safeTransfer(msg.sender, amount0);
         token1.safeTransfer(msg.sender, amount1);
-
-        pool.burn(_lowerTick, _upperTick, _liquidity);
     }
 
     /// @notice Uniswap V3 callback fn, called back on pool.mint
