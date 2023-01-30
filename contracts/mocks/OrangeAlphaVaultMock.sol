@@ -68,6 +68,14 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
+    function setDeposits(address _user, uint256 _amount) external {
+        deposits[_user].assets = _amount;
+    }
+
+    function setTotalDeposits(uint256 _amount) external {
+        totalDeposits = _amount;
+    }
+
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         external

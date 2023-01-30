@@ -789,6 +789,29 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertApproxEqRel(usdc.balanceOf(address(this)), 9_997_500 * 1e6, 1e18);
     }
 
+    function test_redeem_Success3OverDeposit() public {
+        vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
+        skip(8 days);
+        //reduce deposit log
+        vault.setDeposits(address(this), 100);
+        vault.setTotalDeposits(100);
+
+        vault.redeem(10_000 * 1e6, address(this), address(0), 9_900 * 1e6);
+        //assertion
+        assertEq(vault.balanceOf(address(this)), 0);
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertEq(_liquidity, 0);
+        assertEq(debtToken0.balanceOf(address(vault)), 0);
+        assertEq(aToken1.balanceOf(address(vault)), 0);
+        assertEq(usdc.balanceOf(address(vault)), 0);
+        assertEq(weth.balanceOf(address(vault)), 0);
+        assertApproxEqRel(
+            usdc.balanceOf(address(this)),
+            10_000_000 * 1e6,
+            1e18
+        );
+    }
+
     function test_emitAction_Success() public {
         //test in events section
     }
@@ -1090,19 +1113,26 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function testuniswapV3SwapCallback_Revert() public {
         vm.expectRevert(bytes(Errors.CALLBACK_CALLER));
-        vault.uniswapV3MintCallback(0, 0, "");
+        vault.uniswapV3SwapCallback(0, 0, "");
     }
 
-    function testuniswapV3SwapCallback_Success() public {
+    function testuniswapV3SwapCallback_Success1() public {
         vm.prank(address(pool));
-        vault.uniswapV3MintCallback(0, 0, "");
+        vault.uniswapV3SwapCallback(0, 0, "");
         assertEq(weth.balanceOf(address(vault)), 0);
         assertEq(usdc.balanceOf(address(vault)), 0);
 
         deal(address(weth), address(vault), 10 ether);
         deal(address(usdc), address(vault), 10_000 * 1e6);
+
+        //amount0
         vm.prank(address(pool));
-        vault.uniswapV3MintCallback(1 ether, 1_000 * 1e6, "");
+        vault.uniswapV3SwapCallback(1 ether, 0, "");
+        assertEq(weth.balanceOf(address(vault)), 9 ether);
+        assertEq(usdc.balanceOf(address(vault)), 10_000 * 1e6);
+        //amount1
+        vm.prank(address(pool));
+        vault.uniswapV3SwapCallback(0, 1_000 * 1e6, "");
         assertEq(weth.balanceOf(address(vault)), 9 ether);
         assertEq(usdc.balanceOf(address(vault)), 9_000 * 1e6);
     }

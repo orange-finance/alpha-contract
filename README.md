@@ -66,3 +66,11 @@ with forking Arbitrum
 ```
 forge test -vv --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*'
 ```
+
+Coverage
+
+with forking Arbitrum
+
+```
+forge coverage --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*'
+```
