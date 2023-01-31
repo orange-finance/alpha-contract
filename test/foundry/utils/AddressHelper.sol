@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 library AddressHelper {
     uint256 constant MAINNET_ID = 1;
+    uint256 constant GOERLI_ID = 5;
     uint256 constant ARB_ID = 42161;
 
     struct TokenAddr {
@@ -53,6 +54,27 @@ library AddressHelper {
             });
             uniswapAddr_ = UniswapAddr({
                 wethUsdcPoolAddr: address(0),
+                routerAddr: address(0)
+            });
+        } else if (_chainid == GOERLI_ID) {
+            //goerli
+            tokenAddr_ = TokenAddr({
+                wethAddr: 0x6E8EDc17Ef3db5f3Fbb7B8f6574934bD169E22E7,
+                usdcAddr: 0xCc0a1e7086eD38a701dD8886C1AaAc1CC00dF71f,
+                daiAddr: address(0)
+            });
+            aaveAddr_ = AaveAddr({
+                poolAddr: address(0),
+                aaveOracleAddr: address(0),
+                ausdcAddr: address(0),
+                vDebtUsdcAddr: address(0),
+                sDebtUsdcAddr: address(0),
+                awethAddr: address(0),
+                vDebtWethAddr: address(0),
+                sDebtWethAddr: address(0)
+            });
+            uniswapAddr_ = UniswapAddr({
+                wethUsdcPoolAddr: 0x5D5c8Aa7E4Df82D5f5e33b77c39524EBbc8988bF,
                 routerAddr: address(0)
             });
         } else if (_chainid == ARB_ID) {
