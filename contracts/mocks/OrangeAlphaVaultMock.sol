@@ -10,6 +10,8 @@ import {FullMath} from "../vendor/uniswap/LiquidityAmounts.sol";
 contract OrangeAlphaVaultMock is OrangeAlphaVault {
     // uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
 
+    int24 public avgTick;
+
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -76,6 +78,22 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         totalDeposits = _amount;
     }
 
+    function getTwap() external view returns (int24) {
+        return _getTwap();
+    }
+
+    function setAvgTick(int24 _avgTick) external {
+        avgTick = _avgTick;
+    }
+
+    function _getTwap() internal view override returns (int24) {
+        if (avgTick == 0) {
+            return super._getTwap();
+        } else {
+            return avgTick;
+        }
+    }
+
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         external
@@ -135,7 +153,15 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     function canStoploss() external view returns (bool) {
-        return _canStoploss(_getTicksByStorage());
+        return _canStoploss(_getTicksByStorage(), _getTwap());
+    }
+
+    function isOutOfRange(
+        int24 _tick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) external pure returns (bool) {
+        return _isOutOfRange(_tick, _lowerTick, _upperTick);
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */

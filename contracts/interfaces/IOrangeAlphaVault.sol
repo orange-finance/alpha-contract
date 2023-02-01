@@ -203,12 +203,12 @@ interface IOrangeAlphaVault {
      * @notice Change the range of underlying UniswapV3 position
      * @param newLowerTick The new lower bound of the position's range
      * @param newUpperTick The new upper bound of the position's range
-     * @param inputTick Input tick for slippage checking
+     * @param minNewLiquidity minimum liqidiity
      */
     function rebalance(
         int24 newLowerTick,
         int24 newUpperTick,
-        int24 inputTick
+        uint128 minNewLiquidity
     ) external;
 
     /**

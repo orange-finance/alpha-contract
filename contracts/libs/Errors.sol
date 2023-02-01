@@ -5,7 +5,6 @@ library Errors {
     string public constant TICKS = "Ticks";
     string public constant DEPOSIT_RECEIVER = "Receiver";
     string public constant CAPOVER = "CapOver";
-    string public constant DEPOSIT_INITIAL = "Initial";
     string public constant ZERO = "Zero";
     string public constant ADD_LIQUIDITY_AMOUNTS = "LiquidityAmounts";
     string public constant PARAMS = "Params";
@@ -16,4 +15,5 @@ library Errors {
     string public constant LESS = "Less";
     string public constant AAVE_MISMATCH = "Aave";
     string public constant LOCKUP = "Lockup";
+    string public constant REBALANCER = "Rebalancer";
 }

@@ -180,7 +180,7 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         int24 _newUpperTick = -205560;
         (, int24 ___tick, , , , , ) = pool.slot0();
         skip(1 days);
-        vault.rebalance(_newLowerTick, _newUpperTick, ___tick);
+        vault.rebalance(_newLowerTick, _newUpperTick, 2359131680723000);
         skip(1 days);
 
         //swap

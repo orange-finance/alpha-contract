@@ -61,11 +61,12 @@ contract OrangeAlphaVault is
     uint256 _depositCap;
     /// @inheritdoc IOrangeAlphaVault
     uint256 public override totalDepositCap;
-    uint256 public initialDeposit;
     uint16 public slippageBPS;
     uint24 public tickSlippageBPS;
+    uint32 public twapSlippageInterval;
     uint32 public maxLtv;
     uint40 public lockupPeriod;
+    address public rebalancer;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -99,11 +100,12 @@ contract OrangeAlphaVault is
         // these variables can be udpated by the manager
         _depositCap = 1_000_000 * 1e6;
         totalDepositCap = 1_000_000 * 1e6;
-        initialDeposit = 1_000 * 1e6;
         slippageBPS = 500; // default: 5% slippage
         tickSlippageBPS = 10;
+        twapSlippageInterval = 5 minutes;
         maxLtv = 70000000; //70%
         lockupPeriod = 7 days;
+        rebalancer = msg.sender;
 
         //setting ticks
         _validateTicks(_lowerTick, _upperTick);
@@ -177,11 +179,6 @@ contract OrangeAlphaVault is
         return _getTicksByStorage();
     }
 
-    ///@notice external function of _isOutOfRange
-    function isOutOfRange() external view returns (bool) {
-        return _isOutOfRange(_getTicksByStorage());
-    }
-
     // @inheritdoc ERC20
     function checker()
         external
@@ -190,7 +187,7 @@ contract OrangeAlphaVault is
         returns (bool canExec, bytes memory execPayload)
     {
         Ticks memory _ticks = _getTicksByStorage();
-        if (_canStoploss(_ticks)) {
+        if (_canStoploss(_ticks, _getTwap())) {
             execPayload = abi.encodeWithSelector(
                 IOrangeAlphaVault.stoploss.selector,
                 _ticks.currentTick
@@ -242,7 +239,7 @@ contract OrangeAlphaVault is
         return
             supply == 0
                 ? _assets
-                : _assets.mulDiv(supply, _totalAssets(_ticks));
+                : _assets.mulDiv(supply, _totalAssets(_ticks) - _assets);
     }
 
     ///@notice internal function of convertToAssets
@@ -542,18 +539,33 @@ contract OrangeAlphaVault is
      * @notice Can stoploss when not stopplossed and out of range
      * @return
      */
-    function _canStoploss(Ticks memory _ticks) internal view returns (bool) {
-        return (!stoplossed && _isOutOfRange(_ticks));
+    function _canStoploss(Ticks memory _ticks, int24 _avgTick)
+        internal
+        view
+        returns (bool)
+    {
+        return (!stoplossed &&
+            _isOutOfRange(
+                _ticks.currentTick,
+                _ticks.lowerTick,
+                _ticks.upperTick
+            ) &&
+            _isOutOfRange(_avgTick, _ticks.lowerTick, _ticks.upperTick));
     }
 
     /**
      * @notice Stopped loss executed or current tick out of range
-     * @param _ticks current and range ticks
+     * @param _tick current tick
+     * @param _lowerTick The lower tick
+     * @param _upperTick The upper tick
      * @return
      */
-    function _isOutOfRange(Ticks memory _ticks) internal pure returns (bool) {
-        return (_ticks.currentTick > _ticks.upperTick ||
-            _ticks.currentTick < _ticks.lowerTick);
+    function _isOutOfRange(
+        int24 _tick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal pure returns (bool) {
+        return (_tick > _upperTick || _tick < _lowerTick);
     }
 
     /**
@@ -644,6 +656,22 @@ contract OrangeAlphaVault is
         }
     }
 
+    function _getTwap() internal view virtual returns (int24 avgTick) {
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = twapSlippageInterval;
+        secondsAgo[1] = 0;
+
+        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+
+        require(tickCumulatives.length == 2, "array len");
+        unchecked {
+            avgTick = int24(
+                (tickCumulatives[1] - tickCumulatives[0]) /
+                    int56(uint56(twapSlippageInterval))
+            );
+        }
+    }
+
     /**
      * @notice computing percentage of (upper price - current price) / (upper price - lower price)
      *  e.g. upper price: 1100, lower price: 900
@@ -695,30 +723,25 @@ contract OrangeAlphaVault is
         if (_totalDeposits + _assets > totalDepositCap) {
             revert(Errors.CAPOVER);
         }
-        //check minimum deposit amount at initial deposit
-        if (_totalDeposits == 0 && _assets < initialDeposit) {
-            revert(Errors.DEPOSIT_INITIAL);
-        }
         totalDeposits = _totalDeposits + _assets;
-
-        Ticks memory _ticks = _getTicksByStorage();
-
-        //mint
-        shares_ = _convertToShares(_assets, _ticks);
-        if (_minShares > shares_) {
-            revert(Errors.LESS);
-        }
-        _mint(_receiver, shares_);
 
         // 1. Transfer USDC from depositer to Vault
         token1.safeTransferFrom(msg.sender, address(this), _assets);
 
+        Ticks memory _ticks = _getTicksByStorage();
         uint256 _supply;
         uint256 _borrow;
         uint128 _liquidity;
         uint256 _amountDeposited0;
         uint256 _amountDeposited1;
-        if (!stoplossed && !_isOutOfRange(_ticks)) {
+        if (
+            !stoplossed &&
+            !_isOutOfRange(
+                _ticks.currentTick,
+                _ticks.lowerTick,
+                _ticks.upperTick
+            )
+        ) {
             // 2. Supply USDC(Collateral)
             (_supply, _borrow) = _computeSupplyAndBorrow(_assets, _ticks);
             if (_supply > 0) {
@@ -739,6 +762,19 @@ contract OrangeAlphaVault is
                 _amountDeposited1
             ) = _swapAndAddLiquidity(_borrow, _addingUsdc, _ticks);
         }
+
+        //mint
+        if (_totalDeposits == 0) {
+            //if initial depositing, shares = assets
+            shares_ = _assets;
+        } else {
+            _ticks = _getTicksByStorage(); //re-get ticks
+            shares_ = _convertToShares(_assets, _ticks);
+        }
+        if (_minShares > shares_) {
+            revert(Errors.LESS);
+        }
+        _mint(_receiver, shares_);
 
         emit Deposit(
             msg.sender,
@@ -886,8 +922,12 @@ contract OrangeAlphaVault is
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,
-        int24 _inputTick
-    ) external onlyOwner {
+        uint128 minNewLiquidity
+    ) external {
+        if (rebalancer != msg.sender) {
+            revert(Errors.REBALANCER);
+        }
+
         // 1. Check tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
 
@@ -899,8 +939,6 @@ contract OrangeAlphaVault is
         }
 
         Ticks memory _ticks = _getTicksByStorage();
-        //check slippage by tick
-        _checkTickSlippage(_inputTick, _ticks.currentTick);
 
         // 2. Remove liquidity
         // 3. Collect fees
@@ -973,8 +1011,8 @@ contract OrangeAlphaVault is
         (uint128 newLiquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
-        if (newLiquidity == 0) {
-            revert(Errors.ZERO);
+        if (newLiquidity < minNewLiquidity) {
+            revert(Errors.LESS);
         }
 
         emit Rebalance(_newLowerTick, _newUpperTick, liquidity, newLiquidity);
@@ -1039,10 +1077,29 @@ contract OrangeAlphaVault is
 
     /**
      * @notice Set parameters of lockup period
+     * @param _twapSlippageInterval TWAP slippage interval
+     */
+    function setTwapSlippageInterval(uint32 _twapSlippageInterval)
+        external
+        onlyOwner
+    {
+        twapSlippageInterval = _twapSlippageInterval;
+    }
+
+    /**
+     * @notice Set parameters of lockup period
      * @param _lockupPeriod Lockup period
      */
     function setLockupPeriod(uint40 _lockupPeriod) external onlyOwner {
         lockupPeriod = _lockupPeriod;
+    }
+
+    /**
+     * @notice Set parameters of Rebalancer
+     * @param _rebalancer Rebalancer
+     */
+    function setRebalancer(address _rebalancer) external onlyOwner {
+        rebalancer = _rebalancer;
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1222,7 +1279,7 @@ contract OrangeAlphaVault is
 
     ///@notice internal function of stoploss
     function _stoploss(Ticks memory _ticks, int24 _inputTick) internal {
-        if (!_canStoploss(_ticks)) {
+        if (!_canStoploss(_ticks, _getTwap())) {
             revert(Errors.WHEN_CAN_STOPLOSS);
         }
         stoplossed = true;
