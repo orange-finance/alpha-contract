@@ -21,7 +21,8 @@ export const getAddresses = () => {
         AavePool: "0x0a4eDC8A76776468311F3f58a6B6cf4c3DC6e287",
         VDebtWeth: "0x0d63c72e6F356f42D1940352F6eDD4f983E54CaD",
         AUsdc: "0x71c5271dCda234A1acA574f490C87e087A108E71",
-        UniswapPool: "0x566C69144Cfa02d0406635844488dD5BCF7c52a0",
+        // UniswapPool: "0x566C69144Cfa02d0406635844488dD5BCF7c52a0", // 0.3%
+        UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%        
         UniswapV3PoolAccessorMock: "0xF195B1Df7c20a4F266366dE4Fc3e95cD40d717bF",
         OrangeAlphaVault: "0x863EE7dBc5F96e1c91aB94914194c21cD7A2eEd6",
       };

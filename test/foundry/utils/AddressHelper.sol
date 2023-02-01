@@ -95,7 +95,8 @@ library AddressHelper {
                 sDebtWethAddr: 0xD8Ad37849950903571df17049516a5CD4cbE55F6
             });
             uniswapAddr_ = UniswapAddr({
-                wethUsdcPoolAddr: 0x17c14D2c404D167802b16C450d3c99F88F2c4F4d,
+                // wethUsdcPoolAddr: 0x17c14D2c404D167802b16C450d3c99F88F2c4F4d, // 0.3%
+                wethUsdcPoolAddr: 0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443, // 0.05%
                 routerAddr: 0xE592427A0AEce92De3Edee1F18E0157C05861564
             });
         }
