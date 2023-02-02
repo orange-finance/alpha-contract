@@ -31,8 +31,9 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
     IERC20 aToken1;
     int24 initialTick;
 
-    int24 lowerTick = -205800;
-    int24 upperTick = -203760;
+    uint24 fee = 3000;
+    int24 lowerTick;
+    int24 upperTick;
 
     //parameters
     uint256 constant DEPOSIT_CAP = 10_000 * 1e6;
@@ -49,7 +50,15 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         );
 
         router = ISwapRouter(uniswapAddr.routerAddr); //for test
-        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
+        if (fee == 500) {
+            lowerTick = -204980;
+            upperTick = -204460;
+            pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
+        } else {
+            lowerTick = -205680;
+            upperTick = -203760;
+            pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
+        }
         weth = IERC20(tokenAddr.wethAddr);
         usdc = IERC20(tokenAddr.usdcAddr);
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
