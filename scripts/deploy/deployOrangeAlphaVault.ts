@@ -1,7 +1,6 @@
 import { ethers } from "hardhat";
 import { Deploy, ERC20metadata } from "../common";
 import { getAddresses } from "../addresses";
-import { IUniswapV3PoolDerivedState__factory } from "../../typechain-types";
 
 const vaultMeta: ERC20metadata = {
   name: "OrangeAlphaVault",
@@ -9,8 +8,8 @@ const vaultMeta: ERC20metadata = {
   decimals: 6,
 };
 
-const lowerTick = -205620;
-const upperTick = -203820;
+const lowerTick = -202400;
+const upperTick = -201800;
 
 async function deployOrangeAlphaVault(
   poolAddr: string,
