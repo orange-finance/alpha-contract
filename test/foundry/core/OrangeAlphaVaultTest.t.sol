@@ -47,8 +47,9 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     IERC20 aToken1; //usdc
     IOrangeAlphaVault.Ticks _ticks;
 
-    int24 lowerTick = -205680;
-    int24 upperTick = -203760;
+    uint24 fee = 3000;
+    int24 lowerTick;
+    int24 upperTick;
 
     //parameters
     uint256 constant DEPOSIT_CAP = 1_000_000 * 1e6;
@@ -64,7 +65,15 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         );
 
         router = ISwapRouter(uniswapAddr.routerAddr); //for test
-        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
+        if (fee == 500) {
+            lowerTick = -204980;
+            upperTick = -204460;
+            pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
+        } else {
+            lowerTick = -205680;
+            upperTick = -203760;
+            pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
+        }
         weth = IERC20(tokenAddr.wethAddr);
         usdc = IERC20(tokenAddr.usdcAddr);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
@@ -437,7 +446,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_getLtvByRange_Success3() public {
-        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+        swapByCarol(false, 1_500_000 * 1e6); //current price over upperPrice
         // (, int24 _tick, , , , , ) = pool.slot0();
         // uint256 _currentPrice = vault.quoteEthPriceByTick(_tick);
         // uint256 _upperPrice = vault.quoteEthPriceByTick(_ticks.upperTick);
@@ -540,6 +549,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_canStoploss_Success1() public {
         assertEq(vault.canStoploss(), false);
         swapByCarol(true, 1000 ether); //current price under lowerPrice
+        (, int24 __tick, , , , , ) = pool.slot0();
+        console2.log(__tick.toString(), "__tick");
         assertEq(vault.canStoploss(), true);
         vault.setStoplossed(true); //stoploss
         assertEq(vault.canStoploss(), false);
@@ -554,7 +565,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_isOutOfRange_Success2() public {
         assertEq(vault.isOutOfRange(), false);
-        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+        swapByCarol(false, 1_500_000 * 1e6); //current price over upperPrice
         assertEq(vault.isOutOfRange(), true);
         //backed in range
         swapByCarol(true, 800 ether); //current price under lowerPrice
@@ -654,7 +665,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     function test_computePercentageFromUpperRange_Success3OverRange() public {
-        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+        swapByCarol(false, 1_500_000 * 1e6); //current price over upperPrice
         (uint160 __sqrtRatioX96, int24 __tick, , , , , ) = pool.slot0();
         _ticks = IOrangeAlphaVault.Ticks(
             __sqrtRatioX96,
@@ -854,6 +865,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);
         swapByCarol(true, 1000 ether); //current price under lowerPrice
+        (, int24 __tick, , , , , ) = pool.slot0();
+        console2.log(__tick.toString(), "__tick");
         skip(1 days);
         uint256 _debtToken0 = debtToken0.balanceOf(address(vault));
         uint256 _aToken1 = aToken1.balanceOf(address(vault));
@@ -861,7 +874,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
-        (, int24 __tick, , , , , ) = pool.slot0();
+
         vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
@@ -886,6 +899,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -204600;
         int24 _newUpperTick = -202500;
+
         vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
@@ -908,6 +922,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -205620;
         int24 _newUpperTick = -203820;
+
         vault.rebalance(_newLowerTick, _newUpperTick, __tick);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
@@ -1243,7 +1258,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             params = ISwapRouter.ExactInputSingleParams({
                 tokenIn: address(weth),
                 tokenOut: address(usdc),
-                fee: 3000,
+                fee: fee,
                 recipient: msg.sender,
                 deadline: block.timestamp,
                 amountIn: _amountIn,
@@ -1254,7 +1269,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             params = ISwapRouter.ExactInputSingleParams({
                 tokenIn: address(usdc),
                 tokenOut: address(weth),
-                fee: 3000,
+                fee: fee,
                 recipient: msg.sender,
                 deadline: block.timestamp,
                 amountIn: _amountIn,
