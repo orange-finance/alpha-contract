@@ -103,7 +103,7 @@ contract OrangeAlphaVault is
         slippageBPS = 500; // default: 5% slippage
         tickSlippageBPS = 10;
         twapSlippageInterval = 5 minutes;
-        maxLtv = 70000000; //70%
+        maxLtv = 80000000; //80%
         lockupPeriod = 7 days;
         rebalancer = msg.sender;
 
