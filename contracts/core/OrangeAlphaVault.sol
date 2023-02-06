@@ -761,16 +761,28 @@ contract OrangeAlphaVault is
                 _amountDeposited0,
                 _amountDeposited1
             ) = _swapAndAddLiquidity(_borrow, _addingUsdc, _ticks);
+
+            //calculate mint amount
+            if (_totalDeposits == 0) {
+                //if initial depositing, shares = _liquidity
+                shares_ = _liquidity;
+            } else {
+                uint256 _totalLiquidity = getTotalLiquidity();
+                shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
+            }
+        } else {
+            //when stoplossed or out of range
+            //calculate mint amount
+            if (_totalDeposits == 0) {
+                //TODO fix error message
+                revert("cannnot deposit initially when stoplossed");
+            } else {
+                uint256 _balance = token1.balanceOf(address(this));
+                shares_ = totalSupply().mulDiv(_assets, _balance);
+            }
         }
 
         //mint
-        if (_totalDeposits == 0) {
-            //if initial depositing, shares = assets
-            shares_ = _assets;
-        } else {
-            _ticks = _getTicksByStorage(); //re-get ticks
-            shares_ = _convertToShares(_assets, _ticks);
-        }
         if (_minShares > shares_) {
             revert(Errors.LESS);
         }
