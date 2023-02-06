@@ -767,6 +767,7 @@ contract OrangeAlphaVault is
                 //if initial depositing, shares = _liquidity
                 shares_ = _liquidity;
             } else {
+                //TODO under development `getTotalLiquidity()`
                 uint256 _totalLiquidity = getTotalLiquidity();
                 shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
             }
