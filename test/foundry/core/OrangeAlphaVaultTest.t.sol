@@ -1162,22 +1162,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     }
 
     /* ========== EVENTS ========== */
-    function test_eventDeposit_Success() public {
-        vm.expectEmit(true, true, false, false);
-        emit Deposit(
-            address(this),
-            address(this),
-            10_000 * 1e6,
-            10_000 * 1e6,
-            0,
-            0,
-            0,
-            0,
-            0
-        );
-        vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
-    }
-
     function test_eventRebalance_Success() public {
         vault.deposit(10_000 * 1e6, address(this), 9_900 * 1e6);
         skip(1);

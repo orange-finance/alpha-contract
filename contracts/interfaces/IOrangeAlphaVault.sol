@@ -27,18 +27,6 @@ interface IOrangeAlphaVault {
     }
 
     /* ========== EVENTS ========== */
-    event Deposit(
-        address indexed caller,
-        address indexed receiver,
-        uint256 assets,
-        uint256 shares,
-        uint256 supply,
-        uint256 borrow,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1
-    );
-
     event Redeem(
         address indexed caller,
         address indexed receiver,
