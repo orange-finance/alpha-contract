@@ -16,4 +16,5 @@ library Errors {
     string public constant AAVE_MISMATCH = "Aave";
     string public constant LOCKUP = "Lockup";
     string public constant REBALANCER = "Rebalancer";
+    string public constant MORE = "More";
 }

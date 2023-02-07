@@ -114,6 +114,87 @@ contract OrangeAlphaVault is
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+    /**
+     * @notice estimate shares by assets
+     * @dev share is propotion of liquidity. Caluculate hedge position and liquidity position except for hedge position.
+     * @param _assets The amount of token0
+     * @return shares_ estimated shares
+     */
+    function estimateShares(uint256 _assets)
+        external
+        view
+        returns (uint256 shares_)
+    {
+        Ticks memory _ticks = _getTicksByStorage();
+        if (
+            !stoplossed &&
+            !_isOutOfRange(
+                _ticks.currentTick,
+                _ticks.lowerTick,
+                _ticks.upperTick
+            )
+        ) {
+            // 2. Supply USDC(Collateral)
+            (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
+                _assets,
+                _ticks
+            );
+
+            uint256 _addingUsdc = _assets - _supply;
+            (bool _zeroForOne, int256 _swapAmount) = _computeSwapAmount(
+                _borrow,
+                _addingUsdc,
+                _ticks
+            );
+
+            if (_zeroForOne) {
+                uint256 quoteAmount = OracleLibrary.getQuoteAtTick(
+                    _ticks.currentTick,
+                    SafeCast.toUint128(uint256(_swapAmount)),
+                    address(token0),
+                    address(token1)
+                );
+                _borrow -= SafeCast.toUint128(uint256(_swapAmount));
+                _addingUsdc += quoteAmount;
+            } else {
+                uint256 quoteAmount = OracleLibrary.getQuoteAtTick(
+                    _ticks.currentTick,
+                    SafeCast.toUint128(uint256(_swapAmount)),
+                    address(token1),
+                    address(token0)
+                );
+                _borrow += SafeCast.toUint128(uint256(_swapAmount));
+                _addingUsdc -= quoteAmount;
+            }
+
+            uint128 _liquidity = LiquidityAmounts.getLiquidityForAmounts(
+                _ticks.sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _borrow,
+                _addingUsdc
+            );
+
+            //calculate mint amount
+            if (totalDeposits == 0) {
+                //if initial depositing, shares = _liquidity
+                shares_ = _liquidity;
+            } else {
+                uint256 _totalLiquidity = _getTotalLiquidity(_ticks);
+                shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
+            }
+        } else {
+            //when stoplossed or out of range
+            //shares is propotion of token0 balance
+            if (totalDeposits == 0) {
+                shares_ = 0;
+            } else {
+                uint256 _balance = token1.balanceOf(address(this));
+                shares_ = totalSupply().mulDiv(_assets, _balance);
+            }
+        }
+    }
+
     /// @inheritdoc IOrangeAlphaVault
     function totalAssets() external view returns (uint256) {
         if (totalSupply() == 0) {
@@ -204,6 +285,31 @@ contract OrangeAlphaVault is
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    function _getTotalLiquidity(Ticks memory _ticks)
+        internal
+        view
+        returns (uint128 liquidity_)
+    {
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(
+            _ticks
+        );
+
+        uint256 amount0Current = _underlyingAssets.amount0Current +
+            _underlyingAssets.accruedFees0 +
+            _underlyingAssets.amount0Balance;
+        uint256 amount1Current = _underlyingAssets.amount1Current +
+            _underlyingAssets.accruedFees1 +
+            _underlyingAssets.amount1Balance;
+
+        //compute liquidity
+        liquidity_ = LiquidityAmounts.getLiquidityForAmounts(
+            _ticks.sqrtRatioX96,
+            TickMath.getSqrtRatioAtTick(_ticks.lowerTick),
+            TickMath.getSqrtRatioAtTick(_ticks.upperTick),
+            amount0Current,
+            amount1Current
+        );
+    }
 
     ///@notice internal function of totalAssets
     function _totalAssets(Ticks memory _ticks) internal view returns (uint256) {
@@ -707,7 +813,7 @@ contract OrangeAlphaVault is
     function deposit(
         uint256 _assets,
         address _receiver,
-        uint256 _minShares
+        uint256 _estimatedShares
     ) external returns (uint256 shares_) {
         //validation
         if (_receiver != msg.sender) {
@@ -767,8 +873,8 @@ contract OrangeAlphaVault is
                 //if initial depositing, shares = _liquidity
                 shares_ = _liquidity;
             } else {
-                //TODO under development `getTotalLiquidity()`
-                uint256 _totalLiquidity = getTotalLiquidity();
+                _ticks = _getTicksByStorage(); //retrieve ticks
+                uint256 _totalLiquidity = _getTotalLiquidity(_ticks);
                 shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
             }
         } else {
@@ -784,8 +890,8 @@ contract OrangeAlphaVault is
         }
 
         //mint
-        if (_minShares > shares_) {
-            revert(Errors.LESS);
+        if (shares_ > _estimatedShares) {
+            revert(Errors.MORE);
         }
         _mint(_receiver, shares_);
 
