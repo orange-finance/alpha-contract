@@ -120,6 +120,17 @@ interface IOrangeAlphaVault {
         returns (uint256 assets);
 
     /**
+     * @notice compute new liquidity if rebalance
+     * @param _newLowerTick new lower tick
+     * @param _newUpperTick new upper tick
+     * @return liquidity
+     */
+    function computeNewLiquidity(int24 _newLowerTick, int24 _newUpperTick)
+        external
+        view
+        returns (uint128 liquidity);
+
+    /**
      * @notice get deposited amount and timestamp
      * @param account depositer address
      * @return assets
