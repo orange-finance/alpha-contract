@@ -23,6 +23,8 @@ interface IOrangeAlphaVaultEvent {
     );
 
     event RemoveAllPosition(
+        uint256 fee0,
+        uint256 fee1,
         uint128 liquidity,
         uint256 withdrawingCollateral,
         uint256 repayingDebt

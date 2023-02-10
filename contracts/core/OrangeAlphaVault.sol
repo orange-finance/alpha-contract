@@ -1598,8 +1598,14 @@ contract OrangeAlphaVault is
         (uint128 liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
+        uint256 _fee0;
+        uint256 _fee1;
         if (liquidity > 0) {
-            _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
+            (, , _fee0, _fee1, , ) = _burnAndCollectFees(
+                _ticks.lowerTick,
+                _ticks.upperTick,
+                liquidity
+            );
         }
 
         // 3. Swap from USDC to ETH (if necessary)
@@ -1649,6 +1655,8 @@ contract OrangeAlphaVault is
         }
 
         emit RemoveAllPosition(
+            _fee0,
+            _fee1,
             liquidity,
             _withdrawingCollateral,
             _repayingDebt

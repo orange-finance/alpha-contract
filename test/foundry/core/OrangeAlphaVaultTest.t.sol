@@ -1473,7 +1473,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
         vm.expectEmit(false, false, false, false);
-        emit RemoveAllPosition(0, 0, 0);
+        emit RemoveAllPosition(0, 0, 0, 0, 0);
         vault.removeAllPosition(_tick);
     }
 
