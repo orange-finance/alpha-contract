@@ -19,6 +19,8 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
     using FullMath for uint256;
     using Ints for int24;
 
+    uint16 MAGIC_SCALE_1E4 = 10000; //for slippage
+
     AddressHelper.TokenAddr public tokenAddr;
     AddressHelper.UniswapAddr uniswapAddr;
     ISwapRouter router;
@@ -106,20 +108,30 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
 
     function test_scenario1() public {
         //deposit
+        uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(11));
-        vault.deposit(10_000 * 1e6, address(11), 0);
+        vault.deposit(_shares1, address(11), 10_000 * 1e6);
         skip(1);
+        uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(12));
-        vault.deposit(10_000 * 1e6, address(12), 0);
+        vault.deposit(_shares2, address(12), 10_000 * 1e6);
         skip(1);
+        uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(13));
-        vault.deposit(10_000 * 1e6, address(13), 0);
+        vault.deposit(_shares3, address(13), 10_000 * 1e6);
         skip(1);
+        uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(14));
-        vault.deposit(10_000 * 1e6, address(14), 0);
+        vault.deposit(_shares4, address(14), 10_000 * 1e6);
         skip(1);
+        uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(15));
-        vault.deposit(10_000 * 1e6, address(15), 0);
+        vault.deposit(_shares5, address(15), 10_000 * 1e6);
 
         skip(8 days);
 
@@ -144,20 +156,30 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
     function test_scenario2() public {
         consoleRate();
         //deposit
+        uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(11));
-        vault.deposit(10_000 * 1e6, address(11), 0);
+        vault.deposit(_shares1, address(11), 10_000 * 1e6);
         skip(1);
+        uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(12));
-        vault.deposit(10_000 * 1e6, address(12), 0);
+        vault.deposit(_shares2, address(12), 10_000 * 1e6);
         skip(1);
+        uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(13));
-        vault.deposit(10_000 * 1e6, address(13), 0);
+        vault.deposit(_shares3, address(13), 10_000 * 1e6);
         skip(1);
+        uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(14));
-        vault.deposit(10_000 * 1e6, address(14), 0);
+        vault.deposit(_shares4, address(14), 10_000 * 1e6);
         skip(1);
+        uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.prank(address(15));
-        vault.deposit(10_000 * 1e6, address(15), 0);
+        vault.deposit(_shares5, address(15), 10_000 * 1e6);
 
         skip(8 days);
 
@@ -205,7 +227,7 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
     function redeem(address _user) private {
         uint256 _share11 = vault.balanceOf(_user);
         vm.prank(_user);
-        vault.redeem(_share11, _user, address(0), 0);
+        vault.redeem(_share11, _user, address(0), 9_600 * 1e6);
         console2.log(usdc.balanceOf(_user), _user);
     }
 
