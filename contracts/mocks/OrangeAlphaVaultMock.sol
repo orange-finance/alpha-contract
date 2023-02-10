@@ -22,9 +22,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1,
-        int24 _lowerTick,
-        int24 _upperTick
+        address _aToken1
     )
         OrangeAlphaVault(
             _name,
@@ -35,9 +33,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             _token1,
             _aave,
             _debtToken0,
-            _aToken1,
-            _lowerTick,
-            _upperTick
+            _aToken1
         )
     {}
 
@@ -95,6 +91,15 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    function getLtvByRange() external view returns (uint256) {
+        return
+            _getLtvByRange(
+                _getTicksByStorage().currentTick,
+                stoplossLowerTick,
+                stoplossUpperTick
+            );
+    }
+
     function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         external
         view
@@ -153,7 +158,13 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     function canStoploss() external view returns (bool) {
-        return _canStoploss(_getTicksByStorage(), _getTwap());
+        return
+            _canStoploss(
+                _getTicksByStorage().currentTick,
+                _getTwap(),
+                stoplossLowerTick,
+                stoplossUpperTick
+            );
     }
 
     function isOutOfRange(

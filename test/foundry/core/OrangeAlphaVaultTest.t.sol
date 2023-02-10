@@ -50,6 +50,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     int24 lowerTick = -205680;
     int24 upperTick = -203760;
+    int24 stoplossLowerTick = -206280;
+    int24 stoplossUpperTick = -203160;
     // currentTick = -204714;
 
     //parameters
@@ -82,9 +84,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             address(usdc),
             address(aave),
             address(debtToken0),
-            address(aToken1),
+            address(aToken1)
+        );
+        vault.setTicks(
             lowerTick,
-            upperTick
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick
         );
         vault.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
         vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
@@ -137,6 +143,9 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //test setLockupPeriod
         vm.expectRevert("Ownable");
         vault.setLockupPeriod(0);
+        // test setTicks
+        vm.expectRevert("Ownable");
+        vault.setTicks(0, 0, 0, 0);
     }
 
     function test_onlyDedicatedMsgSender() public {
@@ -178,23 +187,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
         assertEq(vault.lowerTick(), lowerTick);
         assertEq(vault.upperTick(), upperTick);
-    }
-
-    function test_constructor_RevertTickSpacing() public {
-        vm.expectRevert(bytes(Errors.TICKS));
-        new OrangeAlphaVaultMock(
-            "OrangeAlphaVault",
-            "ORANGE_ALPHA_VAULT",
-            6,
-            address(pool),
-            address(weth),
-            address(usdc),
-            address(aave),
-            address(debtToken0),
-            address(aToken1),
-            101,
-            upperTick
-        );
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -450,8 +442,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_getLtvByRange_Success1() public {
         uint256 _currentPrice = vault.quoteEthPriceByTick(_ticks.currentTick);
-        // uint256 _lowerPrice = vault.quoteEthPriceByTick(_ticks.lowerTick);
-        uint256 _upperPrice = vault.quoteEthPriceByTick(_ticks.upperTick);
+        // uint256 _lowerPrice = vault.quoteEthPriceByTick(stoplossLowerTick);
+        uint256 _upperPrice = vault.quoteEthPriceByTick(stoplossUpperTick);
         uint256 ltv_ = uint256(MAX_LTV).mulDiv(_currentPrice, _upperPrice);
         assertEq(ltv_, vault.getLtvByRange());
     }
@@ -460,8 +452,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         // (, int24 _tick, , , , , ) = pool.slot0();
         // uint256 _currentPrice = vault.quoteEthPriceByTick(_tick);
-        uint256 _lowerPrice = vault.quoteEthPriceByTick(_ticks.lowerTick);
-        uint256 _upperPrice = vault.quoteEthPriceByTick(_ticks.upperTick);
+        uint256 _lowerPrice = vault.quoteEthPriceByTick(stoplossLowerTick);
+        uint256 _upperPrice = vault.quoteEthPriceByTick(stoplossUpperTick);
         // console2.log(_currentPrice, "_currentPrice");
         console2.log(_lowerPrice, "_lowerPrice");
         console2.log(_upperPrice, "_upperPrice");
@@ -471,11 +463,12 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_getLtvByRange_Success3() public {
         swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
-        // (, int24 _tick, , , , , ) = pool.slot0();
-        // uint256 _currentPrice = vault.quoteEthPriceByTick(_tick);
-        // uint256 _upperPrice = vault.quoteEthPriceByTick(_ticks.upperTick);
-        // console2.log(_currentPrice, "_currentPrice");
-        // console2.log(_upperPrice, "_upperPrice");
+        vault.setTicks(
+            _ticks.lowerTick,
+            _ticks.upperTick,
+            _ticks.lowerTick,
+            _ticks.upperTick
+        );
         assertEq(MAX_LTV, vault.getLtvByRange());
     }
 
@@ -1000,14 +993,20 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //test rebalance
         vm.prank(alice);
         vm.expectRevert("Rebalancer");
-        vault.rebalance(0, 0, 0);
+        vault.rebalance(0, 0, 0, 0, 0);
     }
 
     function test_rebalance_RevertTickSpacing() public {
         int24 _newLowerTick = -1;
         int24 _newUpperTick = -205680;
         vm.expectRevert(bytes(Errors.TICKS));
-        vault.rebalance(_newLowerTick, _newUpperTick, 1);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            1
+        );
     }
 
     function test_rebalance_RevertNewLiquidity() public {
@@ -1026,7 +1025,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         int24 _newUpperTick = -205680;
         (, int24 __tick, , , , , ) = pool.slot0();
         vm.expectRevert(bytes(Errors.LESS));
-        vault.rebalance(_newLowerTick, _newUpperTick, 2359131680723999);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            _newLowerTick,
+            _newUpperTick,
+            2359131680723999
+        );
     }
 
     function test_rebalance_Success0() public {
@@ -1034,7 +1039,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
-        vault.rebalance(_newLowerTick, _newUpperTick, _liquidity);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _liquidity
+        );
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertEq(vault.stoplossed(), false);
@@ -1055,7 +1066,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         int24 _newLowerTick = -207540;
         int24 _newUpperTick = -205680;
         (, int24 __tick, , , , , ) = pool.slot0();
-        vault.rebalance(_newLowerTick, _newUpperTick, _liquidity);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            _newLowerTick,
+            _newUpperTick,
+            _liquidity
+        );
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
 
@@ -1066,7 +1083,6 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertApproxEqRel(_liquidity, _newLiquidity, 1e17);
     }
 
-    //here
     function test_rebalance_Success2OverRange() public {
         //prepare
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
@@ -1085,12 +1101,16 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         int24 _newUpperTick = -202500;
         uint128 _estimatedNewLiquidity = vault.computeNewLiquidity(
             _newLowerTick,
-            _newUpperTick
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick
         );
         // console2.log(_estimatedNewLiquidity, "_estimatedNewLiquidity");
         vault.rebalance(
             _newLowerTick,
             _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
             (_estimatedNewLiquidity * 8000) / MAGIC_SCALE_1E4
         );
         assertEq(vault.lowerTick(), _newLowerTick);
@@ -1118,7 +1138,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         //rebalance
         int24 _newLowerTick = -205620;
         int24 _newUpperTick = -203820;
-        vault.rebalance(_newLowerTick, _newUpperTick, _liquidity);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _liquidity
+        );
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertApproxEqRel(
@@ -1182,6 +1208,11 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             1e18
         );
         assertEq(weth.balanceOf(address(vault)), 0);
+    }
+
+    function test_setTicks_RevertTickSpacing() public {
+        vm.expectRevert(bytes(Errors.TICKS));
+        vault.setTicks(101, upperTick, stoplossLowerTick, stoplossUpperTick);
     }
 
     function test_setDepositCap_Success() public {
@@ -1369,7 +1400,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         (, int24 _tick, , , , , ) = pool.slot0();
         vm.expectEmit(false, false, false, false);
         emit Rebalance(0, 0, 0, 0);
-        vault.rebalance(_newLowerTick, _newUpperTick, 0);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            _newLowerTick,
+            _newUpperTick,
+            0
+        );
     }
 
     function test_eventRemoveAllPosition_Success() public {

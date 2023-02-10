@@ -52,6 +52,8 @@ contract OrangeAlphaVault is
     bool public stoplossed;
     int24 public lowerTick;
     int24 public upperTick;
+    int24 public stoplossLowerTick;
+    int24 public stoplossUpperTick;
 
     IUniswapV3Pool public pool;
     IERC20 public token0; //weth
@@ -82,9 +84,7 @@ contract OrangeAlphaVault is
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1,
-        int24 _lowerTick,
-        int24 _upperTick
+        address _aToken1
     ) ERC20(_name, _symbol) {
         _decimal = __decimal;
 
@@ -110,11 +110,6 @@ contract OrangeAlphaVault is
         maxLtv = 80000000; //80%
         lockupPeriod = 7 days;
         rebalancer = msg.sender;
-
-        //setting ticks
-        _validateTicks(_lowerTick, _upperTick);
-        lowerTick = _lowerTick;
-        upperTick = _upperTick;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -134,7 +129,12 @@ contract OrangeAlphaVault is
                 _ticks.upperTick
             )
         ) {
-            uint128 _liquidity = _computeNewLiquidity(_assets, _ticks);
+            uint128 _liquidity = _computeNewLiquidity(
+                _assets,
+                _ticks,
+                stoplossLowerTick,
+                stoplossUpperTick
+            );
             //calculate mint amount
             if (totalDeposits == 0) {
                 //if initial depositing, shares = _liquidity
@@ -155,15 +155,131 @@ contract OrangeAlphaVault is
         }
     }
 
-    function _computeNewLiquidity(uint256 _assets, Ticks memory _ticks)
-        internal
+    /// @inheritdoc IOrangeAlphaVault
+    function convertToAssets(uint256 _shares) external view returns (uint256) {
+        return _convertToAssets(_shares, _getTicksByStorage());
+    }
+
+    /// @inheritdoc IOrangeAlphaVault
+    function totalAssets() external view returns (uint256) {
+        if (totalSupply() == 0) {
+            return 0;
+        }
+        return _totalAssets(_getTicksByStorage());
+    }
+
+    // /// @inheritdoc IOrangeAlphaVault
+    //used to get liquidity of new range before rebalance
+    function computeNewLiquidity(
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick
+    ) external view returns (uint128 liquidity_) {
+        Ticks memory _ticks = _getTicksByStorage();
+        uint256 _assets = _totalAssets(_ticks);
+        _ticks.lowerTick = _newLowerTick;
+        _ticks.upperTick = _newUpperTick;
+        liquidity_ = _computeNewLiquidity(
+            _assets,
+            _ticks,
+            _newStoplossLowerTick,
+            _newStoplossUpperTick
+        );
+    }
+
+    ///@notice external function of _getUnderlyingBalances
+    function getUnderlyingBalances()
+        external
         view
-        returns (uint128 liquidity_)
+        returns (UnderlyingAssets memory underlyingAssets)
     {
+        return _getUnderlyingBalances(_getTicksByStorage());
+    }
+
+    ///@notice external function of _computeSupplyAndBorrow
+    function computeSupplyAndBorrow(uint256 _assets)
+        external
+        view
+        returns (uint256 supply_, uint256 borrow_)
+    {
+        return
+            _computeSupplyAndBorrow(
+                _assets,
+                _getTicksByStorage().currentTick,
+                stoplossLowerTick,
+                stoplossUpperTick
+            );
+    }
+
+    ///@notice external function of _computeSwapAmount
+    function computeSwapAmount(uint256 _amount0, uint256 _amount1)
+        external
+        view
+        returns (bool _zeroForOne, int256 _swapAmount)
+    {
+        return _computeSwapAmount(_amount0, _amount1, _getTicksByStorage());
+    }
+
+    /// @inheritdoc IOrangeAlphaVault
+    function depositCap(address) public view returns (uint256) {
+        return _depositCap;
+    }
+
+    ///@notice external function of _getPositionID
+    function getPositionID() public view returns (bytes32 positionID) {
+        return _getPositionID(lowerTick, upperTick);
+    }
+
+    ///@notice external function of _getTicksByStorage
+    function getTicksByStorage() external view returns (Ticks memory) {
+        return _getTicksByStorage();
+    }
+
+    // @inheritdoc ERC20
+    function checker()
+        external
+        view
+        override
+        returns (bool canExec, bytes memory execPayload)
+    {
+        Ticks memory _ticks = _getTicksByStorage();
+        if (
+            !_canStoploss(
+                _ticks.currentTick,
+                _getTwap(),
+                stoplossLowerTick,
+                stoplossUpperTick
+            )
+        ) {
+            return (false, bytes("can not stoploss"));
+        } else {
+            execPayload = abi.encodeWithSelector(
+                IOrangeAlphaVault.stoploss.selector,
+                _ticks.currentTick
+            );
+            return (true, execPayload);
+        }
+    }
+
+    // @inheritdoc ERC20
+    function decimals() public view override returns (uint8) {
+        return _decimal;
+    }
+
+    /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    function _computeNewLiquidity(
+        uint256 _assets,
+        Ticks memory _ticks,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick
+    ) internal view returns (uint128 liquidity_) {
         // 2. Supply USDC(Collateral)
         (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
             _assets,
-            _ticks
+            _ticks.currentTick,
+            _newStoplossLowerTick,
+            _newStoplossUpperTick
         );
         console2.log(_supply, "_supply");
         console2.log(_borrow, "_borrow");
@@ -207,104 +323,6 @@ contract OrangeAlphaVault is
         console2.log(liquidity_, "liquidity_");
     }
 
-    /// @inheritdoc IOrangeAlphaVault
-    function convertToAssets(uint256 _shares) external view returns (uint256) {
-        return _convertToAssets(_shares, _getTicksByStorage());
-    }
-
-    /// @inheritdoc IOrangeAlphaVault
-    function totalAssets() external view returns (uint256) {
-        if (totalSupply() == 0) {
-            return 0;
-        }
-        return _totalAssets(_getTicksByStorage());
-    }
-
-    // /// @inheritdoc IOrangeAlphaVault
-    function computeNewLiquidity(int24 _newLowerTick, int24 _newUpperTick)
-        external
-        view
-        returns (uint128 liquidity_)
-    {
-        Ticks memory _ticks = _getTicksByStorage();
-        uint256 _totalAssets = _totalAssets(_ticks);
-        _ticks.lowerTick = _newLowerTick;
-        _ticks.upperTick = _newUpperTick;
-        liquidity_ = _computeNewLiquidity(_totalAssets, _ticks);
-    }
-
-    ///@notice external function of _getUnderlyingBalances
-    function getUnderlyingBalances()
-        external
-        view
-        returns (UnderlyingAssets memory underlyingAssets)
-    {
-        return _getUnderlyingBalances(_getTicksByStorage());
-    }
-
-    ///@notice external function of _computeSupplyAndBorrow
-    function computeSupplyAndBorrow(uint256 _assets)
-        external
-        view
-        returns (uint256 supply_, uint256 borrow_)
-    {
-        return _computeSupplyAndBorrow(_assets, _getTicksByStorage());
-    }
-
-    ///@notice external function of _getLtvByRange
-    function getLtvByRange() external view returns (uint256) {
-        return _getLtvByRange(_getTicksByStorage());
-    }
-
-    ///@notice external function of _computeSwapAmount
-    function computeSwapAmount(uint256 _amount0, uint256 _amount1)
-        external
-        view
-        returns (bool _zeroForOne, int256 _swapAmount)
-    {
-        return _computeSwapAmount(_amount0, _amount1, _getTicksByStorage());
-    }
-
-    /// @inheritdoc IOrangeAlphaVault
-    function depositCap(address) public view returns (uint256) {
-        return _depositCap;
-    }
-
-    ///@notice external function of _getPositionID
-    function getPositionID() public view returns (bytes32 positionID) {
-        return _getPositionID(lowerTick, upperTick);
-    }
-
-    ///@notice external function of _getTicksByStorage
-    function getTicksByStorage() external view returns (Ticks memory) {
-        return _getTicksByStorage();
-    }
-
-    // @inheritdoc ERC20
-    function checker()
-        external
-        view
-        override
-        returns (bool canExec, bytes memory execPayload)
-    {
-        Ticks memory _ticks = _getTicksByStorage();
-        if (_canStoploss(_ticks, _getTwap())) {
-            execPayload = abi.encodeWithSelector(
-                IOrangeAlphaVault.stoploss.selector,
-                _ticks.currentTick
-            );
-            return (true, execPayload);
-        } else {
-            return (false, bytes("can not stoploss"));
-        }
-    }
-
-    // @inheritdoc ERC20
-    function decimals() public view override returns (uint8) {
-        return _decimal;
-    }
-
-    /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function _getCurrentLiquidity(Ticks memory _ticks)
         internal
         view
@@ -522,19 +540,25 @@ contract OrangeAlphaVault is
     /**
      * @notice Compute collateral and borrow amount
      * @param _assets The amount of assets
-     * @param _ticks current and range ticks
+     * @param _currentTick current  tick
+     * @param _lowerTick lower tick
+     * @param _upperTick upper tick
      * @return supply_
      * @return borrow_
      */
-    function _computeSupplyAndBorrow(uint256 _assets, Ticks memory _ticks)
-        internal
-        view
-        returns (uint256 supply_, uint256 borrow_)
-    {
+    function _computeSupplyAndBorrow(
+        uint256 _assets,
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal view returns (uint256 supply_, uint256 borrow_) {
         if (_assets == 0) return (0, 0);
 
-        uint256 _currentLtv = _getLtvByRange(_ticks);
-
+        uint256 _currentLtv = _getLtvByRange(
+            _currentTick,
+            _lowerTick,
+            _upperTick
+        );
         supply_ = _assets.mulDiv(
             MAGIC_SCALE_1E8,
             _currentLtv + MAGIC_SCALE_1E8
@@ -542,7 +566,7 @@ contract OrangeAlphaVault is
         uint256 _borrowUsdc = supply_.mulDiv(_currentLtv, MAGIC_SCALE_1E8);
         //borrowing usdc amount to weth
         borrow_ = OracleLibrary.getQuoteAtTick(
-            _ticks.currentTick,
+            _currentTick,
             uint128(_borrowUsdc),
             address(token1),
             address(token0)
@@ -552,17 +576,19 @@ contract OrangeAlphaVault is
     /**
      * @notice Get LTV by current and range prices
      * @dev maxLtv * (current price / upper price)
-     * @param _ticks current and range ticks
+     * @param _currentTick current tick
+     * @param _lowerTick lower tick
+     * @param _upperTick upper tick
      * @return ltv_
      */
-    function _getLtvByRange(Ticks memory _ticks)
-        internal
-        view
-        returns (uint256 ltv_)
-    {
-        uint256 _currentPrice = _quoteEthPriceByTick(_ticks.currentTick);
-        uint256 _lowerPrice = _quoteEthPriceByTick(_ticks.lowerTick);
-        uint256 _upperPrice = _quoteEthPriceByTick(_ticks.upperTick);
+    function _getLtvByRange(
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal view returns (uint256 ltv_) {
+        uint256 _currentPrice = _quoteEthPriceByTick(_currentTick);
+        uint256 _lowerPrice = _quoteEthPriceByTick(_lowerTick);
+        uint256 _upperPrice = _quoteEthPriceByTick(_upperTick);
 
         ltv_ = maxLtv;
         if (_currentPrice > _upperPrice) {
@@ -652,18 +678,15 @@ contract OrangeAlphaVault is
      * @notice Can stoploss when not stopplossed and out of range
      * @return
      */
-    function _canStoploss(Ticks memory _ticks, int24 _avgTick)
-        internal
-        view
-        returns (bool)
-    {
+    function _canStoploss(
+        int24 _currentTick,
+        int24 _avgTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal view returns (bool) {
         return (!stoplossed &&
-            _isOutOfRange(
-                _ticks.currentTick,
-                _ticks.lowerTick,
-                _ticks.upperTick
-            ) &&
-            _isOutOfRange(_avgTick, _ticks.lowerTick, _ticks.upperTick));
+            _isOutOfRange(_currentTick, _lowerTick, _upperTick) &&
+            _isOutOfRange(_avgTick, _lowerTick, _upperTick));
     }
 
     /**
@@ -912,7 +935,9 @@ contract OrangeAlphaVault is
         // 3. Compute supply and borrow
         (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
             _maxAssets,
-            _ticks
+            _ticks.currentTick,
+            stoplossLowerTick,
+            stoplossUpperTick
         );
 
         // 4. Supply USDC(Collateral) and Borrow ETH
@@ -1146,12 +1171,13 @@ contract OrangeAlphaVault is
     }
 
     /* ========== OWNERS FUNCTIONS ========== */
-
     /// @inheritdoc IOrangeAlphaVault
     /// @dev similar to Arrakis' executiveRebalance
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick,
         uint128 _minNewLiquidity
     ) external {
         if (rebalancer != msg.sender) {
@@ -1160,11 +1186,14 @@ contract OrangeAlphaVault is
 
         // 1. Check tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
+        _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
 
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
             lowerTick = _newLowerTick;
             upperTick = _newUpperTick;
+            stoplossLowerTick = _newStoplossLowerTick;
+            stoplossUpperTick = _newStoplossUpperTick;
             return;
         }
 
@@ -1180,13 +1209,17 @@ contract OrangeAlphaVault is
         }
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
+        stoplossLowerTick = _newStoplossLowerTick;
+        stoplossUpperTick = _newStoplossUpperTick;
         _ticks.lowerTick = _newLowerTick;
         _ticks.upperTick = _newUpperTick;
 
         //calculate repay or borrow amount
         (uint256 _newSupply, uint256 _newBorrow) = _computeSupplyAndBorrow(
             _totalAssets(_ticks),
-            _ticks
+            _ticks.currentTick,
+            _newStoplossLowerTick,
+            _newStoplossUpperTick
         );
         console2.log(_newSupply, "_newSupply");
         console2.log(_newBorrow, "_newBorrow");
@@ -1263,6 +1296,20 @@ contract OrangeAlphaVault is
         Ticks memory _ticks = _getTicksByStorage();
         _ticks = _removeAllPosition(_ticks, _inputTick);
         _emitAction(5, _ticks);
+    }
+
+    function setTicks(
+        int24 _lowerTick,
+        int24 _upperTick,
+        int24 _stoplossLowerTick,
+        int24 _stoplossUpperTick
+    ) external onlyOwner {
+        _validateTicks(_lowerTick, _upperTick);
+        _validateTicks(_stoplossLowerTick, _stoplossUpperTick);
+        lowerTick = _lowerTick;
+        upperTick = _upperTick;
+        stoplossLowerTick = _stoplossLowerTick;
+        stoplossUpperTick = _stoplossUpperTick;
     }
 
     /**
@@ -1515,7 +1562,14 @@ contract OrangeAlphaVault is
 
     ///@notice internal function of stoploss
     function _stoploss(Ticks memory _ticks, int24 _inputTick) internal {
-        if (!_canStoploss(_ticks, _getTwap())) {
+        if (
+            !_canStoploss(
+                _ticks.currentTick,
+                _getTwap(),
+                stoplossLowerTick,
+                stoplossUpperTick
+            )
+        ) {
             revert(Errors.WHEN_CAN_STOPLOSS);
         }
         stoplossed = true;

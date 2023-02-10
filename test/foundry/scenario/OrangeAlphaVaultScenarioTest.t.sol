@@ -35,6 +35,8 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
 
     int24 lowerTick = -205800;
     int24 upperTick = -203760;
+    int24 stoplossLowerTick = -206280;
+    int24 stoplossUpperTick = -203160;
 
     //parameters
     uint256 constant DEPOSIT_CAP = 10_000 * 1e6;
@@ -66,9 +68,13 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
             address(usdc),
             aaveAddr.poolAddr,
             aaveAddr.vDebtWethAddr,
-            aaveAddr.ausdcAddr,
+            aaveAddr.ausdcAddr
+        );
+        vault.setTicks(
             lowerTick,
-            upperTick
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick
         );
         vault.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
         vault.setSlippage(SLIPPAGE_BPS, SLIPPAGE_TICK_BPS);
@@ -193,6 +199,7 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         console2.log(__tick.toString(), "middleTick");
 
         //stoploss
+        vault.setTicks(lowerTick, upperTick, lowerTick, upperTick);
         vm.prank(vault.dedicatedMsgSender());
         vault.stoploss(__tick);
         skip(1 days);
@@ -200,9 +207,15 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         //rebalance
         int24 _newLowerTick = -207600;
         int24 _newUpperTick = -205560;
-        (, int24 ___tick, , , , , ) = pool.slot0();
+        // (, int24 ___tick, , , , , ) = pool.slot0();
         skip(1 days);
-        vault.rebalance(_newLowerTick, _newUpperTick, 2359131680723000);
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            _newLowerTick,
+            _newUpperTick,
+            2359131680723000
+        );
         skip(1 days);
 
         //swap
