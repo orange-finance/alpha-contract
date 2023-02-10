@@ -174,12 +174,14 @@ interface IOrangeAlphaVault {
      * @param assets amount of assets
      * @param receiver receiver address
      * @param minShares minimum amount of returned vault token
+     * @param merkleProof merkle proof
      * @return shares
      */
     function deposit(
         uint256 assets,
         address receiver,
-        uint256 minShares
+        uint256 minShares,
+        bytes32[] calldata merkleProof
     ) external returns (uint256 shares);
 
     /**

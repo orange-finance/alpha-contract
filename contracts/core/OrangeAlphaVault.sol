@@ -8,6 +8,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import {MerkleAllowList} from "./MerkleAllowList.sol";
 import {Ownable} from "../libs/Ownable.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
@@ -19,8 +20,8 @@ import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../vendor/uniswap/OracleLibrary.sol";
 
-import "forge-std/console2.sol";
-import {Ints} from "../mocks/Ints.sol";
+// import "forge-std/console2.sol";
+// import {Ints} from "../mocks/Ints.sol";
 
 interface IERC20Decimals {
     function decimals() external view returns (uint8);
@@ -33,12 +34,13 @@ contract OrangeAlphaVault is
     ERC20,
     Ownable,
     IResolver,
-    GelatoOps
+    GelatoOps,
+    MerkleAllowList
 {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
-    using Ints for int24;
+    // using Ints for int24;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
@@ -84,8 +86,9 @@ contract OrangeAlphaVault is
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1
-    ) ERC20(_name, _symbol) {
+        address _aToken1,
+        bytes32 _merkleRoot
+    ) ERC20(_name, _symbol) MerkleAllowList(_merkleRoot) {
         _decimal = __decimal;
 
         // setting adresses and approving
@@ -281,8 +284,8 @@ contract OrangeAlphaVault is
             _newStoplossLowerTick,
             _newStoplossUpperTick
         );
-        console2.log(_supply, "_supply");
-        console2.log(_borrow, "_borrow");
+        // console2.log(_supply, "_supply");
+        // console2.log(_borrow, "_borrow");
 
         uint256 _addingUsdc = _assets - _supply;
         (bool _zeroForOne, int256 _swapAmount) = _computeSwapAmount(
@@ -310,8 +313,8 @@ contract OrangeAlphaVault is
             _borrow += quoteAmount;
             _addingUsdc -= SafeCast.toUint128(uint256(_swapAmount));
         }
-        console2.log(_borrow, "_borrow");
-        console2.log(_addingUsdc, "_addingUsdc");
+        // console2.log(_borrow, "_borrow");
+        // console2.log(_addingUsdc, "_addingUsdc");
 
         liquidity_ = LiquidityAmounts.getLiquidityForAmounts(
             _ticks.sqrtRatioX96,
@@ -320,7 +323,7 @@ contract OrangeAlphaVault is
             _borrow,
             _addingUsdc
         );
-        console2.log(liquidity_, "liquidity_");
+        // console2.log(liquidity_, "liquidity_");
     }
 
     function _getCurrentLiquidity(Ticks memory _ticks)
@@ -843,14 +846,15 @@ contract OrangeAlphaVault is
     function deposit(
         uint256 _shares,
         address _receiver,
-        uint256 _maxAssets
-    ) external returns (uint256 assets_) {
+        uint256 _maxAssets,
+        bytes32[] calldata merkleProof
+    ) external onlyAllowlisted(merkleProof) returns (uint256 assets_) {
         //validation
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);
         }
         if (_shares == 0 || _maxAssets == 0) revert(Errors.ZERO);
-        console2.log(depositCap(_receiver), "depositCap(_receiver)");
+        // console2.log(depositCap(_receiver), "depositCap(_receiver)");
         if (deposits[_receiver].assets + _maxAssets > depositCap(_receiver)) {
             revert(Errors.CAPOVER);
         }
@@ -888,7 +892,7 @@ contract OrangeAlphaVault is
             uint256 _balance1 = _depositInRange(_liquidity, _maxAssets, _ticks);
 
             // 6. Return suplus amount
-            console2.log("6. return suplus amount");
+            // console2.log("6. return suplus amount");
             if (_balance1 > 0) {
                 token1.safeTransfer(msg.sender, _balance1);
             }
@@ -929,8 +933,8 @@ contract OrangeAlphaVault is
                 _ticks.upperTick.getSqrtRatioAtTick(),
                 _liquidity
             );
-        console2.log(_amount0, "_amount0");
-        console2.log(_amount1, "_amount1");
+        // console2.log(_amount0, "_amount0");
+        // console2.log(_amount1, "_amount1");
 
         // 3. Compute supply and borrow
         (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
@@ -951,8 +955,8 @@ contract OrangeAlphaVault is
         // Swap (if necessary)
         uint256 _balance0 = _borrow;
         balance1_ = _maxAssets - _supply;
-        console2.log("balance.token0", token0.balanceOf(address(this)));
-        console2.log("balance.token1", token1.balanceOf(address(this)));
+        // console2.log("balance.token0", token0.balanceOf(address(this)));
+        // console2.log("balance.token1", token1.balanceOf(address(this)));
         (_balance0, balance1_, _ticks) = _swapInDeposit(
             _balance0,
             balance1_,
@@ -963,9 +967,9 @@ contract OrangeAlphaVault is
 
         // 5. Add liquidity
         if (_liquidity > 0) {
-            console2.log("mint0");
-            console2.log("balance.token0", token0.balanceOf(address(this)));
-            console2.log("balance.token1", token1.balanceOf(address(this)));
+            // console2.log("mint0");
+            // console2.log("balance.token0", token0.balanceOf(address(this)));
+            // console2.log("balance.token1", token1.balanceOf(address(this)));
             (uint256 _amountDeposited0, uint256 _amountDeposited1) = pool.mint(
                 address(this),
                 _ticks.lowerTick,
@@ -973,7 +977,7 @@ contract OrangeAlphaVault is
                 _liquidity,
                 ""
             );
-            console2.log("mint1");
+            // console2.log("mint1");
             if (
                 _amountDeposited0 > _balance0 || _amountDeposited1 > balance1_
             ) {
@@ -986,8 +990,8 @@ contract OrangeAlphaVault is
         // 6. return suplus amount
         // if token0(ETH) is left, swap it to USDC
         if (_balance0 > 0) {
-            console2.log(_balance0, "_balance0");
-            console2.log(token0.balanceOf(address(this)), "token0.balanceOf");
+            // console2.log(_balance0, "_balance0");
+            // console2.log(token0.balanceOf(address(this)), "token0.balanceOf");
             (, int256 _amount1Delta) = pool.swap(
                 address(this),
                 true,
@@ -1019,21 +1023,21 @@ contract OrangeAlphaVault is
         bool _zeroForOne;
         int256 _swapAmount;
         if (balance1_ < _amount1) {
-            console2.log("balance1_ < _amount1");
+            // console2.log("balance1_ < _amount1");
             //swap ETH to USDC because of lack of USDC
             _zeroForOne = true;
             _swapAmount = SafeCast.toInt256(
                 ((_balance0 - _amount0) * 9000) / MAGIC_SCALE_1E4
             ); //if swap all balance, shortage will occur because of tick change
         } else if (balance0_ < _amount0) {
-            console2.log("balance0_ < _amount0");
+            // console2.log("balance0_ < _amount0");
             //swap USDC to ETH because of lack of ETH
             _swapAmount = SafeCast.toInt256(
                 ((_balance1 - _amount1) * 9000) / MAGIC_SCALE_1E4
             ); //if swap all balance, shortage will occur because of tick change
         }
         if (_swapAmount > 0) {
-            console2.log("_swapAmount > 0");
+            // console2.log("_swapAmount > 0");
             (int256 _amount0Delta, int256 _amount1Delta) = pool.swap(
                 address(this),
                 _zeroForOne,
@@ -1221,8 +1225,8 @@ contract OrangeAlphaVault is
             _newStoplossLowerTick,
             _newStoplossUpperTick
         );
-        console2.log(_newSupply, "_newSupply");
-        console2.log(_newBorrow, "_newBorrow");
+        // console2.log(_newSupply, "_newSupply");
+        // console2.log(_newBorrow, "_newBorrow");
 
         //after stoploss, need to supply collateral
         uint256 _supplyBalance = aToken1.balanceOf(address(this));
@@ -1271,15 +1275,15 @@ contract OrangeAlphaVault is
         // 6. Add liquidity
         uint256 reinvest0 = token0.balanceOf(address(this));
         uint256 reinvest1 = token1.balanceOf(address(this));
-        console2.log(reinvest0, "reinvest0");
-        console2.log(reinvest1, "reinvest1");
+        // console2.log(reinvest0, "reinvest0");
+        // console2.log(reinvest1, "reinvest1");
         _swapAndAddLiquidity(reinvest0, reinvest1, _ticks);
 
         (uint128 newLiquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
-        console2.log("newLiquidity", newLiquidity);
-        console2.log("_minNewLiquidity", _minNewLiquidity);
+        // console2.log("newLiquidity", newLiquidity);
+        // console2.log("_minNewLiquidity", _minNewLiquidity);
         if (newLiquidity < _minNewLiquidity) {
             revert(Errors.LESS);
         }
