@@ -10,21 +10,20 @@ abstract contract MerkleAllowList {
         merkleRoot = merkleRoot_;
     }
 
-    modifier onlyAllowlisted(bytes32[] calldata merkleProof) {
+    modifier onlyAllowlisted(uint256 index, bytes32[] calldata merkleProof) {
         require(
-            _isAllowlisted(msg.sender, merkleProof),
+            _isAllowlisted(index, msg.sender, merkleProof),
             "MerkleAllowList: Caller is not on allowlist."
         );
         _;
     }
 
-    function _isAllowlisted(address account, bytes32[] calldata merkleProof)
-        internal
-        view
-        virtual
-        returns (bool)
-    {
-        bytes32 node = keccak256(abi.encodePacked(account));
+    function _isAllowlisted(
+        uint256 index,
+        address account,
+        bytes32[] calldata merkleProof
+    ) internal view virtual returns (bool) {
+        bytes32 node = keccak256(abi.encodePacked(index, account));
         return MerkleProof.verify(merkleProof, merkleRoot, node);
     }
 }

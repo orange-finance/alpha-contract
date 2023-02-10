@@ -6,8 +6,8 @@ import {MerkleAllowList} from "../core/MerkleAllowList.sol";
 contract MerkleAllowListMock is MerkleAllowList {
     constructor(bytes32 merkleRoot_) MerkleAllowList(merkleRoot_) {}
 
-    function exec(bytes32[] calldata merkleProof)
+    function exec(uint256 index, bytes32[] calldata merkleProof)
         external
-        onlyAllowlisted(merkleProof)
+        onlyAllowlisted(index, merkleProof)
     {}
 }

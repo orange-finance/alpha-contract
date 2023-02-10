@@ -92,12 +92,11 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         }
     }
 
-    function _isAllowlisted(address, bytes32[] calldata)
-        internal
-        view
-        override
-        returns (bool)
-    {
+    function _isAllowlisted(
+        uint256,
+        address,
+        bytes32[] calldata
+    ) internal view override returns (bool) {
         return true;
     }
 

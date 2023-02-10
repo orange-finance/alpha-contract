@@ -119,27 +119,27 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(11));
-        vault.deposit(_shares1, address(11), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares1, address(11), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(12));
-        vault.deposit(_shares2, address(12), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares2, address(12), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(13));
-        vault.deposit(_shares3, address(13), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares3, address(13), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(14));
-        vault.deposit(_shares4, address(14), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares4, address(14), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(15));
-        vault.deposit(_shares5, address(15), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares5, address(15), 10_000 * 1e6, 0, new bytes32[](0));
 
         skip(8 days);
 
@@ -168,27 +168,27 @@ contract OrangeAlphaVaultScenarioTest is BaseTest {
         uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(11));
-        vault.deposit(_shares1, address(11), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares1, address(11), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(12));
-        vault.deposit(_shares2, address(12), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares2, address(12), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(13));
-        vault.deposit(_shares3, address(13), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares3, address(13), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(14));
-        vault.deposit(_shares4, address(14), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares4, address(14), 10_000 * 1e6, 0, new bytes32[](0));
         skip(1);
         uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(address(15));
-        vault.deposit(_shares5, address(15), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares5, address(15), 10_000 * 1e6, 0, new bytes32[](0));
 
         skip(8 days);
 

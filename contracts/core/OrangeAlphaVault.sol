@@ -847,8 +847,9 @@ contract OrangeAlphaVault is
         uint256 _shares,
         address _receiver,
         uint256 _maxAssets,
+        uint256 index,
         bytes32[] calldata merkleProof
-    ) external onlyAllowlisted(merkleProof) returns (uint256 assets_) {
+    ) external onlyAllowlisted(index, merkleProof) returns (uint256 assets_) {
         //validation
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);

@@ -5,8 +5,11 @@ const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
 
 async function hashed(target) {
-  return target.map(({ address }) => {
-    return ethers.utils.solidityKeccak256(["address"], [address]);
+  return target.map(({ index, address }) => {
+    return ethers.utils.solidityKeccak256(
+      ["uint256", "address"],
+      [index, address]
+    );
   });
 }
 
@@ -20,9 +23,11 @@ describe("MerkleAllowListTest", function () {
 
     let list = [
       {
+        index: 0,
         address: alice.address,
       },
       {
+        index: 1,
         address: bob.address,
       },
     ];
@@ -40,16 +45,16 @@ describe("MerkleAllowListTest", function () {
 
   describe("exec", function () {
     it("success", async () => {
-      await mock.connect(alice).exec(proof0);
-      await mock.connect(bob).exec(proof1);
+      await mock.connect(alice).exec(0, proof0);
+      await mock.connect(bob).exec(1, proof1);
     });
     it("fail", async () => {
-      await expect(mock.connect(alice).exec(proof1)).to.revertedWith(
+      await expect(mock.connect(alice).exec(0, proof1)).to.revertedWith(
         "MerkleAllowList: Caller is not on allowlist."
       );
     });
     it("fail2", async () => {
-      await expect(mock.connect(carol).exec(proof0)).to.revertedWith(
+      await expect(mock.connect(carol).exec(0, proof0)).to.revertedWith(
         "MerkleAllowList: Caller is not on allowlist."
       );
     });

@@ -196,7 +196,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         console2.log(vault.totalAssets(), "totalAssets");
         assertApproxEqRel(vault.totalAssets(), 10_000 * 1e6, 1e16);
     }
@@ -210,7 +216,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = vault.convertToShares(10_000 * 1e6);
         console2.log(_shares, "_shares");
 
-        vault.deposit(_shares, address(this), 11_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            11_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
 
         uint256 _shares2 = vault.convertToShares(10_000 * 1e6);
         console2.log(_shares2, "_shares2");
@@ -227,7 +239,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         // stoplossed and after deposit
         uint256 _shares = vault.convertToShares(10_000 * 1e6);
 
-        vault.deposit(_shares, address(this), 11_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            11_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         // stoplossed
         vault.setStoplossed(true);
         skip(1);
@@ -254,6 +272,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             10_000 * 1e6,
             address(this),
             9_900 * 1e6,
+            0,
             new bytes32[](0)
         );
         uint256 _shares = 2500 * 1e6;
@@ -335,7 +354,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
             .getUnderlyingBalances();
         //Greater than 0
@@ -350,7 +375,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         multiSwapByCarol(); //swapped
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
             .getUnderlyingBalances();
@@ -407,6 +438,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             10_000 * 1e6,
             address(this),
             9_900 * 1e6,
+            0,
             new bytes32[](0)
         );
         multiSwapByCarol(); //swapped
@@ -421,6 +453,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             10_000 * 1e6,
             address(this),
             9_900 * 1e6,
+            0,
             new bytes32[](0)
         );
         multiSwapByCarol(); //swapped
@@ -436,6 +469,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
             10_000 * 1e6,
             address(this),
             9_900 * 1e6,
+            0,
             new bytes32[](0)
         );
         multiSwapByCarol(); //swapped
@@ -796,28 +830,30 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
     function test_deposit_Revert1() public {
         vm.expectRevert(bytes(Errors.DEPOSIT_RECEIVER));
 
-        vault.deposit(10_000 * 1e6, alice, 9_900 * 1e6, new bytes32[](0));
+        vault.deposit(10_000 * 1e6, alice, 9_900 * 1e6, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.ZERO));
-        vault.deposit(0, address(this), 9_900 * 1e6, new bytes32[](0));
+        vault.deposit(0, address(this), 9_900 * 1e6, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.ZERO));
-        vault.deposit(1000, address(this), 0, new bytes32[](0));
+        vault.deposit(1000, address(this), 0, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(
             11_000 * 1e6,
             address(this),
             1_100_000 * 1e6,
+            0,
             new bytes32[](0)
         );
         //revert with total deposit cap
         uint256 _shares = (vault.convertToShares(1_000_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(alice);
-        vault.deposit(_shares, alice, 1_000_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares, alice, 1_000_000 * 1e6, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(
             10_000 * 1e6,
             address(this),
             9_900 * 1e6,
+            0,
             new bytes32[](0)
         );
     }
@@ -829,15 +865,27 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.setStoplossed(true);
         vm.expectRevert(bytes(Errors.DEPOSIT_STOPLOSSED));
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
 
         vault.setStoplossed(false);
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         vault.removeAllPosition(_ticks.currentTick);
         vault.setStoplossed(true);
         vm.expectRevert(bytes(Errors.MORE));
-        vault.deposit(_shares, address(this), 1_000 * 1e6, new bytes32[](0));
+        vault.deposit(_shares, address(this), 1_000 * 1e6, 0, new bytes32[](0));
     }
 
     function test_deposit_Success0() public {
@@ -846,7 +894,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         //assertion
         assertEq(vault.balanceOf(address(this)), _shares);
         uint256 _realAssets = _initialBalance - usdc.balanceOf(address(this));
@@ -885,10 +939,22 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
-        vault.deposit(_shares2, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares2,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         assertEq(vault.balanceOf(address(this)), _shares + _shares2);
         uint256 _realAssets = _initialBalance - usdc.balanceOf(address(this));
         assertApproxEqRel(_realAssets, 20_000 * 1e6, 1e16);
@@ -899,14 +965,26 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
 
         vault.setStoplossed(true);
         skip(1);
         vault.removeAllPosition(_ticks.currentTick);
         uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
-        vault.deposit(_shares2, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares2,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
     }
 
     function test_redeem_Revert1() public {
@@ -916,7 +994,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         vm.expectRevert(bytes(Errors.LOCKUP));
         vault.redeem(10_000 * 1e6, address(this), address(0), 9_900 * 1e6);
@@ -930,7 +1014,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(8 days);
 
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) /
@@ -963,7 +1053,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(8 days);
         // prepare for assetion
         (uint128 _liquidity0, , , , ) = pool.positions(vault.getPositionID());
@@ -992,7 +1088,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(8 days);
         //reduce deposit log
         vault.setDeposits(address(this), 100);
@@ -1061,7 +1163,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         skip(1 days);
@@ -1104,7 +1212,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         skip(1 days);
@@ -1137,7 +1251,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
         (, int24 __tick, , , , , ) = pool.slot0();
@@ -1178,7 +1298,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (, int24 __tick, , , , , ) = pool.slot0();
         console2.log(__tick.toString(), "__tick");
@@ -1222,7 +1348,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.removeAllPosition(_tick);
@@ -1244,7 +1376,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.removeAllPosition(_tick);
@@ -1340,7 +1478,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
             .getUnderlyingBalances();
@@ -1370,7 +1514,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
@@ -1446,7 +1596,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         swapByCarol(true, 1000 ether); //current price under lowerPrice
         skip(1 days);
@@ -1469,7 +1625,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
         vm.expectEmit(false, false, false, false);
@@ -1506,7 +1668,13 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
 
-        vault.deposit(_shares, address(this), 10_000 * 1e6, new bytes32[](0));
+        vault.deposit(
+            _shares,
+            address(this),
+            10_000 * 1e6,
+            0,
+            new bytes32[](0)
+        );
         skip(1);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         emit BurnAndCollectFees(0, 0, 0, 0);
