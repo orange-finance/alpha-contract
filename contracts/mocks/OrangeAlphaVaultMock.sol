@@ -188,31 +188,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function depositInRange(
-        uint128 _liquidity,
-        uint256 _maxAssets,
-        Ticks memory _ticks
-    ) external returns (uint256 balance1_) {
-        return _depositInRange(_liquidity, _maxAssets, _ticks);
-    }
-
-    function swapInDeposit(
-        uint256 _balance0,
-        uint256 _balance1,
-        uint256 _amount0,
-        uint256 _amount1,
-        Ticks memory _ticks
-    )
-        external
-        returns (
-            uint256 balance0_,
-            uint256 balance1_,
-            Ticks memory ticks_
-        )
-    {
-        return _swapInDeposit(_balance0, _balance1, _amount0, _amount1, _ticks);
-    }
-
     function swapAndAddLiquidity(
         uint256 _amount0,
         uint256 _amount1,
