@@ -1268,6 +1268,10 @@ contract OrangeAlphaVault is
         rebalancer = _rebalancer;
     }
 
+    function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        _setMerkleRoot(_merkleRoot);
+    }
+
     function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
         _setAllowlistEnabled(_allowlistEnabled);
     }

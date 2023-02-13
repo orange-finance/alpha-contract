@@ -10,8 +10,8 @@ abstract contract MerkleAllowList {
     bytes32 public merkleRoot;
     bool public allowlistEnabled = true;
 
-    function _setMerkleRoot(bytes32 merkleRoot_) internal {
-        merkleRoot = merkleRoot_;
+    function _setMerkleRoot(bytes32 _merkleRoot) internal {
+        merkleRoot = _merkleRoot;
         emit MerkleRootUpdated(merkleRoot);
     }
 
