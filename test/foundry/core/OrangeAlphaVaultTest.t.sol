@@ -829,30 +829,34 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
 
     function test_deposit_Revert1() public {
         vm.expectRevert(bytes(Errors.DEPOSIT_RECEIVER));
-
         vault.deposit(10_000 * 1e6, alice, 9_900 * 1e6, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.ZERO));
         vault.deposit(0, address(this), 9_900 * 1e6, 0, new bytes32[](0));
         vm.expectRevert(bytes(Errors.ZERO));
         vault.deposit(1000, address(this), 0, 0, new bytes32[](0));
+
+        uint256 _shares = (vault.convertToShares(1_100_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(
-            11_000 * 1e6,
+            _shares,
             address(this),
             1_100_000 * 1e6,
             0,
             new bytes32[](0)
         );
         //revert with total deposit cap
-        uint256 _shares = (vault.convertToShares(1_000_000 * 1e6) * 9900) /
+        uint256 _shares2 = (vault.convertToShares(1_000_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vm.prank(alice);
-        vault.deposit(_shares, alice, 1_000_000 * 1e6, 0, new bytes32[](0));
+        vault.deposit(_shares2, alice, 1_000_000 * 1e6, 0, new bytes32[](0));
+        uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) /
+            MAGIC_SCALE_1E4;
         vm.expectRevert(bytes(Errors.CAPOVER));
         vault.deposit(
-            10_000 * 1e6,
+            _shares3,
             address(this),
-            9_900 * 1e6,
+            10_000 * 1e6,
             0,
             new bytes32[](0)
         );
@@ -909,8 +913,8 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         // console2.log(_share, "share");
         //assert less than max assets
         (uint256 _deposit, ) = vault.deposits(address(this));
-        assertEq(_deposit, 10_000 * 1e6);
-        assertEq(vault.totalDeposits(), 10_000 * 1e6);
+        assertEq(_deposit, _realAssets);
+        assertEq(vault.totalDeposits(), _realAssets);
         //assertLtv
         uint256 _debtToken0 = debtToken0.balanceOf(address(vault));
         uint256 _aToken1 = aToken1.balanceOf(address(vault));

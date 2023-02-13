@@ -856,16 +856,6 @@ contract OrangeAlphaVault is
         }
         if (_shares == 0 || _maxAssets == 0) revert(Errors.ZERO);
         // console2.log(depositCap(_receiver), "depositCap(_receiver)");
-        if (deposits[_receiver].assets + _maxAssets > depositCap(_receiver)) {
-            revert(Errors.CAPOVER);
-        }
-        deposits[_receiver].assets += _maxAssets;
-        deposits[_receiver].timestamp = uint40(block.timestamp);
-        uint256 _totalDeposits = totalDeposits;
-        if (_totalDeposits + _maxAssets > totalDepositCap) {
-            revert(Errors.CAPOVER);
-        }
-
         Ticks memory _ticks = _getTicksByStorage();
         if (
             !stoplossed &&
@@ -880,7 +870,7 @@ contract OrangeAlphaVault is
 
             //compute liquidity
             uint128 _liquidity;
-            if (_totalDeposits == 0) {
+            if (totalDeposits == 0) {
                 //if initial depositing, shares = _liquidity
                 _liquidity = SafeCast.toUint128(_shares);
             } else {
@@ -901,7 +891,7 @@ contract OrangeAlphaVault is
         } else {
             //when stoplossed or out of range
             //calculate mint amount
-            if (_totalDeposits == 0) {
+            if (totalDeposits == 0) {
                 revert(Errors.DEPOSIT_STOPLOSSED);
             } else {
                 // 1. Transfer USDC from depositer to Vault
@@ -914,9 +904,18 @@ contract OrangeAlphaVault is
             }
         }
 
+        if (deposits[_receiver].assets + assets_ > depositCap(_receiver)) {
+            revert(Errors.CAPOVER);
+        }
+        deposits[_receiver].assets += assets_;
+        deposits[_receiver].timestamp = uint40(block.timestamp);
+        if (totalDeposits + assets_ > totalDepositCap) {
+            revert(Errors.CAPOVER);
+        }
+        totalDeposits += assets_;
+
         //mint
         _mint(_receiver, _shares);
-        totalDeposits = _totalDeposits + _maxAssets;
 
         _emitAction(1, _ticks);
     }
