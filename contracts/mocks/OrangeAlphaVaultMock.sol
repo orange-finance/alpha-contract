@@ -22,8 +22,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1,
-        bytes32 _merkleRoot
+        address _aToken1
     )
         OrangeAlphaVault(
             _name,
@@ -34,8 +33,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             _token1,
             _aave,
             _debtToken0,
-            _aToken1,
-            _merkleRoot
+            _aToken1
         )
     {}
 
@@ -90,14 +88,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         } else {
             return avgTick;
         }
-    }
-
-    function _isAllowlisted(
-        uint256,
-        address,
-        bytes32[] calldata
-    ) internal view override returns (bool) {
-        return true;
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */

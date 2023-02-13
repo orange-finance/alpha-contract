@@ -86,9 +86,8 @@ contract OrangeAlphaVault is
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1,
-        bytes32 _merkleRoot
-    ) ERC20(_name, _symbol) MerkleAllowList(_merkleRoot) {
+        address _aToken1
+    ) ERC20(_name, _symbol) {
         _decimal = __decimal;
 
         // setting adresses and approving
@@ -842,9 +841,8 @@ contract OrangeAlphaVault is
         uint256 _assets,
         address _receiver,
         uint256 _minShares,
-        uint256 index,
         bytes32[] calldata merkleProof
-    ) external onlyAllowlisted(index, merkleProof) returns (uint256 shares_) {
+    ) external onlyAllowlisted(merkleProof) returns (uint256 shares_) {
         //validation
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);
@@ -1268,6 +1266,10 @@ contract OrangeAlphaVault is
      */
     function setRebalancer(address _rebalancer) external onlyOwner {
         rebalancer = _rebalancer;
+    }
+
+    function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
+        _setAllowlistEnabled(_allowlistEnabled);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
