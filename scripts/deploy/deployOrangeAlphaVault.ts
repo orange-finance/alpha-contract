@@ -1,7 +1,6 @@
 import { ethers } from "hardhat";
 import { Deploy, ERC20metadata } from "../common";
 import { getAddresses } from "../addresses";
-import { IUniswapV3PoolDerivedState__factory } from "../../typechain-types";
 
 const vaultMeta: ERC20metadata = {
   name: "OrangeAlphaVault",
