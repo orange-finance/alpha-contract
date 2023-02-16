@@ -20,16 +20,6 @@ abstract contract GelatoOps {
 
     /**
      * @dev
-     * Only tasks created by _taskCreator defined in constructor can call
-     * the functions with this modifier.
-     */
-    modifier onlyDedicatedMsgSender() {
-        require(msg.sender == dedicatedMsgSender, "Only dedicated msg.sender");
-        _;
-    }
-
-    /**
-     * @dev
      * _taskCreator is the address which will create tasks for this contract.
      */
     constructor() {

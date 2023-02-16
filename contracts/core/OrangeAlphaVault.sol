@@ -5,10 +5,10 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import {MerkleAllowList} from "./MerkleAllowList.sol";
+import {ERC20} from "../libs/ERC20.sol";
 import {Ownable} from "../libs/Ownable.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
@@ -22,10 +22,6 @@ import {OracleLibrary} from "../vendor/uniswap/OracleLibrary.sol";
 
 // import "forge-std/console2.sol";
 // import {Ints} from "../mocks/Ints.sol";
-
-interface IERC20Decimals {
-    function decimals() external view returns (uint8);
-}
 
 contract OrangeAlphaVault is
     IOrangeAlphaVault,
@@ -51,45 +47,39 @@ contract OrangeAlphaVault is
     mapping(address => DepositType) public override deposits;
     /// @inheritdoc IOrangeAlphaVault
     uint256 public override totalDeposits;
-    bool public stoplossed;
-    int24 public lowerTick;
-    int24 public upperTick;
-    int24 public stoplossLowerTick;
-    int24 public stoplossUpperTick;
+    bool stoplossed;
+    int24 lowerTick;
+    int24 upperTick;
+    int24 stoplossLowerTick;
+    int24 stoplossUpperTick;
 
-    IUniswapV3Pool public pool;
-    IERC20 public token0; //weth
-    IERC20 public token1; //usdc
-    IAaveV3Pool public aave;
-    IERC20 public debtToken0; //weth
-    IERC20 public aToken1; //usdc
-    uint8 _decimal;
+    IUniswapV3Pool pool;
+    IERC20 token0; //weth
+    IERC20 token1; //usdc
+    IAaveV3Pool aave;
+    IERC20 debtToken0; //weth
+    IERC20 aToken1; //usdc
 
     /* ========== PARAMETERS ========== */
     uint256 _depositCap;
     /// @inheritdoc IOrangeAlphaVault
     uint256 public override totalDepositCap;
-    uint16 public slippageBPS;
-    uint24 public tickSlippageBPS;
-    uint32 public twapSlippageInterval;
-    uint32 public maxLtv;
-    uint40 public lockupPeriod;
-    address public rebalancer;
+    uint16 slippageBPS;
+    uint24 tickSlippageBPS;
+    uint32 twapSlippageInterval;
+    uint32 maxLtv;
+    uint40 lockupPeriod;
+    address rebalancer;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
-        string memory _name,
-        string memory _symbol,
-        uint8 __decimal,
         address _pool,
         address _token0,
         address _token1,
         address _aave,
         address _debtToken0,
         address _aToken1
-    ) ERC20(_name, _symbol) {
-        _decimal = __decimal;
-
+    ) {
         // setting adresses and approving
         pool = IUniswapV3Pool(_pool);
         token0 = IERC20(_token0);
@@ -190,53 +180,53 @@ contract OrangeAlphaVault is
         );
     }
 
-    ///@notice external function of _getUnderlyingBalances
-    function getUnderlyingBalances()
-        external
-        view
-        returns (UnderlyingAssets memory underlyingAssets)
-    {
-        return _getUnderlyingBalances(_getTicksByStorage());
-    }
+    // ///@notice external function of _getUnderlyingBalances
+    // function getUnderlyingBalances()
+    //     external
+    //     view
+    //     returns (UnderlyingAssets memory underlyingAssets)
+    // {
+    //     return _getUnderlyingBalances(_getTicksByStorage());
+    // }
 
-    ///@notice external function of _computeSupplyAndBorrow
-    function computeSupplyAndBorrow(uint256 _assets)
-        external
-        view
-        returns (uint256 supply_, uint256 borrow_)
-    {
-        return
-            _computeSupplyAndBorrow(
-                _assets,
-                _getTicksByStorage().currentTick,
-                stoplossLowerTick,
-                stoplossUpperTick
-            );
-    }
+    // ///@notice external function of _computeSupplyAndBorrow
+    // function computeSupplyAndBorrow(uint256 _assets)
+    //     external
+    //     view
+    //     returns (uint256 supply_, uint256 borrow_)
+    // {
+    //     return
+    //         _computeSupplyAndBorrow(
+    //             _assets,
+    //             _getTicksByStorage().currentTick,
+    //             stoplossLowerTick,
+    //             stoplossUpperTick
+    //         );
+    // }
 
-    ///@notice external function of _computeSwapAmount
-    function computeSwapAmount(uint256 _amount0, uint256 _amount1)
-        external
-        view
-        returns (bool _zeroForOne, int256 _swapAmount)
-    {
-        return _computeSwapAmount(_amount0, _amount1, _getTicksByStorage());
-    }
+    // ///@notice external function of _computeSwapAmount
+    // function computeSwapAmount(uint256 _amount0, uint256 _amount1)
+    //     external
+    //     view
+    //     returns (bool _zeroForOne, int256 _swapAmount)
+    // {
+    //     return _computeSwapAmount(_amount0, _amount1, _getTicksByStorage());
+    // }
 
     /// @inheritdoc IOrangeAlphaVault
     function depositCap(address) public view returns (uint256) {
         return _depositCap;
     }
 
-    ///@notice external function of _getPositionID
-    function getPositionID() public view returns (bytes32 positionID) {
-        return _getPositionID(lowerTick, upperTick);
-    }
+    // ///@notice external function of _getPositionID
+    // function getPositionID() public view returns (bytes32 positionID) {
+    //     return _getPositionID(lowerTick, upperTick);
+    // }
 
-    ///@notice external function of _getTicksByStorage
-    function getTicksByStorage() external view returns (Ticks memory) {
-        return _getTicksByStorage();
-    }
+    // ///@notice external function of _getTicksByStorage
+    // function getTicksByStorage() external view returns (Ticks memory) {
+    //     return _getTicksByStorage();
+    // }
 
     // @inheritdoc ERC20
     function checker()
@@ -262,11 +252,6 @@ contract OrangeAlphaVault is
             );
             return (true, execPayload);
         }
-    }
-
-    // @inheritdoc ERC20
-    function decimals() public view override returns (uint8) {
-        return _decimal;
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
@@ -1054,7 +1039,10 @@ contract OrangeAlphaVault is
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss(int24 _inputTick) external onlyDedicatedMsgSender {
+    function stoploss(int24 _inputTick) external {
+        if (msg.sender != dedicatedMsgSender) {
+            revert(Errors.NOT_DEDICATED_MSG_SENDER);
+        }
         Ticks memory _ticks = _getTicksByStorage();
         _stoploss(_ticks, _inputTick);
     }
@@ -1167,7 +1155,7 @@ contract OrangeAlphaVault is
             revert(Errors.LESS);
         }
 
-        emit Rebalance(_newLowerTick, _newUpperTick, liquidity, newLiquidity);
+        // emit Rebalance(_newLowerTick, _newUpperTick, liquidity, newLiquidity);
         _emitAction(3, _ticks);
 
         //reset stoplossed
@@ -1181,19 +1169,19 @@ contract OrangeAlphaVault is
         _emitAction(5, _ticks);
     }
 
-    function setTicks(
-        int24 _lowerTick,
-        int24 _upperTick,
-        int24 _stoplossLowerTick,
-        int24 _stoplossUpperTick
-    ) external onlyOwner {
-        _validateTicks(_lowerTick, _upperTick);
-        _validateTicks(_stoplossLowerTick, _stoplossUpperTick);
-        lowerTick = _lowerTick;
-        upperTick = _upperTick;
-        stoplossLowerTick = _stoplossLowerTick;
-        stoplossUpperTick = _stoplossUpperTick;
-    }
+    // function setTicks(
+    //     int24 _lowerTick,
+    //     int24 _upperTick,
+    //     int24 _stoplossLowerTick,
+    //     int24 _stoplossUpperTick
+    // ) external onlyOwner {
+    //     _validateTicks(_lowerTick, _upperTick);
+    //     _validateTicks(_stoplossLowerTick, _stoplossUpperTick);
+    //     lowerTick = _lowerTick;
+    //     upperTick = _upperTick;
+    //     stoplossLowerTick = _stoplossLowerTick;
+    //     stoplossUpperTick = _stoplossUpperTick;
+    // }
 
     /**
      * @notice Set parameters of depositCap
@@ -1204,12 +1192,9 @@ contract OrangeAlphaVault is
         external
         onlyOwner
     {
-        if (__depositCap > _totalDepositCap) {
-            revert(Errors.PARAMS);
-        }
         _depositCap = __depositCap;
         totalDepositCap = _totalDepositCap;
-        emit UpdateDepositCap(__depositCap, _totalDepositCap);
+        // emit UpdateDepositCap(__depositCap, _totalDepositCap);
     }
 
     /**
@@ -1221,12 +1206,9 @@ contract OrangeAlphaVault is
         external
         onlyOwner
     {
-        if (_slippageBPS > MAGIC_SCALE_1E4) {
-            revert(Errors.PARAMS);
-        }
         slippageBPS = _slippageBPS;
         tickSlippageBPS = _tickSlippageBPS;
-        emit UpdateSlippage(_slippageBPS, _tickSlippageBPS);
+        // emit UpdateSlippage(_slippageBPS, _tickSlippageBPS);
     }
 
     /**
@@ -1234,11 +1216,8 @@ contract OrangeAlphaVault is
      * @param _maxLtv Max LTV
      */
     function setMaxLtv(uint32 _maxLtv) external onlyOwner {
-        if (_maxLtv > MAGIC_SCALE_1E8) {
-            revert(Errors.PARAMS);
-        }
         maxLtv = _maxLtv;
-        emit UpdateMaxLtv(_maxLtv);
+        // emit UpdateMaxLtv(_maxLtv);
     }
 
     /**
@@ -1344,14 +1323,14 @@ contract OrangeAlphaVault is
                 ""
             );
         }
-        emit SwapAndAddLiquidity(
-            _zeroForOne,
-            amount0Delta,
-            amount1Delta,
-            liquidity_,
-            amountDeposited0_,
-            amountDeposited1_
-        );
+        // emit SwapAndAddLiquidity(
+        //     _zeroForOne,
+        //     amount0Delta,
+        //     amount1Delta,
+        //     liquidity_,
+        //     amountDeposited0_,
+        //     amountDeposited1_
+        // );
     }
 
     /**
@@ -1448,7 +1427,7 @@ contract OrangeAlphaVault is
 
         fee0_ = token0.balanceOf(address(this)) - preBalance0_ - burn0_;
         fee1_ = token1.balanceOf(address(this)) - preBalance1_ - burn1_;
-        emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
+        // emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
     }
 
     ///@notice internal function of stoploss
@@ -1541,13 +1520,13 @@ contract OrangeAlphaVault is
             _ticks = _getTicksByStorage(); //retrieve ticks
         }
 
-        emit RemoveAllPosition(
-            _fee0,
-            _fee1,
-            liquidity,
-            _withdrawingCollateral,
-            _repayingDebt
-        );
+        // emit RemoveAllPosition(
+        //     _fee0,
+        //     _fee1,
+        //     liquidity,
+        //     _withdrawingCollateral,
+        //     _repayingDebt
+        // );
         return _ticks;
     }
 
