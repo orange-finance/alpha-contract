@@ -8,7 +8,6 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import {MerkleAllowList} from "./MerkleAllowList.sol";
 import {ERC20} from "../libs/ERC20.sol";
 import {Ownable} from "../libs/Ownable.sol";
 import {Errors} from "../libs/Errors.sol";
@@ -31,8 +30,7 @@ contract OrangeAlphaVault is
     ERC20,
     Ownable,
     IResolver,
-    GelatoOps,
-    MerkleAllowList
+    GelatoOps
 {
     using SafeERC20 for IERC20;
     using TickMath for int24;
@@ -1032,7 +1030,19 @@ contract OrangeAlphaVault is
             revert(Errors.NOT_DEDICATED_MSG_SENDER);
         }
         Ticks memory _ticks = _getTicksByStorage();
-        _stoploss(_ticks, _inputTick);
+        if (
+            !_canStoploss(
+                _ticks.currentTick,
+                _getTwap(),
+                stoplossLowerTick,
+                stoplossUpperTick
+            )
+        ) {
+            revert(Errors.WHEN_CAN_STOPLOSS);
+        }
+        stoplossed = true;
+        _ticks = _removeAllPosition(_ticks, _inputTick);
+        _emitAction(4, _ticks);
     }
 
     /* ========== OWNERS FUNCTIONS ========== */
@@ -1235,14 +1245,13 @@ contract OrangeAlphaVault is
         rebalancer = _rebalancer;
     }
 
-    function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+    function setMerkleRoot(bool _allowlistEnabled, bytes32 _merkleRoot)
+        external
+        onlyOwner
+    {
         merkleRoot = _merkleRoot;
-        emit MerkleRootUpdated(merkleRoot);
-    }
-
-    function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
         allowlistEnabled = _allowlistEnabled;
-        emit AllowlistEnabled(_allowlistEnabled);
+        emit MerkleRootUpdated(_allowlistEnabled, merkleRoot);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1417,24 +1426,7 @@ contract OrangeAlphaVault is
 
         fee0_ = token0.balanceOf(address(this)) - preBalance0_ - burn0_;
         fee1_ = token1.balanceOf(address(this)) - preBalance1_ - burn1_;
-        // emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
-    }
-
-    ///@notice internal function of stoploss
-    function _stoploss(Ticks memory _ticks, int24 _inputTick) internal {
-        if (
-            !_canStoploss(
-                _ticks.currentTick,
-                _getTwap(),
-                stoplossLowerTick,
-                stoplossUpperTick
-            )
-        ) {
-            revert(Errors.WHEN_CAN_STOPLOSS);
-        }
-        stoplossed = true;
-        _ticks = _removeAllPosition(_ticks, _inputTick);
-        _emitAction(4, _ticks);
+        emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
     }
 
     ///@notice internal function of removeAllPosition
@@ -1522,25 +1514,11 @@ contract OrangeAlphaVault is
 
     ///@notice internal function of emitAction
     function _emitAction(uint8 _actionType, Ticks memory _ticks) internal {
-        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(
-            _ticks
-        );
-
-        // Aave positions
-        uint256 amount0Debt = debtToken0.balanceOf(address(this));
-        uint256 amount1Supply = aToken1.balanceOf(address(this));
-
         emit Action(
             _actionType,
             msg.sender,
-            amount0Debt,
-            amount1Supply,
-            _underlyingAssets,
             _totalAssets(_ticks),
-            totalSupply(),
-            _ticks.lowerTick.getSqrtRatioAtTick(),
-            _ticks.upperTick.getSqrtRatioAtTick(),
-            _ticks.sqrtRatioX96
+            totalSupply()
         );
     }
 
