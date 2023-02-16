@@ -19,6 +19,7 @@ library Errors {
     string public constant REBALANCER = "15";
     string public constant MORE = "16";
     string public constant NOT_DEDICATED_MSG_SENDER = "17";
+    string public constant MERKLE_ALLOW_LIST = "18";
     // string public constant ERC20_MINT_ZERO = "20";
     // string public constant ERC20_BURN_ZERO_ADDRESS = "21";
     // string public constant ERC20_BURN_EXCEED_BALANCE = "22";

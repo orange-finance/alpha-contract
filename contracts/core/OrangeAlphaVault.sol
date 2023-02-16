@@ -6,6 +6,7 @@ import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import {MerkleAllowList} from "./MerkleAllowList.sol";
 import {ERC20} from "../libs/ERC20.sol";
@@ -70,6 +71,8 @@ contract OrangeAlphaVault is
     uint32 maxLtv;
     uint40 lockupPeriod;
     address rebalancer;
+    bytes32 merkleRoot;
+    bool allowlistEnabled = true;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -161,7 +164,7 @@ contract OrangeAlphaVault is
     }
 
     // /// @inheritdoc IOrangeAlphaVault
-    //used to get liquidity of new range before rebalance
+    // used to get liquidity of new range before rebalance
     function computeNewLiquidity(
         int24 _newLowerTick,
         int24 _newUpperTick,
@@ -244,7 +247,7 @@ contract OrangeAlphaVault is
                 stoplossUpperTick
             )
         ) {
-            return (false, bytes("can not stoploss"));
+            return (false, bytes("cannot"));
         } else {
             execPayload = abi.encodeWithSelector(
                 IOrangeAlphaVault.stoploss.selector,
@@ -341,18 +344,34 @@ contract OrangeAlphaVault is
         uint256 amount0Debt = debtToken0.balanceOf(address(this));
         uint256 amount1Supply = aToken1.balanceOf(address(this));
 
-        return
-            _alignTotalAsset(
-                _ticks,
-                _underlyingAssets.amount0Current +
-                    _underlyingAssets.accruedFees0 +
-                    _underlyingAssets.amount0Balance,
-                _underlyingAssets.amount1Current +
-                    _underlyingAssets.accruedFees1 +
-                    _underlyingAssets.amount1Balance,
-                amount0Debt,
-                amount1Supply
+        uint256 amount0Current = _underlyingAssets.amount0Current +
+            _underlyingAssets.accruedFees0 +
+            _underlyingAssets.amount0Balance;
+        uint256 amount1Current = _underlyingAssets.amount1Current +
+            _underlyingAssets.accruedFees1 +
+            _underlyingAssets.amount1Balance;
+
+        if (amount0Current < amount0Debt) {
+            uint256 amount0deducted = amount0Debt - amount0Current;
+            amount0deducted = OracleLibrary.getQuoteAtTick(
+                _ticks.currentTick,
+                uint128(amount0deducted),
+                address(token0),
+                address(token1)
             );
+            return amount1Current + amount1Supply - amount0deducted;
+        } else {
+            uint256 amount0Added = amount0Current - amount0Debt;
+            if (amount0Added > 0) {
+                amount0Added = OracleLibrary.getQuoteAtTick(
+                    _ticks.currentTick,
+                    uint128(amount0Added),
+                    address(token0),
+                    address(token1)
+                );
+            }
+            return amount1Current + amount1Supply + amount0Added;
+        }
     }
 
     ///@notice internal function of convertToAssets
@@ -366,49 +385,6 @@ contract OrangeAlphaVault is
             supply == 0
                 ? _shares
                 : _shares.mulDiv(_totalAssets(_ticks), supply);
-    }
-
-    /**
-     * @notice Compute total asset price as USDC
-     * @dev Align WETH (amount0Current and amount0Debt) to USDC
-     * amount0Current + amount1Current - amount0Debt + amount1Supply
-     * @param _ticks current and range ticks
-     * @param amount0Current amount of underlying token0
-     * @param amount1Current amount of underlying token1
-     * @param amount0Debt amount of debt
-     * @param amount1Supply amount of collateral
-     */
-    function _alignTotalAsset(
-        Ticks memory _ticks,
-        uint256 amount0Current,
-        uint256 amount1Current,
-        uint256 amount0Debt,
-        uint256 amount1Supply
-    ) internal view returns (uint256 totalAlignedAssets) {
-        if (amount0Current < amount0Debt) {
-            uint256 amount0deducted = amount0Debt - amount0Current;
-            amount0deducted = OracleLibrary.getQuoteAtTick(
-                _ticks.currentTick,
-                uint128(amount0deducted),
-                address(token0),
-                address(token1)
-            );
-            totalAlignedAssets =
-                amount1Current +
-                amount1Supply -
-                amount0deducted;
-        } else {
-            uint256 amount0Added = amount0Current - amount0Debt;
-            if (amount0Added > 0) {
-                amount0Added = OracleLibrary.getQuoteAtTick(
-                    _ticks.currentTick,
-                    uint128(amount0Added),
-                    address(token0),
-                    address(token1)
-                );
-            }
-            totalAlignedAssets = amount1Current + amount1Supply + amount0Added;
-        }
     }
 
     /**
@@ -827,7 +803,19 @@ contract OrangeAlphaVault is
         address _receiver,
         uint256 _minShares,
         bytes32[] calldata merkleProof
-    ) external onlyAllowlisted(merkleProof) returns (uint256 shares_) {
+    ) external returns (uint256 shares_) {
+        if (allowlistEnabled) {
+            if (
+                !MerkleProof.verify(
+                    merkleProof,
+                    merkleRoot,
+                    keccak256(abi.encodePacked(msg.sender))
+                )
+            ) {
+                revert(Errors.MERKLE_ALLOW_LIST);
+            }
+        }
+
         //validation
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);
@@ -1248,11 +1236,13 @@ contract OrangeAlphaVault is
     }
 
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        _setMerkleRoot(_merkleRoot);
+        merkleRoot = _merkleRoot;
+        emit MerkleRootUpdated(merkleRoot);
     }
 
     function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
-        _setAllowlistEnabled(_allowlistEnabled);
+        allowlistEnabled = _allowlistEnabled;
+        emit AllowlistEnabled(_allowlistEnabled);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -1540,25 +1530,13 @@ contract OrangeAlphaVault is
         uint256 amount0Debt = debtToken0.balanceOf(address(this));
         uint256 amount1Supply = aToken1.balanceOf(address(this));
 
-        uint256 _alignedAsset = _alignTotalAsset(
-            _ticks,
-            _underlyingAssets.amount0Current +
-                _underlyingAssets.accruedFees0 +
-                _underlyingAssets.amount0Balance,
-            _underlyingAssets.amount1Current +
-                _underlyingAssets.accruedFees1 +
-                _underlyingAssets.amount1Balance,
-            amount0Debt,
-            amount1Supply
-        );
-
         emit Action(
             _actionType,
             msg.sender,
             amount0Debt,
             amount1Supply,
             _underlyingAssets,
-            _alignedAsset,
+            _totalAssets(_ticks),
             totalSupply(),
             _ticks.lowerTick.getSqrtRatioAtTick(),
             _ticks.upperTick.getSqrtRatioAtTick(),

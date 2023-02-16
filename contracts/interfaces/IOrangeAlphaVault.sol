@@ -71,6 +71,9 @@ interface IOrangeAlphaVault {
     //     uint256 amountDeposited1
     // );
 
+    event AllowlistEnabled(bool enabled);
+    event MerkleRootUpdated(bytes32 merkleRoot);
+
     event BurnAndCollectFees(
         uint256 burn0,
         uint256 burn1,

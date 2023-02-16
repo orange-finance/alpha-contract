@@ -32,7 +32,7 @@ abstract contract Ownable {
      * @dev Throws if the sender is not the owner.
      */
     function _checkOwner() internal view {
-        require(_owner == msg.sender, "Ownable");
+        require(_owner == msg.sender, "O");
     }
 
     /**
@@ -40,7 +40,7 @@ abstract contract Ownable {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "Ownable");
+        require(newOwner != address(0), "O");
         _transferOwnership(newOwner);
     }
 
