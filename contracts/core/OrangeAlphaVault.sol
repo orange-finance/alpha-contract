@@ -122,39 +122,30 @@ contract OrangeAlphaVault is
         view
         returns (uint256 shares_)
     {
-        Ticks memory _ticks = _getTicksByStorage();
-        if (
-            !stoplossed &&
-            !_isOutOfRange(
-                _ticks.currentTick,
-                _ticks.lowerTick,
-                _ticks.upperTick
-            )
-        ) {
-            uint128 _liquidity = _computeNewLiquidity(
-                _assets,
-                _ticks,
-                stoplossLowerTick,
-                stoplossUpperTick
-            );
-            //calculate mint amount
-            if (totalDeposits == 0) {
-                //if initial depositing, shares = _liquidity
-                shares_ = _liquidity;
-            } else {
-                uint256 _totalLiquidity = _getCurrentLiquidity(_ticks);
-                shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
-            }
-        } else {
-            //when stoplossed or out of range
-            //shares is propotion of token0 balance
-            if (totalDeposits == 0) {
-                shares_ = 0;
-            } else {
-                uint256 _balance = token1.balanceOf(address(this));
-                shares_ = totalSupply().mulDiv(_assets, _balance);
-            }
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            return 0;
         }
+
+        Ticks memory _ticks = _getTicksByStorage();
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(
+            _ticks
+        );
+
+        //align All ETH to USDC
+        uint256 _alignedBalance = _alignTotalAsset(
+            _ticks,
+            _underlyingAssets.amount0Current +
+                _underlyingAssets.accruedFees0 +
+                _underlyingAssets.amount0Balance,
+            _underlyingAssets.amount1Current +
+                _underlyingAssets.accruedFees1 +
+                _underlyingAssets.amount1Balance,
+            debtToken0.balanceOf(address(this)),
+            aToken1.balanceOf(address(this))
+        );
+
+        shares_ = _totalSupply.mulDiv(_assets, _alignedBalance);
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -837,17 +828,35 @@ contract OrangeAlphaVault is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
+    function initialDeposit(
+        uint256 _assets,
+        address _receiver,
+        bytes32[] calldata merkleProof
+    ) external onlyAllowlisted(merkleProof) returns (uint256 shares_) {
+        if (totalSupply() > 0) {
+            revert(Errors.NOT_INITIAL_DEPOSIT);
+        }
+        //TODO
+    }
+
+    /// @inheritdoc IOrangeAlphaVault
     function deposit(
         uint256 _assets,
         address _receiver,
         uint256 _minShares,
         bytes32[] calldata merkleProof
     ) external onlyAllowlisted(merkleProof) returns (uint256 shares_) {
-        //validation
+        //validation and compute deposit caps
         if (_receiver != msg.sender) {
             revert(Errors.DEPOSIT_RECEIVER);
         }
         if (_assets == 0 || _minShares == 0) revert(Errors.ZERO);
+        uint256 _totalSupply = totalSupply();
+        if (_totalSupply == 0) {
+            revert(Errors.INITIAL_DEPOSIT);
+        }
+
+        //validation of deposit caps
         if (deposits[_receiver].assets + _assets > depositCap(_receiver)) {
             revert(Errors.CAPOVER);
         }
@@ -859,81 +868,127 @@ contract OrangeAlphaVault is
         }
         totalDeposits = _totalDeposits + _assets;
 
-        Ticks memory _ticks = _getTicksByStorage();
-        if (
-            !stoplossed &&
-            !_isOutOfRange(
-                _ticks.currentTick,
-                _ticks.lowerTick,
-                _ticks.upperTick
-            )
-        ) {
-            uint256 _totalLiquidity = _getCurrentLiquidity(_ticks); //to compute shares later
-            // 1. Transfer USDC from depositer to Vault
-            token1.safeTransferFrom(msg.sender, address(this), _assets);
+        // 1. Transfer USDC from depositer to Vault
+        token1.safeTransferFrom(msg.sender, address(this), _assets);
 
-            uint128 _liquidity = _depositInRange(
-                _assets,
-                _ticks,
-                stoplossLowerTick,
-                stoplossUpperTick
+        // 2. compute hedge amount by shares
+        uint256 _targetDebtAmount0 = debtToken0.balanceOf(address(this)).mulDiv(
+            _minShares,
+            _totalSupply
+        );
+        uint256 _targetCollateralAmount0 = aToken1
+            .balanceOf(address(this))
+            .mulDiv(_minShares, _totalSupply);
+
+        // 3. compute liquidity amount by shares
+        Ticks memory _ticks = _getTicksByStorage();
+        (uint128 liquidity, , , , ) = pool.positions(
+            _getPositionID(_ticks.lowerTick, _ticks.upperTick)
+        );
+        uint128 _targetLiquidity = uint128(
+            uint256(liquidity).mulDiv(_minShares, _totalSupply)
+        );
+        (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _ticks.sqrtRatioX96,
+                TickMath.getSqrtRatioAtTick(_ticks.lowerTick),
+                TickMath.getSqrtRatioAtTick(_ticks.upperTick),
+                _targetLiquidity
             );
 
-            //calculate mint amount
-            if (_totalDeposits == 0) {
-                //if initial depositing, shares = _liquidity
-                shares_ = _liquidity;
-            } else {
-                _ticks = _getTicksByStorage(); //retrieve ticks
-                shares_ = totalSupply().mulDiv(_liquidity, _totalLiquidity);
-            }
-        } else {
-            //when stoplossed or out of range
-            //calculate mint amount
-            if (_totalDeposits == 0) {
-                revert(Errors.DEPOSIT_STOPLOSSED);
-            } else {
-                uint256 _balance = token1.balanceOf(address(this));
-                token1.safeTransferFrom(msg.sender, address(this), _assets);
-                shares_ = totalSupply().mulDiv(_assets, _balance);
+        // 4. compute surplus of amount0 or amount1
+        uint256 _balance0 = _targetDebtAmount0;
+        uint256 _balance1 = _assets - _targetCollateralAmount0;
+        uint256 _surplusAmount0;
+        uint256 _surplusAmount1;
+        if (_balance0 > _targetAmount0) {
+            unchecked {
+                _surplusAmount0 = _balance0 - _targetAmount0;
             }
         }
+        if (_balance1 > _targetAmount1) {
+            unchecked {
+                _surplusAmount1 = _balance1 - _targetAmount1;
+            }
+        }
+
+        // 5. swap surplus amount0 or amount1
+        if (_surplusAmount0 > 0 && _surplusAmount1 > 0) {
+            //no need to swap
+        } else if (_surplusAmount0 > 0) {
+            //swap amount0 to amount1
+            (int256 _amount0Delta, int256 _amount1Delta) = pool.swap(
+                address(this),
+                true,
+                SafeCast.toInt256(_surplusAmount0),
+                _checkSlippage(_ticks.sqrtRatioX96, true),
+                ""
+            );
+            _balance0 = uint256(SafeCast.toInt256(_balance0) - _amount0Delta);
+            _balance1 = uint256(SafeCast.toInt256(_balance1) - _amount1Delta);
+            _ticks = _getTicksByStorage();
+        } else if (_surplusAmount1 > 0) {
+            //swap amount1 to amount0
+            (int256 _amount0Delta, int256 _amount1Delta) = pool.swap(
+                address(this),
+                false,
+                SafeCast.toInt256(_surplusAmount1),
+                _checkSlippage(_ticks.sqrtRatioX96, false),
+                ""
+            );
+            _balance0 = uint256(SafeCast.toInt256(_balance0) - _amount0Delta);
+            _balance1 = uint256(SafeCast.toInt256(_balance1) - _amount1Delta);
+            _ticks = _getTicksByStorage();
+        } else if (_surplusAmount0 == 0 && _surplusAmount1 == 0) {
+            revert(Errors.SURPLUS_ZERO);
+        }
+
+        // 6. execute hedge
+        if (_targetCollateralAmount0 > 0) {
+            aave.supply(
+                address(token1),
+                _targetCollateralAmount0,
+                address(this),
+                0
+            );
+        }
+        if (_targetDebtAmount0 > 0) {
+            aave.borrow(
+                address(token0),
+                _targetDebtAmount0,
+                2,
+                0,
+                address(this)
+            );
+        }
+
+        // 7. add liquidity
+        _targetLiquidity = LiquidityAmounts.getLiquidityForAmounts(
+            _ticks.sqrtRatioX96,
+            _ticks.lowerTick.getSqrtRatioAtTick(),
+            _ticks.upperTick.getSqrtRatioAtTick(),
+            _targetAmount0,
+            _targetAmount1
+        );
+
+        (uint256 _addedAmount0, uint256 _addedAmount1) = pool.mint(
+            address(this),
+            _ticks.lowerTick,
+            _ticks.upperTick,
+            _targetLiquidity,
+            ""
+        );
+        _balance0 -= _addedAmount0;
+        _balance1 -= _addedAmount1;
+
+        //transfer surplus
+        token0.safeTransfer(_receiver, _balance0);
+        token1.safeTransfer(_receiver, _balance1);
 
         //mint
-        if (shares_ < _minShares) {
-            revert(Errors.LESS);
-        }
-        _mint(_receiver, shares_);
+        _mint(_receiver, _minShares);
 
         _emitAction(1, _ticks);
-    }
-
-    function _depositInRange(
-        uint256 _assets,
-        Ticks memory _ticks,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) internal returns (uint128 liquidity_) {
-        // 2. Supply USDC(Collateral)
-        (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
-            _assets,
-            _ticks.currentTick,
-            _lowerTick,
-            _upperTick
-        );
-        if (_supply > 0) {
-            aave.supply(address(token1), _supply, address(this), 0);
-        }
-
-        // 3. Borrow ETH
-        if (_borrow > 0) {
-            aave.borrow(address(token0), _borrow, 2, 0, address(this));
-        }
-
-        // 4. Swap from USDC to ETH (if necessary)
-        // 5. Add liquidity
-        uint256 _addingUsdc = _assets - _supply;
-        (liquidity_, , ) = _swapAndAddLiquidity(_borrow, _addingUsdc, _ticks);
     }
 
     /// @inheritdoc IOrangeAlphaVault

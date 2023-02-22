@@ -18,4 +18,7 @@ library Errors {
     string public constant LOCKUP = "Lockup";
     string public constant REBALANCER = "Rebalancer";
     string public constant MORE = "More";
+    string public constant INITIAL_DEPOSIT = "InitialDeposit";
+    string public constant NOT_INITIAL_DEPOSIT = "NotInitialDeposit";
+    string public constant SURPLUS_ZERO = "SurplusZero";
 }
