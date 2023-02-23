@@ -22,7 +22,8 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _token1,
         address _aave,
         address _debtToken0,
-        address _aToken1
+        address _aToken1,
+        address _params
     )
         OrangeAlphaVault(
             _name,
@@ -33,7 +34,8 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             _token1,
             _aave,
             _debtToken0,
-            _aToken1
+            _aToken1,
+            _params
         )
     {}
 
@@ -108,13 +110,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _checkSlippage(_currentSqrtRatioX96, _zeroForOne);
     }
 
-    function checkTickSlippage(int24 _inputTick, int24 _currentTick)
-        external
-        view
-    {
-        return _checkTickSlippage(_inputTick, _currentTick);
-    }
-
     function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
         return _quoteEthPriceByTick(_tick);
     }
@@ -128,16 +123,14 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     function alignTotalAsset(
-        uint256 amount0Current,
-        uint256 amount1Current,
+        UnderlyingAssets memory _underlyingAssets,
         uint256 amount0Debt,
         uint256 amount1Supply
     ) external view returns (uint256 totalAlignedAssets) {
         return
             _alignTotalAsset(
                 _getTicksByStorage(),
-                amount0Current,
-                amount1Current,
+                _underlyingAssets,
                 amount0Debt,
                 amount1Supply
             );
@@ -173,6 +166,39 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         int24 _upperTick
     ) external pure returns (bool) {
         return _isOutOfRange(_tick, _lowerTick, _upperTick);
+    }
+
+    function getPositionID() external view returns (bytes32 positionID) {
+        Ticks memory _ticks = _getTicksByStorage();
+        return _getPositionID(_ticks.lowerTick, _ticks.upperTick);
+    }
+
+    function getTicksByStorage() external view returns (Ticks memory) {
+        return _getTicksByStorage();
+    }
+
+    function computeSupplyAndBorrow(uint256 _assets)
+        external
+        view
+        returns (uint256 supply_, uint256 borrow_)
+    {
+        Ticks memory _ticks = _getTicksByStorage();
+        return
+            _computeSupplyAndBorrow(
+                _assets,
+                _ticks.currentTick,
+                _ticks.lowerTick,
+                _ticks.upperTick
+            );
+    }
+
+    function computeSwapAmount(uint256 _amount0, uint256 _amount1)
+        external
+        view
+        returns (bool _zeroForOne, int256 _swapAmount)
+    {
+        Ticks memory _ticks = _getTicksByStorage();
+        return _computeSwapAmount(_amount0, _amount1, _ticks);
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */

@@ -3,15 +3,16 @@ pragma solidity 0.8.16;
 
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {IResolver} from "../vendor/gelato/IResolver.sol";
-import {GelatoOps} from "../vendor/gelato/GelatoOps.sol";
+import {GelatoOps} from "../libs/GelatoOps.sol";
 
-contract GelatoMock is IResolver, GelatoOps {
+contract GelatoMock is IResolver {
     using TickMath for int24;
 
     bool public stoplossed;
     int24 public lowerTick;
     int24 public upperTick;
     int24 public currentTick;
+    address public dedicatedMsgSender;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -22,6 +23,7 @@ contract GelatoMock is IResolver, GelatoOps {
         lowerTick = _lowerTick;
         upperTick = _upperTick;
         currentTick = _currentTick;
+        dedicatedMsgSender = GelatoOps.getDedicatedMsgSender(msg.sender);
     }
 
     function checker()
@@ -49,7 +51,10 @@ contract GelatoMock is IResolver, GelatoOps {
         return (!stoplossed && _isOutOfRange());
     }
 
-    function stoploss(int24 _inputTick) external onlyDedicatedMsgSender {
+    function stoploss(int24 _inputTick) external {
+        if (msg.sender != dedicatedMsgSender) {
+            revert("not dedicated msg sender");
+        }
         if (!canStoploss()) {
             revert("cannot stoploss");
         }

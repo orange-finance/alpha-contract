@@ -44,6 +44,26 @@ contract UniswapV3Test is
         usdc.safeApprove(address(pool), type(uint256).max);
     }
 
+    struct Ticks {
+        int24 currentTick;
+        int24 lowerTick;
+        int24 upperTick;
+    }
+
+    function test_setTick() public view {
+        Ticks memory ticks = Ticks({
+            currentTick: 0,
+            lowerTick: -lowerTick,
+            upperTick: -upperTick
+        });
+        setCurrentTick(ticks);
+        console2.log(ticks.currentTick.toString(), "tick");
+    }
+
+    function setCurrentTick(Ticks memory ticks) internal view {
+        (, ticks.currentTick, , , , , ) = pool.slot0();
+    }
+
     function test_viewFunctions_success() public {
         (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.slot0();
         console2.log(sqrtRatioX96, "sqrtRatioX96");

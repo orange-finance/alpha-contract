@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+
 interface IOrangeAlphaVault {
     /* ========== STRUCTS ========== */
     struct DepositType {
@@ -10,10 +12,15 @@ interface IOrangeAlphaVault {
 
     ///@dev this struct only used in memory
     struct Ticks {
-        uint160 sqrtRatioX96;
         int24 currentTick;
         int24 lowerTick;
         int24 upperTick;
+    }
+
+    ///@dev this struct only used in memory
+    struct Balances {
+        uint256 balance0;
+        uint256 balance1;
     }
 
     ///@dev this struct only used in memory and interfaces
@@ -27,15 +34,22 @@ interface IOrangeAlphaVault {
     }
 
     /* ========== EVENTS ========== */
-    event Redeem(
-        address indexed caller,
-        address indexed receiver,
-        uint256 assets,
-        uint256 shares,
-        uint256 withdrawnCollateral,
-        uint256 repaid,
-        uint128 liquidityBurned
+    event UpdateTicks(
+        int24 lowerTick,
+        int24 upperTick,
+        int24 stoplossLowerTick,
+        int24 stoplossUpperTick
     );
+
+    // event Redeem(
+    //     address indexed caller,
+    //     address indexed receiver,
+    //     uint256 assets,
+    //     uint256 shares,
+    //     uint256 withdrawnCollateral,
+    //     uint256 repaid,
+    //     uint128 liquidityBurned
+    // );
 
     event Rebalance(
         int24 lowerTick_,
@@ -83,17 +97,34 @@ interface IOrangeAlphaVault {
     event Action(
         uint8 indexed actionType,
         address indexed caller,
-        uint256 amount0Debt,
-        uint256 amount1Supply,
-        UnderlyingAssets underlyingAssets,
         uint256 totalAssets,
-        uint256 totalSupply,
-        uint256 lowerPrice,
-        uint256 upperPrice,
-        uint256 currentPrice
+        uint256 totalSupply
     );
 
     /* ========== VIEW FUNCTIONS ========== */
+
+    /**
+     * @notice get deposited amount and timestamp
+     * @param account depositer address
+     * @return assets
+     * @return timestamp
+     */
+    function deposits(address account)
+        external
+        view
+        returns (uint256 assets, uint40 timestamp);
+
+    /**
+     * @notice get total deposited amount
+     * @return assets
+     */
+    function totalDeposits() external view returns (uint256 assets);
+
+    function pool() external view returns (IUniswapV3Pool pool);
+
+    function stoplossLowerTick() external view returns (int24);
+
+    function stoplossUpperTick() external view returns (int24);
 
     /**
      * @notice get total assets
@@ -121,80 +152,49 @@ interface IOrangeAlphaVault {
         view
         returns (uint256 assets);
 
-    /**
-     * @notice compute new liquidity if rebalance
-     * @param _newLowerTick new lower tick
-     * @param _newUpperTick new upper tick
-     * @param _newStoplossLowerTick new stoploss lower tick
-     * @param _newStoplossUpperTick new stoploss upper tick
-     * @return liquidity
-     */
-    function computeNewLiquidity(
-        int24 _newLowerTick,
-        int24 _newUpperTick,
-        int24 _newStoplossLowerTick,
-        int24 _newStoplossUpperTick
-    ) external view returns (uint128 liquidity);
+    // /**
+    //  * @notice compute new liquidity if rebalance
+    //  * @param _newLowerTick new lower tick
+    //  * @param _newUpperTick new upper tick
+    //  * @param _newStoplossLowerTick new stoploss lower tick
+    //  * @param _newStoplossUpperTick new stoploss upper tick
+    //  * @return liquidity
+    //  */
+    // function computeNewLiquidity(
+    //     int24 _newLowerTick,
+    //     int24 _newUpperTick,
+    //     int24 _newStoplossLowerTick,
+    //     int24 _newStoplossUpperTick
+    // ) external view returns (uint128 liquidity);
 
-    /**
-     * @notice get deposited amount and timestamp
-     * @param account depositer address
-     * @return assets
-     * @return timestamp
-     */
-    function deposits(address account)
-        external
-        view
-        returns (uint256 assets, uint40 timestamp);
-
-    /**
-     * @notice get total deposited amount
-     * @return assets
-     */
-    function totalDeposits() external view returns (uint256 assets);
-
-    /**
-     * @notice get indivisuals deposit cap
-     * @param account redeemer address
-     * @return depositCap
-     */
-    function depositCap(address account)
-        external
-        view
-        returns (uint256 depositCap);
-
-    /**
-     * @notice get total deposit cap
-     * @return totalDepositCap
-     */
-    function totalDepositCap() external view returns (uint256 totalDepositCap);
+    function canStoploss(
+        int24 _currentTick,
+        int24 _avgTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) external view returns (bool);
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /**
      * @notice deposit assets and get vault token
      * @param assets amount of assets
-     * @param receiver receiver address
      * @param merkleProof merkle proof
      * @return shares
      */
-    function initialDeposit(
-        uint256 assets,
-        address receiver,
-        bytes32[] calldata merkleProof
-    ) external returns (uint256 shares);
+    function initialDeposit(uint256 assets, bytes32[] calldata merkleProof)
+        external
+        returns (uint256 shares);
 
     /**
      * @notice deposit assets and get vault token
      * @param assets amount of assets
-     * @param receiver receiver address
      * @param minShares minimum amount of returned vault token
      * @param merkleProof merkle proof
      * @return shares
      */
     function deposit(
         uint256 assets,
-        address receiver,
         uint256 minShares,
         bytes32[] calldata merkleProof
     ) external returns (uint256 shares);
