@@ -2,23 +2,20 @@
 pragma solidity 0.8.16;
 
 library Errors {
-    string public constant TICKS = "Ticks";
-    string public constant DEPOSIT_STOPLOSSED = "DepositStoplossed";
-    string public constant CAPOVER = "CapOver";
-    string public constant ZERO = "Zero";
-    string public constant ADD_LIQUIDITY_AMOUNTS = "LiquidityAmounts";
-    string public constant PARAMS = "Params";
-    string public constant INCORRECT_LENGTH = "Length";
-    string public constant HIGH_SLIPPAGE = "Slippage";
-    string public constant CALLBACK_CALLER = "Callback";
-    string public constant WHEN_CAN_STOPLOSS = "Stoploss";
-    string public constant LESS = "Less";
-    string public constant AAVE_MISMATCH = "Aave";
-    string public constant LOCKUP = "Lockup";
-    string public constant ADMINISTRATOR = "Administrator";
-    string public constant MORE = "More";
-    string public constant SURPLUS_ZERO = "SurplusZero";
-    string public constant MERKLE_ALLOWLISTED = "MerkleAllowListed";
-    string public constant DEDICATED_MSG_SENDER = "DedicatedMsgSender";
-    string public constant NOT_PERIPHERY = "NotPeriphery";
+    //access control
+    string public constant ONLY_PERIPHERY = "1";
+    string public constant ONLY_DEDICATED_MSG_SENDER = "2";
+    string public constant ONLY_ADMINISTRATOR = "3";
+    string public constant ONLY_CALLBACK_CALLER = "4";
+    //condition
+    string public constant CANNOT_STOPLOSS = "11";
+    //validation
+    string public constant INVALID_TICKS = "21";
+    string public constant INVALID_AMOUNT = "22";
+    //logic
+    string public constant SURPLUS_ZERO = "31";
+    string public constant AAVE_MISMATCH = "32";
+    string public constant LESS_AMOUNT = "33";
+    string public constant LESS_LIQUIDITY = "34";
+    string public constant HIGH_SLIPPAGE = "35";
 }

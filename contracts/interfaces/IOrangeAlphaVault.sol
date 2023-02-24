@@ -31,41 +31,6 @@ interface IOrangeAlphaVault {
     }
 
     /* ========== EVENTS ========== */
-    event UpdateTicks(
-        int24 lowerTick,
-        int24 upperTick,
-        int24 stoplossLowerTick,
-        int24 stoplossUpperTick
-    );
-
-    // event Redeem(
-    //     address indexed caller,
-    //     address indexed receiver,
-    //     uint256 assets,
-    //     uint256 shares,
-    //     uint256 withdrawnCollateral,
-    //     uint256 repaid,
-    //     uint128 liquidityBurned
-    // );
-
-    event Rebalance(
-        int24 lowerTick_,
-        int24 upperTick_,
-        uint128 liquidityBefore,
-        uint128 liquidityAfter
-    );
-
-    event RemoveAllPosition(
-        uint256 fee0,
-        uint256 fee1,
-        uint128 liquidity,
-        uint256 withdrawingCollateral,
-        uint256 repayingDebt
-    );
-
-    event UpdateDepositCap(uint256 depositCap, uint256 totalDepositCap);
-    event UpdateSlippage(uint16 slippageBPS, uint24 tickSlippageBPS);
-    event UpdateMaxLtv(uint32 maxLtv);
 
     event SwapAndAddLiquidity(
         bool zeroForOne,
@@ -99,23 +64,6 @@ interface IOrangeAlphaVault {
     );
 
     /* ========== VIEW FUNCTIONS ========== */
-
-    // /**
-    //  * @notice get deposited amount and timestamp
-    //  * @param account depositer address
-    //  * @return assets
-    //  * @return timestamp
-    //  */
-    // function deposits(address account)
-    //     external
-    //     view
-    //     returns (uint256 assets, uint40 timestamp);
-
-    // /**
-    //  * @notice get total deposited amount
-    //  * @return assets
-    //  */
-    // function totalDeposits() external view returns (uint256 assets);
 
     function pool() external view returns (IUniswapV3Pool pool);
 
@@ -151,21 +99,13 @@ interface IOrangeAlphaVault {
         view
         returns (uint256 assets);
 
-    // /**
-    //  * @notice compute new liquidity if rebalance
-    //  * @param _newLowerTick new lower tick
-    //  * @param _newUpperTick new upper tick
-    //  * @param _newStoplossLowerTick new stoploss lower tick
-    //  * @param _newStoplossUpperTick new stoploss upper tick
-    //  * @return liquidity
-    //  */
-    // function computeNewLiquidity(
-    //     int24 _newLowerTick,
-    //     int24 _newUpperTick,
-    //     int24 _newStoplossLowerTick,
-    //     int24 _newStoplossUpperTick
-    // ) external view returns (uint128 liquidity);
-
+    /**
+     * @notice whether can stoploss
+     * @param _currentTick current tick
+     * @param _lowerTick lower tick
+     * @param _upperTick upper tick
+     * @return bool whether can stoploss
+     */
     function canStoploss(
         int24 _currentTick,
         int24 _lowerTick,

@@ -107,20 +107,20 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         view
         returns (uint160 _swapThresholdPrice)
     {
-        return _checkSlippage(_currentSqrtRatioX96, _zeroForOne);
+        return _setSlippage(_currentSqrtRatioX96, _zeroForOne);
     }
 
     function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
         return _quoteEthPriceByTick(_tick);
     }
 
-    function computePercentageFromUpperRange(Ticks memory _ticks)
-        external
-        view
-        returns (uint256 parcentageFromUpper_)
-    {
-        return _computePercentageFromUpperRange(_ticks);
-    }
+    // function computePercentageFromUpperRange(Ticks memory _ticks)
+    //     external
+    //     view
+    //     returns (uint256 parcentageFromUpper_)
+    // {
+    //     return _computePercentageFromUpperRange(_ticks);
+    // }
 
     function alignTotalAsset(
         UnderlyingAssets memory _underlyingAssets,
@@ -183,32 +183,32 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function computeSwapAmount(uint256 _amount0, uint256 _amount1)
-        external
-        view
-        returns (bool _zeroForOne, int256 _swapAmount)
-    {
-        Ticks memory _ticks = _getTicksByStorage();
-        return _computeSwapAmount(_amount0, _amount1, _ticks);
-    }
+    // function computeSwapAmount(uint256 _amount0, uint256 _amount1)
+    //     external
+    //     view
+    //     returns (bool _zeroForOne, int256 _swapAmount)
+    // {
+    //     Ticks memory _ticks = _getTicksByStorage();
+    //     return _computeSwapAmount(_amount0, _amount1, _ticks);
+    // }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function swapAndAddLiquidity(
-        uint256 _amount0,
-        uint256 _amount1,
-        Ticks memory _ticks
-    )
-        external
-        returns (
-            uint128 liquidity_,
-            uint256 amountDeposited0_,
-            uint256 amountDeposited1_
-        )
-    {
-        return _swapAndAddLiquidity(_amount0, _amount1, _ticks);
-    }
+    // function swapAndAddLiquidity(
+    //     uint256 _amount0,
+    //     uint256 _amount1,
+    //     Ticks memory _ticks
+    // )
+    //     external
+    //     returns (
+    //         uint128 liquidity_,
+    //         uint256 amountDeposited0_,
+    //         uint256 amountDeposited1_
+    //     )
+    // {
+    //     return _swapAndAddLiquidity(_amount0, _amount1, _ticks);
+    // }
 
     function burnShare(
         uint256 _shares,
