@@ -23,4 +23,6 @@ interface IOrangeAlphaParameters {
     function merkleRoot() external view returns (bytes32);
 
     function dedicatedMsgSender() external view returns (address);
+
+    function periphery() external view returns (address);
 }

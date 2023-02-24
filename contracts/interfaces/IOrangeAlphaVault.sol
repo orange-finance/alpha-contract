@@ -2,13 +2,10 @@
 pragma solidity 0.8.16;
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IOrangeAlphaVault {
     /* ========== STRUCTS ========== */
-    struct DepositType {
-        uint256 assets;
-        uint40 timestamp;
-    }
 
     ///@dev this struct only used in memory
     struct Ticks {
@@ -103,24 +100,26 @@ interface IOrangeAlphaVault {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    /**
-     * @notice get deposited amount and timestamp
-     * @param account depositer address
-     * @return assets
-     * @return timestamp
-     */
-    function deposits(address account)
-        external
-        view
-        returns (uint256 assets, uint40 timestamp);
+    // /**
+    //  * @notice get deposited amount and timestamp
+    //  * @param account depositer address
+    //  * @return assets
+    //  * @return timestamp
+    //  */
+    // function deposits(address account)
+    //     external
+    //     view
+    //     returns (uint256 assets, uint40 timestamp);
 
-    /**
-     * @notice get total deposited amount
-     * @return assets
-     */
-    function totalDeposits() external view returns (uint256 assets);
+    // /**
+    //  * @notice get total deposited amount
+    //  * @return assets
+    //  */
+    // function totalDeposits() external view returns (uint256 assets);
 
     function pool() external view returns (IUniswapV3Pool pool);
+
+    function token1() external view returns (IERC20 token1);
 
     function stoplossLowerTick() external view returns (int24);
 
@@ -169,34 +168,33 @@ interface IOrangeAlphaVault {
 
     function canStoploss(
         int24 _currentTick,
-        int24 _avgTick,
         int24 _lowerTick,
         int24 _upperTick
     ) external view returns (bool);
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    /**
-     * @notice deposit assets and get vault token
-     * @param assets amount of assets
-     * @param merkleProof merkle proof
-     * @return shares
-     */
-    function initialDeposit(uint256 assets, bytes32[] calldata merkleProof)
-        external
-        returns (uint256 shares);
+    // /**
+    //  * @notice deposit assets and get vault token
+    //  * @param assets amount of assets
+    //  * @param merkleProof merkle proof
+    //  * @return shares
+    //  */
+    // function initialDeposit(uint256 assets, bytes32[] calldata merkleProof)
+    //     external
+    //     returns (uint256 shares);
 
     /**
      * @notice deposit assets and get vault token
      * @param assets amount of assets
+     * @param _receiver receiver address
      * @param minShares minimum amount of returned vault token
-     * @param merkleProof merkle proof
      * @return shares
      */
     function deposit(
         uint256 assets,
-        uint256 minShares,
-        bytes32[] calldata merkleProof
+        address _receiver,
+        uint256 minShares
     ) external returns (uint256 shares);
 
     /**
@@ -225,14 +223,14 @@ interface IOrangeAlphaVault {
      * @param newUpperTick The new upper bound of the position's range
      * @param _newStoplossLowerTick The new lower bound of the stoploss range
      * @param _newStoplossUpperTick The new upper bound of the stoploss range
-     * @param minNewLiquidity minimum liqidiity
+     * @param _minNewLiquidity minimum liqidiity
      */
     function rebalance(
         int24 newLowerTick,
         int24 newUpperTick,
         int24 _newStoplossLowerTick,
         int24 _newStoplossUpperTick,
-        uint128 minNewLiquidity
+        uint128 _minNewLiquidity
     ) external;
 
     /**

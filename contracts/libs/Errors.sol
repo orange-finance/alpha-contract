@@ -22,4 +22,5 @@ library Errors {
     string public constant SURPLUS_ZERO = "SurplusZero";
     string public constant MERKLE_ALLOWLISTED = "MerkleAllowListed";
     string public constant DEDICATED_MSG_SENDER = "DedicatedMsgSender";
+    string public constant NOT_PERIPHERY = "NotPeriphery";
 }

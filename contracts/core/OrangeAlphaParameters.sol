@@ -26,6 +26,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
     address public dedicatedMsgSender;
+    address public periphery;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {

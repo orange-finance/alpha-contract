@@ -68,29 +68,29 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function setDeposits(address _user, uint256 _amount) external {
-        deposits[_user].assets = _amount;
-    }
+    // function setDeposits(address _user, uint256 _amount) external {
+    //     deposits[_user].assets = _amount;
+    // }
 
-    function setTotalDeposits(uint256 _amount) external {
-        totalDeposits = _amount;
-    }
+    // function setTotalDeposits(uint256 _amount) external {
+    //     totalDeposits = _amount;
+    // }
 
-    function getTwap() external view returns (int24) {
-        return _getTwap();
-    }
+    // function getTwap() external view returns (int24) {
+    //     return _getTwap();
+    // }
 
     function setAvgTick(int24 _avgTick) external {
         avgTick = _avgTick;
     }
 
-    function _getTwap() internal view override returns (int24) {
-        if (avgTick == 0) {
-            return super._getTwap();
-        } else {
-            return avgTick;
-        }
-    }
+    // function _getTwap() internal view override returns (int24) {
+    //     if (avgTick == 0) {
+    //         return super._getTwap();
+    //     } else {
+    //         return avgTick;
+    //     }
+    // }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function getLtvByRange() external view returns (uint256) {
@@ -154,18 +154,9 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return
             _canStoploss(
                 _getTicksByStorage().currentTick,
-                _getTwap(),
                 stoplossLowerTick,
                 stoplossUpperTick
             );
-    }
-
-    function isOutOfRange(
-        int24 _tick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external pure returns (bool) {
-        return _isOutOfRange(_tick, _lowerTick, _upperTick);
     }
 
     function getPositionID() external view returns (bytes32 positionID) {
