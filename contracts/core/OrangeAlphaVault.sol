@@ -188,6 +188,100 @@ contract OrangeAlphaVault is
         underlyingAssets.amount1Balance = token1.balanceOf(address(this));
     }
 
+    function getRebalancedLiquidity(
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick
+    ) external view returns (uint128 liquidity_) {
+        Ticks memory _ticks = _getTicksByStorage();
+        uint256 _assets = _totalAssets(_ticks);
+        (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
+            _assets,
+            _ticks.currentTick,
+            _newStoplossLowerTick,
+            _newStoplossUpperTick
+        );
+        uint256 remainingAmount = _assets - _supply;
+        //compute liquidity
+        liquidity_ = LiquidityAmounts.getLiquidityForAmounts(
+            _ticks.currentTick.getSqrtRatioAtTick(),
+            _newLowerTick.getSqrtRatioAtTick(),
+            _newUpperTick.getSqrtRatioAtTick(),
+            _borrow,
+            remainingAmount
+        );
+        // console2.log(liquidity_, "liquidity_");
+    }
+
+    /// @notice Compute collateral and borrow amount
+    function _computeSupplyAndBorrow(
+        uint256 _assets,
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal view returns (uint256 supply_, uint256 borrow_) {
+        if (_assets == 0) return (0, 0);
+
+        uint256 _ltv = _getLtvByRange(_currentTick, _lowerTick, _upperTick);
+        // uint256 _hedgeRate = MAGIC_SCALE_1E8; //100%
+
+        // ETH/USDC
+        (uint256 _amount0, uint256 _amount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _currentTick.getSqrtRatioAtTick(),
+                _lowerTick.getSqrtRatioAtTick(),
+                _upperTick.getSqrtRatioAtTick(),
+                1e18 //ここはてきとう
+            );
+        // console2.log(_amount0, "_amount0");
+        // console2.log(_amount1, "_amount1");
+        uint256 _amount0Usdc = OracleLibrary.getQuoteAtTick(
+            _currentTick,
+            uint128(_amount0),
+            address(token0),
+            address(token1)
+        );
+
+        supply_ =
+            (_assets * MAGIC_SCALE_1E8) /
+            (MAGIC_SCALE_1E8 + ((_ltv * _amount1) / _amount0Usdc));
+
+        uint256 _borrowUsdc = supply_.mulDiv(_ltv, MAGIC_SCALE_1E8);
+        //borrowing usdc amount to weth
+        borrow_ = OracleLibrary.getQuoteAtTick(
+            _currentTick,
+            uint128(_borrowUsdc),
+            address(token1),
+            address(token0)
+        );
+        // console2.log(supply_, "supply_");
+        // console2.log(borrow_, "borrow_");
+    }
+
+    /**
+     * @notice Get LTV by current and range prices
+     * @dev called by _computeSupplyAndBorrow. maxLtv * (current price / upper price)
+     */
+    function _getLtvByRange(
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal view returns (uint256 ltv_) {
+        uint256 _currentPrice = _quoteEthPriceByTick(_currentTick);
+        uint256 _lowerPrice = _quoteEthPriceByTick(_lowerTick);
+        uint256 _upperPrice = _quoteEthPriceByTick(_upperTick);
+
+        ltv_ = params.maxLtv();
+        if (_currentPrice > _upperPrice) {
+            // ltv_ = maxLtv;
+        } else if (_currentPrice < _lowerPrice) {
+            ltv_ = ltv_.mulDiv(_lowerPrice, _upperPrice);
+        } else {
+            ltv_ = ltv_.mulDiv(_currentPrice, _upperPrice);
+        }
+    }
+
     function canStoploss(
         int24 _targetTick,
         int24 _lowerTick,
@@ -196,10 +290,7 @@ contract OrangeAlphaVault is
         return _canStoploss(_targetTick, _lowerTick, _upperTick);
     }
 
-    /**
-     * @notice Can stoploss when not stopplossed and out of range
-     * @return
-     */
+    ///@notice Can stoploss when not stopplossed and out of range
     function _canStoploss(
         int24 _targetTick,
         int24 _lowerTick,
@@ -220,10 +311,6 @@ contract OrangeAlphaVault is
      * @notice Compute total asset price as USDC
      * @dev Align WETH (amount0Current and amount0Debt) to USDC
      * amount0Current + amount1Current - amount0Debt + amount1Supply
-     * @param _ticks current and range ticks
-     * @param _underlyingAssets current underlying assets
-     * @param amount0Debt amount of debt
-     * @param amount1Supply amount of collateral
      */
     function _alignTotalAsset(
         Ticks memory _ticks,
@@ -267,11 +354,6 @@ contract OrangeAlphaVault is
     /**
      * @notice Compute one of fee amount
      * @dev similar to Arrakis'
-     * @param isZero The side of pairs, true for token0, false is token1
-     * @param feeGrowthInsideLast last fee growth
-     * @param liquidity liqudity amount
-     * @param _ticks current and range ticks
-     * @return fee
      */
     function _computeFeesEarned(
         bool isZero,
@@ -328,75 +410,7 @@ contract OrangeAlphaVault is
         }
     }
 
-    /**
-     * @notice Compute collateral and borrow amount
-     * @param _assets The amount of assets
-     * @param _currentTick current  tick
-     * @param _lowerTick lower tick
-     * @param _upperTick upper tick
-     * @return supply_
-     * @return borrow_
-     */
-    function _computeSupplyAndBorrow(
-        uint256 _assets,
-        int24 _currentTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) internal view returns (uint256 supply_, uint256 borrow_) {
-        if (_assets == 0) return (0, 0);
-
-        uint256 _currentLtv = _getLtvByRange(
-            _currentTick,
-            _lowerTick,
-            _upperTick
-        );
-        supply_ = _assets.mulDiv(
-            MAGIC_SCALE_1E8,
-            _currentLtv + MAGIC_SCALE_1E8
-        );
-        uint256 _borrowUsdc = supply_.mulDiv(_currentLtv, MAGIC_SCALE_1E8);
-        //borrowing usdc amount to weth
-        borrow_ = OracleLibrary.getQuoteAtTick(
-            _currentTick,
-            uint128(_borrowUsdc),
-            address(token1),
-            address(token0)
-        );
-    }
-
-    /**
-     * @notice Get LTV by current and range prices
-     * @dev called by _computeSupplyAndBorrow. maxLtv * (current price / upper price)
-     * @param _currentTick current tick
-     * @param _lowerTick lower tick
-     * @param _upperTick upper tick
-     * @return ltv_
-     */
-    function _getLtvByRange(
-        int24 _currentTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) internal view returns (uint256 ltv_) {
-        uint256 _currentPrice = _quoteEthPriceByTick(_currentTick);
-        uint256 _lowerPrice = _quoteEthPriceByTick(_lowerTick);
-        uint256 _upperPrice = _quoteEthPriceByTick(_upperTick);
-
-        ltv_ = params.maxLtv();
-        if (_currentPrice > _upperPrice) {
-            // ltv_ = maxLtv;
-        } else if (_currentPrice < _lowerPrice) {
-            ltv_ = ltv_.mulDiv(_lowerPrice, _upperPrice);
-        } else {
-            ltv_ = ltv_.mulDiv(_currentPrice, _upperPrice);
-        }
-    }
-
-    /**
-     * @notice Get Uniswap's position ID
-     * @param _lowerTick The lower tick
-     * @param _upperTick The upper tick
-     * @return positionID
-     */
+    ///@notice Get Uniswap's position ID
     function _getPositionID(int24 _lowerTick, int24 _upperTick)
         internal
         view
@@ -423,11 +437,7 @@ contract OrangeAlphaVault is
         revert(Errors.TICKS);
     }
 
-    /**
-     * @notice Quote eth price by USDC
-     * @param _tick target ticks
-     * @return ethPrice
-     */
+    ///@notice Quote eth price by USDC
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
         return
             OracleLibrary.getQuoteAtTick(
@@ -438,24 +448,13 @@ contract OrangeAlphaVault is
             );
     }
 
-    /**
-     * @notice Get ticks from this storage and Uniswap
-     * @dev access storage of this and Uniswap
-     * Storage access should be minimized from gas cost point of view
-     * @return ticks
-     */
+    ///@notice Get ticks from this storage and Uniswap
     function _getTicksByStorage() internal view returns (Ticks memory) {
         (, int24 _tick, , , , , ) = pool.slot0();
         return Ticks(_tick, lowerTick, upperTick);
     }
 
-    /**
-     * @notice Get ticks from this storage and Uniswap
-     * @dev similar Arrakis'
-     * @param _currentSqrtRatioX96 Current sqrt ratio
-     * @param _zeroForOne The direction of the swap, true for token0 to token1, false for token1 to token0
-     * @return _swapThresholdPrice
-     */
+    ///@notice Get ticks from this storage and Uniswap
     function _setSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         internal
         view
@@ -485,8 +484,6 @@ contract OrangeAlphaVault is
      * @notice computing percentage of (upper price - current price) / (upper price - lower price)
      *  e.g. upper price: 1100, lower price: 900
      *  if current price is 1000,return 50%. if 1050,return 25%. if 1100,return 0%. if 900,return 100%
-     * @param _ticks current and range ticks
-     * @return parcentageFromUpper_
      */
     function _computePercentageFromUpperRange(Ticks memory _ticks)
         internal
@@ -537,7 +534,7 @@ contract OrangeAlphaVault is
             uint256 _targetCollateralAmount1,
             uint256 _targetAmount0,
             uint256 _targetAmount1
-        ) = _computeHedgeAndLiquidity(_minShares, _ticks);
+        ) = _computeHedgeAndLiquidityByShares(_minShares, _ticks);
 
         // 3. swap surplus amount0 or amount1
         Balances memory _balances = Balances(
@@ -598,7 +595,10 @@ contract OrangeAlphaVault is
         return _minShares;
     }
 
-    function _computeHedgeAndLiquidity(uint256 _minShares, Ticks memory _ticks)
+    function _computeHedgeAndLiquidityByShares(
+        uint256 _minShares,
+        Ticks memory _ticks
+    )
         internal
         view
         returns (
@@ -892,117 +892,54 @@ contract OrangeAlphaVault is
         _validateTicks(_newLowerTick, _newUpperTick);
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
 
-        // if there are no position
-        uint256 _totalSupply = totalSupply();
-        if (_totalSupply == 0) {
-            lowerTick = _newLowerTick;
-            upperTick = _newUpperTick;
-            stoplossLowerTick = _newStoplossLowerTick;
-            stoplossUpperTick = _newStoplossUpperTick;
-            emit UpdateTicks(
-                _newLowerTick,
-                _newUpperTick,
-                _newStoplossLowerTick,
-                _newStoplossUpperTick
-            );
-            return;
-        }
-
         Ticks memory _ticks = _getTicksByStorage();
         //if not stoplossed, removeAllPosition
         if (!stoplossed) {
             _removeAllPosition(_ticks);
         }
 
-        // 2. Remove liquidity
-        // 3. Collect fees
+        // 1. Remove liquidity and Collect fees
         (uint128 liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         if (liquidity > 0) {
             _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
         }
+
+        // 2. Update storage of ranges
+        _ticks.lowerTick = _newLowerTick; //memory
+        _ticks.upperTick = _newUpperTick; //memory
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
         stoplossLowerTick = _newStoplossLowerTick;
         stoplossUpperTick = _newStoplossUpperTick;
-        _ticks.lowerTick = _newLowerTick;
-        _ticks.upperTick = _newUpperTick;
 
-        //calculate repay or borrow amount
-        (uint256 _newSupply, uint256 _newBorrow) = _computeSupplyAndBorrow(
-            _totalAssets(_ticks),
+        // 3. Supply or borrow to lending
+        uint256 _assets = _totalAssets(_ticks);
+        (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
+            _assets,
             _ticks.currentTick,
             _newStoplossLowerTick,
             _newStoplossUpperTick
         );
-
-        //after stoploss, need to supply collateral
-        uint256 _supplyBalance = aToken1.balanceOf(address(this));
-        if (_supplyBalance < _newSupply) {
-            aave.supply(
-                address(token1),
-                _newSupply - _supplyBalance,
-                address(this),
-                0
-            );
+        if (_supply > 0) {
+            aave.supply(address(token1), _supply, address(this), 0);
+        }
+        if (_borrow > 0) {
+            aave.borrow(address(token0), _borrow, 2, 0, address(this));
         }
 
-        // 4. Swap
-        // 5. Repay or borrow (if swapping from ETH to USDC, do borrow)
-        uint256 _debtBalance = debtToken0.balanceOf(address(this));
-        if (_debtBalance == _newBorrow) {
-            //do nothing
-        } else if (_debtBalance > _newBorrow) {
-            //swap and repay
-            uint256 _repayingDebt = _debtBalance - _newBorrow;
-            if (_repayingDebt > token0.balanceOf(address(this))) {
-                pool.swap(
-                    address(this),
-                    false, //token1 to token0
-                    SafeCast.toInt256(token1.balanceOf(address(this))),
-                    _setSlippage(
-                        _ticks.currentTick.getSqrtRatioAtTick(),
-                        false
-                    ),
-                    ""
-                );
-                (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            }
-            if (
-                _repayingDebt !=
-                aave.repay(address(token0), _repayingDebt, 2, address(this))
-            ) revert(Errors.AAVE_MISMATCH);
-        } else {
-            //borrow
-            aave.borrow(
-                address(token0),
-                _newBorrow - _debtBalance,
-                2,
-                0,
-                address(this)
-            );
-        }
-
-        // 6. Add liquidity
-        uint256 reinvest0 = token0.balanceOf(address(this));
-        uint256 reinvest1 = token1.balanceOf(address(this));
+        // 4. Add liquidity
+        uint256 _remainingAmount1 = _assets - _supply;
         (uint128 newLiquidity, , ) = _swapAndAddLiquidity(
-            reinvest0,
-            reinvest1,
+            _borrow,
+            _remainingAmount1,
             _ticks
         );
 
         if (newLiquidity < _minNewLiquidity) {
             revert(Errors.LESS);
         }
-
-        emit UpdateTicks(
-            _newLowerTick,
-            _newUpperTick,
-            _newStoplossLowerTick,
-            _newStoplossUpperTick
-        );
 
         _emitAction(3, _ticks);
 
