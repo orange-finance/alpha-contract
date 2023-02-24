@@ -173,17 +173,6 @@ interface IOrangeAlphaVault {
     ) external view returns (bool);
 
     /* ========== EXTERNAL FUNCTIONS ========== */
-
-    // /**
-    //  * @notice deposit assets and get vault token
-    //  * @param assets amount of assets
-    //  * @param merkleProof merkle proof
-    //  * @return shares
-    //  */
-    // function initialDeposit(uint256 assets, bytes32[] calldata merkleProof)
-    //     external
-    //     returns (uint256 shares);
-
     /**
      * @notice deposit assets and get vault token
      * @param assets amount of assets

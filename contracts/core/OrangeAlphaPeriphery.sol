@@ -34,7 +34,7 @@ contract OrangeAlphaPeriphery is IResolver {
         params = IOrangeAlphaParameters(_params);
     }
 
-    /* ========== FUNCTIONS ========== */
+    /* ========== EXTERNAL FUNCTIONS ========== */
     function deposit(
         uint256 _assets,
         uint256 _minShares,
@@ -60,21 +60,40 @@ contract OrangeAlphaPeriphery is IResolver {
         return vault.deposit(_assets, msg.sender, _minShares);
     }
 
-    function _isAllowlisted(address _account, bytes32[] calldata _merkleProof)
-        internal
-        view
+    function redeem(uint256 _shares, uint256 _minAssets)
+        external
+        returns (uint256)
     {
-        if (params.allowlistEnabled()) {
-            if (
-                !MerkleProof.verify(
-                    _merkleProof,
-                    params.merkleRoot(),
-                    keccak256(abi.encodePacked(_account))
-                )
-            ) {
-                revert("MERKLE_ALLOWLISTED");
+        if (
+            block.timestamp <
+            deposits[msg.sender].timestamp + params.lockupPeriod()
+        ) {
+            revert("LOCKUP");
+        }
+        uint256 _assets = vault.redeem(
+            _shares,
+            msg.sender,
+            msg.sender,
+            _minAssets
+        );
+
+        //subtract depositsCap
+        uint256 _deposited = deposits[msg.sender].assets;
+        if (_deposited < _assets) {
+            deposits[msg.sender].assets = 0;
+        } else {
+            unchecked {
+                deposits[msg.sender].assets -= _assets;
             }
         }
+        if (totalDeposits < _assets) {
+            totalDeposits = 0;
+        } else {
+            unchecked {
+                totalDeposits -= _assets;
+            }
+        }
+        return _assets;
     }
 
     // @inheritdoc IResolver
@@ -106,6 +125,24 @@ contract OrangeAlphaPeriphery is IResolver {
             _twap
         );
         return (true, execPayload);
+    }
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+    function _isAllowlisted(address _account, bytes32[] calldata _merkleProof)
+        internal
+        view
+    {
+        if (params.allowlistEnabled()) {
+            if (
+                !MerkleProof.verify(
+                    _merkleProof,
+                    params.merkleRoot(),
+                    keccak256(abi.encodePacked(_account))
+                )
+            ) {
+                revert("MERKLE_ALLOWLISTED");
+            }
+        }
     }
 
     function _getTwap() internal view virtual returns (int24 avgTick) {

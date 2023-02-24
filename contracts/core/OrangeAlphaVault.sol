@@ -16,11 +16,9 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 //libraries
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {DataTypes} from "../vendor/aave/DataTypes.sol";
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../vendor/uniswap/OracleLibrary.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // import "forge-std/console2.sol";
 // import {Ints} from "../mocks/Ints.sol";
@@ -42,21 +40,26 @@ contract OrangeAlphaVault is
 
     /* ========== STORAGES ========== */
     bool public stoplossed;
-    int24 lowerTick;
-    int24 upperTick;
-    int24 public override stoplossLowerTick;
-    int24 public override stoplossUpperTick;
+    int24 public lowerTick;
+    int24 public upperTick;
+    int24 public stoplossLowerTick;
+    int24 public stoplossUpperTick;
 
-    /// @inheritdoc IOrangeAlphaVault
-    IUniswapV3Pool public override pool;
+    /* ========== PARAMETERS ========== */
+    IUniswapV3Pool public pool;
     IERC20 token0; //weth
     IERC20 public token1; //usdc
     IAaveV3Pool public aave;
     IERC20 debtToken0; //weth
     IERC20 aToken1; //usdc
     uint8 _decimal;
-    IOrangeAlphaParameters params;
-    address periphery;
+    IOrangeAlphaParameters public params;
+
+    /* ========== MODIFIER ========== */
+    modifier onlyPeriphery() {
+        if (msg.sender != params.periphery()) revert(Errors.NOT_PERIPHERY);
+        _;
+    }
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -453,29 +456,28 @@ contract OrangeAlphaVault is
      * @param _zeroForOne The direction of the swap, true for token0 to token1, false for token1 to token0
      * @return _swapThresholdPrice
      */
-    function _checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
+    function _setSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
         internal
         view
         returns (uint160 _swapThresholdPrice)
     {
-        if (_zeroForOne) {
-            return
-                uint160(
-                    FullMath.mulDiv(
-                        _currentSqrtRatioX96,
-                        params.slippageBPS(),
-                        MAGIC_SCALE_1E4
-                    )
-                );
+        // prettier-ignore
+        if (_zeroForOne) { 
+            return uint160(
+                FullMath.mulDiv(
+                    _currentSqrtRatioX96,
+                    params.slippageBPS(),
+                    MAGIC_SCALE_1E4
+                )
+            );
         } else {
-            return
-                uint160(
-                    FullMath.mulDiv(
-                        _currentSqrtRatioX96,
-                        MAGIC_SCALE_1E4 + params.slippageBPS(),
-                        MAGIC_SCALE_1E4
-                    )
-                );
+            return uint160(
+                FullMath.mulDiv(
+                    _currentSqrtRatioX96,
+                    MAGIC_SCALE_1E4 + params.slippageBPS(),
+                    MAGIC_SCALE_1E4
+                )
+            );
         }
     }
 
@@ -511,74 +513,22 @@ contract OrangeAlphaVault is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
-    // function initialDeposit(uint256 _assets, bytes32[] calldata merkleProof)
-    //     external
-    //     returns (uint256 shares_)
-    // {
-    //     //validation
-    //     _isAllowlisted(msg.sender, merkleProof);
-    //     if (totalSupply() > 0) {
-    //         revert(Errors.NOT_INITIAL_DEPOSIT);
-    //     }
-
-    //     // 1. Transfer USDC from depositer to Vault
-    //     token1.safeTransferFrom(msg.sender, address(this), _assets);
-
-    //     // 2. execute hedge
-    //     Ticks memory _ticks = _getTicksByStorage();
-    //     (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
-    //         _assets,
-    //         _ticks.currentTick,
-    //         _ticks.lowerTick,
-    //         _ticks.upperTick
-    //     );
-    //     if (_supply > 0) {
-    //         aave.supply(address(token1), _supply, address(this), 0);
-    //     }
-    //     if (_borrow > 0) {
-    //         aave.borrow(address(token0), _borrow, 2, 0, address(this));
-    //     }
-
-    //     // 3. add liquidity
-    //     uint256 _balance0 = _borrow;
-    //     uint256 _balance1 = _assets - _supply;
-    //     uint128 _liquidity = LiquidityAmounts.getLiquidityForAmounts(
-    //         _ticks.currentTick.getSqrtRatioAtTick(),
-    //         _ticks.lowerTick.getSqrtRatioAtTick(),
-    //         _ticks.upperTick.getSqrtRatioAtTick(),
-    //         _balance0,
-    //         _balance1
-    //     );
-    //     pool.mint(
-    //         address(this),
-    //         _ticks.lowerTick,
-    //         _ticks.upperTick,
-    //         _liquidity,
-    //         ""
-    //     );
-    //     //surplus amounts don't return back
-
-    //     //mint
-    //     _mint(msg.sender, _assets);
-
-    //     _emitAction(1, _ticks);
-    // }
-
-    /// @inheritdoc IOrangeAlphaVault
     function deposit(
         uint256 _assets,
         address _receiver,
         uint256 _minShares
-    ) external returns (uint256) {
+    ) external onlyPeriphery returns (uint256) {
         //validation check
-        if (msg.sender != params.periphery()) revert(Errors.NOT_PERIPHERY);
         if (_assets == 0 || _minShares == 0) revert("ZERO");
-        if (totalSupply() == 0) {
-            revert("INITIAL_DEPOSIT");
-        }
 
-        // 1. Transfer USDC from depositer to Vault
+        // 1. Transfer USDC from periphery to Vault
         token1.safeTransferFrom(msg.sender, address(this), _assets);
+
+        // if there is no position, mint and return
+        if (totalSupply() == 0) {
+            _mint(_receiver, _assets);
+            return _assets;
+        }
 
         // 2. compute hedge amount and liquidity by shares
         Ticks memory _ticks = _getTicksByStorage();
@@ -633,7 +583,7 @@ contract OrangeAlphaVault is
         _balances.balance0 -= _addedAmount0;
         _balances.balance1 -= _addedAmount1;
 
-        //transfer surplus
+        //transfer surplus amount to receiver
         if (_balances.balance0 > 0) {
             token0.safeTransfer(_receiver, _balances.balance0);
         }
@@ -714,7 +664,7 @@ contract OrangeAlphaVault is
                 address(this),
                 true,
                 SafeCast.toInt256(_surplusAmount0),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
@@ -730,7 +680,7 @@ contract OrangeAlphaVault is
                 address(this),
                 false,
                 SafeCast.toInt256(_surplusAmount1),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
@@ -751,23 +701,17 @@ contract OrangeAlphaVault is
         address _receiver,
         address,
         uint256 _minAssets
-    ) external returns (uint256) {
+    ) external onlyPeriphery returns (uint256) {
         //validation
-        // if (_shares == 0) {
-        //     revert(Errors.ZERO);
-        // }
-        // if (
-        //     block.timestamp <
-        //     deposits[msg.sender].timestamp + params.lockupPeriod()
-        // ) {
-        //     revert(Errors.LOCKUP);
-        // }
+        if (_shares == 0) {
+            revert(Errors.ZERO);
+        }
 
         uint256 _totalSupply = totalSupply();
         Ticks memory _ticks = _getTicksByStorage();
 
         //burn
-        _burn(msg.sender, _shares);
+        _burn(_receiver, _shares);
 
         // 1. Remove liquidity
         // 2. Collect fees
@@ -787,7 +731,7 @@ contract OrangeAlphaVault is
                 address(this),
                 false, //token1 to token0
                 SafeCast.toInt256(_assets1),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
@@ -822,15 +766,14 @@ contract OrangeAlphaVault is
 
         // 6. Swap from ETH to USDC (if necessary)
         if (_assets0 > 0) {
-            (int256 amount0Delta, int256 amount1Delta) = pool.swap(
+            (, int256 amount1Delta) = pool.swap(
                 address(this),
                 true, //token0 to token1
                 SafeCast.toInt256(_assets0),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _assets0 = uint256(SafeCast.toInt256(_assets0) - amount0Delta);
             _assets1 = uint256(SafeCast.toInt256(_assets1) - amount1Delta);
         }
 
@@ -839,19 +782,6 @@ contract OrangeAlphaVault is
             revert(Errors.LESS);
         }
         token1.safeTransfer(_receiver, _assets1);
-
-        //subtract deposits
-        // uint256 _deposited = deposits[_receiver].assets;
-        // if (_deposited < _assets1) {
-        //     deposits[_receiver].assets = 0;
-        // } else {
-        //     deposits[_receiver].assets -= _assets1;
-        // }
-        // if (totalDeposits < _assets1) {
-        //     totalDeposits = 0;
-        // } else {
-        //     totalDeposits -= _assets1;
-        // }
 
         _emitAction(2, _ticks);
         return _assets1;
@@ -1031,7 +961,7 @@ contract OrangeAlphaVault is
                     address(this),
                     false, //token1 to token0
                     SafeCast.toInt256(token1.balanceOf(address(this))),
-                    _checkSlippage(
+                    _setSlippage(
                         _ticks.currentTick.getSqrtRatioAtTick(),
                         false
                     ),
@@ -1121,7 +1051,7 @@ contract OrangeAlphaVault is
                 address(this),
                 _zeroForOne,
                 _swapAmount,
-                _checkSlippage(
+                _setSlippage(
                     _ticks.currentTick.getSqrtRatioAtTick(),
                     _zeroForOne
                 ),
@@ -1295,7 +1225,7 @@ contract OrangeAlphaVault is
                 address(this),
                 false, //token1 to token0
                 SafeCast.toInt256(token1.balanceOf(address(this))),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), false),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
@@ -1328,7 +1258,7 @@ contract OrangeAlphaVault is
                 address(this),
                 true, //token0 to token1
                 SafeCast.toInt256(_balanceToken0),
-                _checkSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
+                _setSlippage(_ticks.currentTick.getSqrtRatioAtTick(), true),
                 ""
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again

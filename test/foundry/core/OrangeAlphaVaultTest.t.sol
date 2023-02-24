@@ -590,11 +590,11 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         assertEq(vault.canStoploss(), false);
     }
 
-    function test_isOutOfRange_Success1() public {
-        assertEq(vault.isOutOfRange(0, 1, 2), true);
-        assertEq(vault.isOutOfRange(0, -1, -2), true);
-        assertEq(vault.isOutOfRange(0, -1, 1), false);
-    }
+    // function test_isOutOfRange_Success1() public {
+    //     assertEq(vault.isOutOfRange(0, 1, 2), true);
+    //     assertEq(vault.isOutOfRange(0, -1, -2), true);
+    //     assertEq(vault.isOutOfRange(0, -1, 1), false);
+    // }
 
     // function test_checker_Success() public {
     //     bool canExec;
@@ -639,7 +639,7 @@ contract OrangeAlphaVaultTest is BaseTest, IOrangeAlphaVaultEvent {
         vault.validateTicks(60, 121);
     }
 
-    function test_checkSlippage_Success1() public {
+    function test_setSlippage_Success1() public {
         assertEq(
             vault.checkSlippage(10000, true),
             uint160(FullMath.mulDiv(10000, SLIPPAGE_BPS, MAGIC_SCALE_1E4))

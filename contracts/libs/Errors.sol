@@ -17,8 +17,6 @@ library Errors {
     string public constant LOCKUP = "Lockup";
     string public constant ADMINISTRATOR = "Administrator";
     string public constant MORE = "More";
-    string public constant INITIAL_DEPOSIT = "InitialDeposit";
-    string public constant NOT_INITIAL_DEPOSIT = "NotInitialDeposit";
     string public constant SURPLUS_ZERO = "SurplusZero";
     string public constant MERKLE_ALLOWLISTED = "MerkleAllowListed";
     string public constant DEDICATED_MSG_SENDER = "DedicatedMsgSender";

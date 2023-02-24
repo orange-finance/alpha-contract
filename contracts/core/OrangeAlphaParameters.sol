@@ -137,4 +137,8 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
             _dedicatedMsgSender
         );
     }
+
+    function setPeriphery(address _periphery) external onlyOwner {
+        periphery = _periphery;
+    }
 }

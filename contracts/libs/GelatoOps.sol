@@ -21,7 +21,7 @@ library GelatoOps {
         returns (address dedicatedMsgSender)
     {
         (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(
-            msg.sender
+            msgSender
         );
     }
 }
