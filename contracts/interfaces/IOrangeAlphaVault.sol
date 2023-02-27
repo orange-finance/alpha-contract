@@ -32,15 +32,6 @@ interface IOrangeAlphaVault {
 
     /* ========== EVENTS ========== */
 
-    event SwapAndAddLiquidity(
-        bool zeroForOne,
-        int256 amount0Delta,
-        int256 amount1Delta,
-        uint128 liquidity,
-        uint256 amountDeposited0,
-        uint256 amountDeposited1
-    );
-
     event BurnAndCollectFees(
         uint256 burn0,
         uint256 burn1,
@@ -65,13 +56,13 @@ interface IOrangeAlphaVault {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function pool() external view returns (IUniswapV3Pool pool);
-
-    function token1() external view returns (IERC20 token1);
-
     function stoplossLowerTick() external view returns (int24);
 
     function stoplossUpperTick() external view returns (int24);
+
+    function pool() external view returns (IUniswapV3Pool pool);
+
+    function token1() external view returns (IERC20 token1);
 
     /**
      * @notice get total assets
@@ -98,6 +89,30 @@ interface IOrangeAlphaVault {
         external
         view
         returns (uint256 assets);
+
+    /**
+     * @notice get underlying assets
+     * @return underlyingAssets amount0Current, amount1Current, accruedFees0, accruedFees1, amount0Balance, amount1Balance
+     */
+    function getUnderlyingBalances()
+        external
+        view
+        returns (UnderlyingAssets memory underlyingAssets);
+
+    /**
+     * @notice get simuldated liquidity if rebalanced
+     * @param _newLowerTick The new lower bound of the position's range
+     * @param _newUpperTick The new upper bound of the position's range
+     * @param _newStoplossLowerTick The new lower bound of the position's range
+     * @param _newStoplossUpperTick The new upper bound of the position's range
+     * @return liquidity_ amount of liquidity
+     */
+    function getRebalancedLiquidity(
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick
+    ) external view returns (uint128 liquidity_);
 
     /**
      * @notice whether can stoploss
@@ -147,22 +162,6 @@ interface IOrangeAlphaVault {
     function emitAction() external;
 
     /**
-     * @notice Change the range of underlying UniswapV3 position
-     * @param newLowerTick The new lower bound of the position's range
-     * @param newUpperTick The new upper bound of the position's range
-     * @param _newStoplossLowerTick The new lower bound of the stoploss range
-     * @param _newStoplossUpperTick The new upper bound of the stoploss range
-     * @param _minNewLiquidity minimum liqidiity
-     */
-    function rebalance(
-        int24 newLowerTick,
-        int24 newUpperTick,
-        int24 _newStoplossLowerTick,
-        int24 _newStoplossUpperTick,
-        uint128 _minNewLiquidity
-    ) external;
-
-    /**
      * @notice Remove all positions only when current price is out of range
      * @param inputTick Input tick for slippage checking
      */
@@ -173,4 +172,20 @@ interface IOrangeAlphaVault {
      * @param inputTick Input tick for slippage checking
      */
     function removeAllPosition(int24 inputTick) external;
+
+    /**
+     * @notice Change the range of underlying UniswapV3 position
+     * @param _newLowerTick The new lower bound of the position's range
+     * @param _newUpperTick The new upper bound of the position's range
+     * @param _newStoplossLowerTick The new lower bound of the stoploss range
+     * @param _newStoplossUpperTick The new upper bound of the stoploss range
+     * @param _minNewLiquidity minimum liqidiity
+     */
+    function rebalance(
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        int24 _newStoplossLowerTick,
+        int24 _newStoplossUpperTick,
+        uint128 _minNewLiquidity
+    ) external;
 }
