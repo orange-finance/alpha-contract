@@ -14,6 +14,12 @@ import {IResolver} from "../vendor/gelato/IResolver.sol";
 contract OrangeAlphaPeriphery is IResolver {
     using SafeERC20 for IERC20;
 
+    /* ========== ERRORS ========== */
+    string constant ERROR_MERKLE_ALLOWLISTED = "MERKLE_ALLOWLISTED";
+    string constant ERROR_CANNOT_STOPLOSS = "CANNOT_STOPLOSS";
+    string constant ERROR_CAPOVER = "CAPOVER";
+    string constant ERROR_LOCKUP = "LOCKUP";
+
     /* ========== STRUCTS ========== */
     struct DepositType {
         uint256 assets;
@@ -25,8 +31,8 @@ contract OrangeAlphaPeriphery is IResolver {
     uint256 public totalDeposits;
 
     /* ========== PARAMETERS ========== */
-    IOrangeAlphaVault vault;
-    IOrangeAlphaParameters params;
+    IOrangeAlphaVault public vault;
+    IOrangeAlphaParameters public params;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address _vault, address _params) {
@@ -45,13 +51,13 @@ contract OrangeAlphaPeriphery is IResolver {
 
         //validation of deposit caps
         if (deposits[msg.sender].assets + _assets > params.depositCap()) {
-            revert("CAPOVER");
+            revert(ERROR_CAPOVER);
         }
         deposits[msg.sender].assets += _assets;
         deposits[msg.sender].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
         if (_totalDeposits + _assets > params.totalDepositCap()) {
-            revert("CAPOVER");
+            revert(ERROR_CAPOVER);
         }
         totalDeposits = _totalDeposits + _assets;
 
@@ -68,7 +74,7 @@ contract OrangeAlphaPeriphery is IResolver {
             block.timestamp <
             deposits[msg.sender].timestamp + params.lockupPeriod()
         ) {
-            revert("LOCKUP");
+            revert(ERROR_LOCKUP);
         }
         uint256 _assets = vault.redeem(
             _shares,
@@ -118,7 +124,7 @@ contract OrangeAlphaPeriphery is IResolver {
                 vault.stoplossUpperTick()
             )
         ) {
-            return (false, bytes("can not stoploss"));
+            return (false, bytes(ERROR_CANNOT_STOPLOSS));
         }
         execPayload = abi.encodeWithSelector(
             IOrangeAlphaVault.stoploss.selector,
@@ -131,6 +137,7 @@ contract OrangeAlphaPeriphery is IResolver {
     function _isAllowlisted(address _account, bytes32[] calldata _merkleProof)
         internal
         view
+        virtual
     {
         if (params.allowlistEnabled()) {
             if (
@@ -140,7 +147,7 @@ contract OrangeAlphaPeriphery is IResolver {
                     keccak256(abi.encodePacked(_account))
                 )
             ) {
-                revert("MERKLE_ALLOWLISTED");
+                revert(ERROR_MERKLE_ALLOWLISTED);
             }
         }
     }
