@@ -20,8 +20,8 @@ import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../vendor/uniswap/OracleLibrary.sol";
 
-// import "forge-std/console2.sol";
-// import {Ints} from "../mocks/Ints.sol";
+import "forge-std/console2.sol";
+import {Ints} from "../mocks/Ints.sol";
 
 contract OrangeAlphaVault is
     IOrangeAlphaVault,
@@ -130,11 +130,6 @@ contract OrangeAlphaVault is
     }
 
     ///@notice internal function of totalAssets
-
-    /**
-     * @notice Compute total asset price as USDC
-     * @dev Underlying Assets - debt + supply
-     */
     function _totalAssets(Ticks memory _ticks)
         internal
         view
@@ -152,7 +147,28 @@ contract OrangeAlphaVault is
         uint256 amount1Current = _underlyingAssets.amount1Current +
             _underlyingAssets.accruedFees1 +
             _underlyingAssets.amount1Balance;
+        return
+            _alignTotalAsset(
+                _ticks,
+                amount0Current,
+                amount1Current,
+                amount0Debt,
+                amount1Supply
+            );
+    }
 
+    /**
+     * @notice Compute total asset price as USDC
+     * @dev Underlying Assets - debt + supply
+     * called by _totalAssets
+     */
+    function _alignTotalAsset(
+        Ticks memory _ticks,
+        uint256 amount0Current,
+        uint256 amount1Current,
+        uint256 amount0Debt,
+        uint256 amount1Supply
+    ) internal view returns (uint256 totalAlignedAssets) {
         if (amount0Current < amount0Debt) {
             uint256 amount0deducted = amount0Debt - amount0Current;
             amount0deducted = OracleLibrary.getQuoteAtTick(
@@ -161,7 +177,10 @@ contract OrangeAlphaVault is
                 address(token0),
                 address(token1)
             );
-            totalAssets_ = amount1Current + amount1Supply - amount0deducted;
+            totalAlignedAssets =
+                amount1Current +
+                amount1Supply -
+                amount0deducted;
         } else {
             uint256 amount0Added = amount0Current - amount0Debt;
             if (amount0Added > 0) {
@@ -172,7 +191,7 @@ contract OrangeAlphaVault is
                     address(token1)
                 );
             }
-            totalAssets_ = amount1Current + amount1Supply + amount0Added;
+            totalAlignedAssets = amount1Current + amount1Supply + amount0Added;
         }
     }
 
@@ -268,11 +287,7 @@ contract OrangeAlphaVault is
         if (_assets == 0) return (0, 0);
 
         //compute LTV
-        //LTV is caluculated by upper wider range
-        int24 _upperTickForLtv = (_upperTick > _stoplossUpperTick)
-            ? _upperTick
-            : _stoplossUpperTick;
-        uint256 _ltv = _getLtvByRange(_currentTick, _upperTickForLtv);
+        uint256 _ltv = _getLtvByRange(_currentTick, _stoplossUpperTick);
 
         // compute ETH/USDC amount ration to add liquidity
         (uint256 _amount0, uint256 _amount1) = LiquidityAmounts
@@ -356,16 +371,25 @@ contract OrangeAlphaVault is
         //validation check
         if (_assets == 0 || _minShares == 0) revert(Errors.INVALID_AMOUNT);
 
+        //get vault balance
+        uint256 _beforeBalance1 = token1.balanceOf(address(this));
+
         // 1. Transfer USDC from periphery to Vault
         token1.safeTransferFrom(msg.sender, address(this), _assets);
 
-        // if there is no position, mint and return
+        // initial deposit
         if (totalSupply() == 0) {
             _mint(_receiver, _assets);
             return _assets;
         }
 
-        // 2. compute hedge amount and liquidity by shares
+        // 2. compute store token1
+        uint256 _storeBalance1 = _beforeBalance1.mulDiv(
+            _minShares,
+            totalSupply()
+        );
+
+        // 3. compute hedge amount and liquidity by shares
         Ticks memory _ticks = _getTicksByStorage();
         (
             uint256 _targetDebtAmount0,
@@ -373,13 +397,6 @@ contract OrangeAlphaVault is
             uint256 _targetAmount0,
             uint256 _targetAmount1
         ) = _computeHedgeAndLiquidityByShares(_minShares, _ticks);
-
-        // 3. swap surplus amount0 or amount1
-        Balances memory _balances = Balances(
-            _targetDebtAmount0,
-            _assets - _targetCollateralAmount1
-        );
-        _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
 
         // 4. execute hedge
         if (_targetCollateralAmount1 > 0) {
@@ -400,7 +417,14 @@ contract OrangeAlphaVault is
             );
         }
 
-        // 5. add liquidity
+        // 5. swap surplus amount0 or amount1
+        Balances memory _balances = Balances(
+            _targetDebtAmount0,
+            _assets - _targetCollateralAmount1 - _storeBalance1
+        );
+        _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
+
+        // 6. add liquidity
         uint128 _targetLiquidity = LiquidityAmounts.getLiquidityForAmounts(
             _ticks.currentTick.getSqrtRatioAtTick(),
             _ticks.lowerTick.getSqrtRatioAtTick(),
@@ -408,15 +432,18 @@ contract OrangeAlphaVault is
             _targetAmount0,
             _targetAmount1
         );
-        (uint256 _addedAmount0, uint256 _addedAmount1) = pool.mint(
-            address(this),
-            _ticks.lowerTick,
-            _ticks.upperTick,
-            _targetLiquidity,
-            ""
-        );
-        _balances.balance0 -= _addedAmount0;
-        _balances.balance1 -= _addedAmount1;
+
+        if (_targetLiquidity > 0) {
+            (uint256 _addedAmount0, uint256 _addedAmount1) = pool.mint(
+                address(this),
+                _ticks.lowerTick,
+                _ticks.upperTick,
+                _targetLiquidity,
+                ""
+            );
+            _balances.balance0 -= _addedAmount0;
+            _balances.balance1 -= _addedAmount1;
+        }
 
         //transfer surplus amount to receiver
         if (_balances.balance0 > 0) {
@@ -783,18 +810,12 @@ contract OrangeAlphaVault is
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
 
         Ticks memory _ticks = _getTicksByStorage();
-        //if not stoplossed, removeAllPosition
+        //1. if not stoplossed, removeAllPosition
+        console2.log("yamare0");
         if (!stoplossed) {
             _removeAllPosition(_ticks);
         }
-
-        // 1. Remove liquidity and Collect fees
-        (uint128 liquidity, , , , ) = pool.positions(
-            _getPositionID(_ticks.lowerTick, _ticks.upperTick)
-        );
-        if (liquidity > 0) {
-            _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
-        }
+        console2.log("yamare1");
 
         // 2. Update storage of ranges
         _ticks.lowerTick = _newLowerTick; //memory
@@ -803,9 +824,10 @@ contract OrangeAlphaVault is
         upperTick = _newUpperTick;
         stoplossLowerTick = _newStoplossLowerTick;
         stoplossUpperTick = _newStoplossUpperTick;
+        console2.log("yamare2");
 
         // 3. Supply or borrow to lending
-        uint256 _assets = _totalAssets(_ticks);
+        uint256 _assets = token1.balanceOf(address(this));
         (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
             _assets,
             _ticks.currentTick,
@@ -820,6 +842,7 @@ contract OrangeAlphaVault is
         if (_borrow > 0) {
             aave.borrow(address(token0), _borrow, 2, 0, address(this));
         }
+        console2.log("yamare3");
 
         // 4. Add liquidity
         uint256 _remainingAmount1 = _assets - _supply;
@@ -833,13 +856,16 @@ contract OrangeAlphaVault is
         if (_liquidity < _minNewLiquidity) {
             revert(Errors.LESS_LIQUIDITY);
         }
-        pool.mint(
-            address(this),
-            _ticks.lowerTick,
-            _ticks.upperTick,
-            _liquidity,
-            ""
-        );
+        if (_liquidity > 0) {
+            pool.mint(
+                address(this),
+                _ticks.lowerTick,
+                _ticks.upperTick,
+                _liquidity,
+                ""
+            );
+        }
+        console2.log("yamare4");
 
         _emitAction(3, _ticks);
 
@@ -1031,14 +1057,26 @@ contract OrangeAlphaVault is
         uint256 amount1Owed,
         bytes calldata /*_data*/
     ) external override {
+        console2.log("uniswapV3MintCallback 1");
         if (msg.sender != address(pool)) {
             revert(Errors.ONLY_CALLBACK_CALLER);
         }
+        console2.log("uniswapV3MintCallback 2");
 
         if (amount0Owed > 0) {
+            console2.log("uniswapV3MintCallback amount0");
+            if (amount0Owed > token0.balanceOf(address(this))) {
+                console2.log("uniswapV3MintCallback amount0 > balance");
+                console2.log(amount0Owed, token0.balanceOf(address(this)));
+            }
             token0.safeTransfer(msg.sender, amount0Owed);
         }
         if (amount1Owed > 0) {
+            console2.log("uniswapV3MintCallback amount1");
+            if (amount1Owed > token1.balanceOf(address(this))) {
+                console2.log("uniswapV3MintCallback amount1 > balance");
+                console2.log(amount1Owed, token1.balanceOf(address(this)));
+            }
             token1.safeTransfer(msg.sender, amount1Owed);
         }
     }
