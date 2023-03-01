@@ -68,38 +68,33 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    // function setDeposits(address _user, uint256 _amount) external {
-    //     deposits[_user].assets = _amount;
-    // }
-
-    // function setTotalDeposits(uint256 _amount) external {
-    //     totalDeposits = _amount;
-    // }
-
-    // function getTwap() external view returns (int24) {
-    //     return _getTwap();
-    // }
-
     function setAvgTick(int24 _avgTick) external {
         avgTick = _avgTick;
     }
 
-    // function _getTwap() internal view override returns (int24) {
-    //     if (avgTick == 0) {
-    //         return super._getTwap();
-    //     } else {
-    //         return avgTick;
-    //     }
-    // }
-
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    function getLtvByRange() external view returns (uint256) {
+    function alignTotalAsset(
+        uint256 amount0Current,
+        uint256 amount1Current,
+        uint256 amount0Debt,
+        uint256 amount1Supply
+    ) external view returns (uint256 totalAlignedAssets) {
         return
-            _getLtvByRange(
-                _getTicksByStorage().currentTick,
-                stoplossLowerTick,
-                stoplossUpperTick
+            _alignTotalAsset(
+                _getTicksByStorage(),
+                amount0Current,
+                amount1Current,
+                amount0Debt,
+                amount1Supply
             );
+    }
+
+    function getLtvByRange(int24 _currentTick, int24 _upperTick)
+        external
+        view
+        returns (uint256)
+    {
+        return _getLtvByRange(_currentTick, _upperTick);
     }
 
     function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
@@ -112,28 +107,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
 
     function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
         return _quoteEthPriceByTick(_tick);
-    }
-
-    // function computePercentageFromUpperRange(Ticks memory _ticks)
-    //     external
-    //     view
-    //     returns (uint256 parcentageFromUpper_)
-    // {
-    //     return _computePercentageFromUpperRange(_ticks);
-    // }
-
-    function alignTotalAsset(
-        UnderlyingAssets memory _underlyingAssets,
-        uint256 amount0Debt,
-        uint256 amount1Supply
-    ) external view returns (uint256 totalAlignedAssets) {
-        return
-            _alignTotalAsset(
-                _getTicksByStorage(),
-                _underlyingAssets,
-                amount0Debt,
-                amount1Supply
-            );
     }
 
     function computeFeesEarned(
@@ -150,15 +123,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function canStoploss() external view returns (bool) {
-        return
-            _canStoploss(
-                _getTicksByStorage().currentTick,
-                stoplossLowerTick,
-                stoplossUpperTick
-            );
-    }
-
     function getPositionID() external view returns (bytes32 positionID) {
         Ticks memory _ticks = _getTicksByStorage();
         return _getPositionID(_ticks.lowerTick, _ticks.upperTick);
@@ -168,48 +132,35 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _getTicksByStorage();
     }
 
-    function computeSupplyAndBorrow(uint256 _assets)
-        external
-        view
-        returns (uint256 supply_, uint256 borrow_)
-    {
-        Ticks memory _ticks = _getTicksByStorage();
+    function computeSupplyAndBorrow(
+        uint256 _assets,
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick,
+        int24,
+        int24 _stoplossUpperTick
+    ) external view returns (uint256 supply_, uint256 borrow_) {
         return
             _computeSupplyAndBorrow(
                 _assets,
-                _ticks.currentTick,
-                _ticks.lowerTick,
-                _ticks.upperTick
+                _currentTick,
+                _lowerTick,
+                _upperTick,
+                0,
+                _stoplossUpperTick
             );
     }
 
-    // function computeSwapAmount(uint256 _amount0, uint256 _amount1)
-    //     external
-    //     view
-    //     returns (bool _zeroForOne, int256 _swapAmount)
-    // {
-    //     Ticks memory _ticks = _getTicksByStorage();
-    //     return _computeSwapAmount(_amount0, _amount1, _ticks);
-    // }
+    function checkTickSlippage(int24 _currentTick, int24 _inputTick)
+        external
+        view
+    {
+        return _checkTickSlippage(_currentTick, _inputTick);
+    }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    // function swapAndAddLiquidity(
-    //     uint256 _amount0,
-    //     uint256 _amount1,
-    //     Ticks memory _ticks
-    // )
-    //     external
-    //     returns (
-    //         uint128 liquidity_,
-    //         uint256 amountDeposited0_,
-    //         uint256 amountDeposited1_
-    //     )
-    // {
-    //     return _swapAndAddLiquidity(_amount0, _amount1, _ticks);
-    // }
-
     function burnShare(
         uint256 _shares,
         uint256 _totalSupply,
@@ -235,9 +186,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             uint256 burn0_,
             uint256 burn1_,
             uint256 fee0_,
-            uint256 fee1_,
-            uint256 preBalance0_,
-            uint256 preBalance1_
+            uint256 fee1_
         )
     {
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
