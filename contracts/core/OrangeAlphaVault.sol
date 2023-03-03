@@ -1006,7 +1006,7 @@ contract OrangeAlphaVault is
     function _computeTotalSwapAmountForRebalance(
         Position memory _oldPosition,
         Position memory _newPosition
-    ) internal returns (bool zeroForOne_, uint256 totalSwapAmount_) {
+    ) internal pure returns (bool zeroForOne_, uint256 totalSwapAmount_) {
         uint256 _oldTotalAmount1 = _oldPosition.supplyAmount1 +
             _oldPosition.addedAmount1;
         uint256 _newTotalAmount1 = _newPosition.supplyAmount1 +
