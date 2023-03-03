@@ -229,7 +229,8 @@ contract OrangeAlphaVaultMockForPeriphery is IOrangeAlphaVault {
         int24 _newLowerTick,
         int24 _newUpperTick,
         int24 _newStoplossLowerTick,
-        int24 _newStoplossUpperTick
+        int24 _newStoplossUpperTick,
+        uint256 _hedgeRatio
     ) external view returns (uint128 liquidity_) {
         return 0;
     }
@@ -306,19 +307,12 @@ contract OrangeAlphaVaultMockForPeriphery is IOrangeAlphaVault {
         return;
     }
 
-    /**
-     * @notice Change the range of underlying UniswapV3 position
-     * @param _newLowerTick The new lower bound of the position's range
-     * @param _newUpperTick The new upper bound of the position's range
-     * @param _newStoplossLowerTick The new lower bound of the stoploss range
-     * @param _newStoplossUpperTick The new upper bound of the stoploss range
-     * @param _minNewLiquidity minimum liqidiity
-     */
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,
         int24 _newStoplossLowerTick,
         int24 _newStoplossUpperTick,
+        uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external {
         return;

@@ -20,6 +20,13 @@ interface IOrangeAlphaVault {
         uint256 balance1;
     }
 
+    struct Position {
+        uint256 debtAmount0;
+        uint256 supplyAmount1;
+        uint256 addedAmount0;
+        uint256 addedAmount1;
+    }
+
     ///@dev this struct only used in memory and interfaces
     struct UnderlyingAssets {
         uint256 amount0Current;
@@ -105,13 +112,15 @@ interface IOrangeAlphaVault {
      * @param _newUpperTick The new upper bound of the position's range
      * @param _newStoplossLowerTick The new lower bound of the position's range
      * @param _newStoplossUpperTick The new upper bound of the position's range
+     * @param _hedgeRatio hedge ratio
      * @return liquidity_ amount of liquidity
      */
     function getRebalancedLiquidity(
         int24 _newLowerTick,
         int24 _newUpperTick,
         int24 _newStoplossLowerTick,
-        int24 _newStoplossUpperTick
+        int24 _newStoplossUpperTick,
+        uint256 _hedgeRatio
     ) external view returns (uint128 liquidity_);
 
     /**
@@ -179,6 +188,7 @@ interface IOrangeAlphaVault {
      * @param _newUpperTick The new upper bound of the position's range
      * @param _newStoplossLowerTick The new lower bound of the stoploss range
      * @param _newStoplossUpperTick The new upper bound of the stoploss range
+     * @param _hedgeRatio hedge ratio
      * @param _minNewLiquidity minimum liqidiity
      */
     function rebalance(
@@ -186,6 +196,7 @@ interface IOrangeAlphaVault {
         int24 _newUpperTick,
         int24 _newStoplossLowerTick,
         int24 _newStoplossUpperTick,
+        uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external;
 }

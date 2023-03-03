@@ -85,30 +85,52 @@ contract OrangeAlphaHedgeTest is BaseTest {
 
     function test_computeHedgeBalance() public {
         uint256 _depositAmount = 10_000 * 1e6;
-        (uint256 _supply, uint256 _borrow) = _computeSupplyAndBorrow(
-            _depositAmount
-        );
+        (
+            uint256 _supply,
+            uint256 _borrow,
+            uint256 _addedEth,
+            uint256 _addedUsdc
+        ) = _computeSupplyAndBorrow(_depositAmount);
         aave.supply(address(usdc), _supply, address(this), 0);
         aave.borrow(address(weth), _borrow, 2, 0, address(this));
         uint256 remainingAmount = _depositAmount - _supply;
+        console2.log(_addedUsdc, "_addedUsdc");
+        console2.log(remainingAmount, "remainingAmount");
+
         //compute liquidity
         uint128 _liquidity = LiquidityAmounts.getLiquidityForAmounts(
             currentTick.getSqrtRatioAtTick(),
             lowerTick.getSqrtRatioAtTick(),
             upperTick.getSqrtRatioAtTick(),
-            _borrow,
-            remainingAmount
+            _addedEth,
+            _addedUsdc
         );
         console2.log(_liquidity, "_liquidity");
+        (uint256 amount0, uint256 amount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                currentTick.getSqrtRatioAtTick(),
+                lowerTick.getSqrtRatioAtTick(),
+                upperTick.getSqrtRatioAtTick(),
+                _liquidity
+            );
+        console2.log(amount0, "amount0");
+        console2.log(amount1, "amount1");
     }
 
     function _computeSupplyAndBorrow(uint256 _assets)
         internal
         view
-        returns (uint256 supply_, uint256 borrow_)
+        returns (
+            uint256 supply_,
+            uint256 borrow_,
+            uint256 addedEth_,
+            uint256 addedUsdc_
+        )
     {
         uint256 _ltv = _getLtvByRange(currentTick, lowerTick, upperTick);
-        // uint256 _hedgeRate = MAGIC_SCALE_1E8; //100%
+        // uint256 _hedge = MAGIC_SCALE_1E8; //100%
+        // uint256 _hedge = 8e7; //80%
+        uint256 _hedge = 12e7; //120%
 
         // ETH/USDC
         (uint256 _amount0, uint256 _amount1) = LiquidityAmounts
@@ -127,9 +149,12 @@ contract OrangeAlphaHedgeTest is BaseTest {
             address(usdc)
         );
 
-        supply_ =
-            (_assets * MAGIC_SCALE_1E8) /
-            (MAGIC_SCALE_1E8 + _ltv.mulDiv(_amount1, _amount0Dollar));
+        uint256 _collateralRatio = MAGIC_SCALE_1E8 -
+            _ltv +
+            MAGIC_SCALE_1E8.mulDiv(_ltv, _hedge) +
+            _ltv.mulDiv(_amount1, _amount0Dollar);
+
+        supply_ = _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatio);
 
         uint256 _borrowUsdc = supply_.mulDiv(_ltv, MAGIC_SCALE_1E8);
         //borrowing usdc amount to weth
@@ -141,6 +166,10 @@ contract OrangeAlphaHedgeTest is BaseTest {
         );
         console2.log(supply_, "supply_");
         console2.log(borrow_, "borrow_");
+        addedEth_ = borrow_.mulDiv(MAGIC_SCALE_1E8, _hedge);
+        addedUsdc_ = addedEth_.mulDiv(_amount1, _amount0);
+        console2.log(addedEth_, "addedEth_");
+        console2.log(addedUsdc_, "addedUsdc_");
     }
 
     function _getLtvByRange(
