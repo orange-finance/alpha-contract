@@ -897,10 +897,10 @@ contract OrangeAlphaVault is
         Ticks memory _ticks
     ) internal {
         //compute total swapping amount
-        (bool _zeroForOne, uint256 _totalSwapAmount) = _computeTotalSwapAmount(
-            _oldPosition,
-            _newPosition
-        );
+        (
+            bool _zeroForOne,
+            uint256 _totalSwapAmount
+        ) = _computeTotalSwapAmountForRebalance(_oldPosition, _newPosition);
 
         if (
             // 1. repay and withdraw
@@ -1003,7 +1003,7 @@ contract OrangeAlphaVault is
 
     /// @notice compute total swapping amount to rebalance
     /// @dev colled by _executeHedgeRebalance
-    function _computeTotalSwapAmount(
+    function _computeTotalSwapAmountForRebalance(
         Position memory _oldPosition,
         Position memory _newPosition
     ) internal returns (bool zeroForOne_, uint256 totalSwapAmount_) {
