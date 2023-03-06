@@ -17,6 +17,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     /* ========== PARAMETERS ========== */
     uint256 public depositCap;
     uint256 public totalDepositCap;
+    uint256 public minDepositAmount;
     uint16 public slippageBPS;
     uint24 public tickSlippageBPS;
     uint32 public twapSlippageInterval;
@@ -33,6 +34,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         // these variables can be udpated by the manager
         depositCap = 1_000_000 * 1e6;
         totalDepositCap = 1_000_000 * 1e6;
+        minDepositAmount = 100 * 1e6;
         slippageBPS = 500; // default: 5% slippage
         tickSlippageBPS = 10;
         twapSlippageInterval = 5 minutes;
@@ -57,6 +59,14 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         }
         depositCap = _depositCap;
         totalDepositCap = _totalDepositCap;
+    }
+
+    /**
+     * @notice Set parameters of minDepositAmount
+     * @param _minDepositAmount Min deposit amount
+     */
+    function setMinDepositAmount(uint256 _minDepositAmount) external onlyOwner {
+        minDepositAmount = _minDepositAmount;
     }
 
     /**

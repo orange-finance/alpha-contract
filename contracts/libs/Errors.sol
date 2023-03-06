@@ -12,6 +12,7 @@ library Errors {
     //validation
     string public constant INVALID_TICKS = "21";
     string public constant INVALID_AMOUNT = "22";
+    string public constant INVALID_DEPOSIT_AMOUNT = "23";
     //logic
     string public constant SURPLUS_ZERO = "31";
     string public constant AAVE_MISMATCH = "32";

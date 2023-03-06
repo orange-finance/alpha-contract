@@ -389,75 +389,63 @@ contract OrangeAlphaVault is
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
     function deposit(
-        uint256 _assets,
+        uint256 _shares,
         address _receiver,
-        uint256 _minShares
+        uint256 _maxAssets
     ) external onlyPeriphery returns (uint256) {
         //validation check
-        if (_assets == 0 || _minShares == 0) revert(Errors.INVALID_AMOUNT);
+        if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
 
         //get vault balance
         uint256 _beforeBalance1 = token1.balanceOf(address(this));
 
         // 1. Transfer USDC from periphery to Vault
-        token1.safeTransferFrom(msg.sender, address(this), _assets);
+        token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
+
+        //validate minimum amount
+        if (token1.balanceOf(address(this)) < params.minDepositAmount())
+            revert(Errors.INVALID_DEPOSIT_AMOUNT);
 
         // initial deposit
         if (totalSupply() == 0) {
-            _mint(_receiver, _assets);
-            return _assets;
+            _mint(_receiver, _maxAssets);
+            return _maxAssets;
         }
 
         // 2. compute store token1
-        uint256 _storeBalance1 = _beforeBalance1.mulDiv(
-            _minShares,
-            totalSupply()
-        );
+        uint256 _storeBalance1 = _beforeBalance1.mulDiv(_shares, totalSupply());
 
         // 3. compute hedge amount and liquidity by shares
         Ticks memory _ticks = _getTicksByStorage();
         (
             uint256 _targetDebtAmount0,
             uint256 _targetCollateralAmount1,
-            uint256 _targetAmount0,
-            uint256 _targetAmount1
-        ) = _computeHedgeAndLiquidityByShares(_minShares, _ticks);
+            uint128 _targetLiquidity
+        ) = _computeHedgeAndLiquidityByShares(_shares, _ticks);
 
         // 4. execute hedge
-        if (_targetCollateralAmount1 > 0) {
-            aave.supply(
-                address(token1),
-                _targetCollateralAmount1,
-                address(this),
-                0
-            );
-        }
-        if (_targetDebtAmount0 > 0) {
-            aave.borrow(
-                address(token0),
-                _targetDebtAmount0,
-                2,
-                0,
-                address(this)
-            );
-        }
+        aave.safeSupply(
+            address(token1),
+            _targetCollateralAmount1,
+            address(this),
+            0
+        );
+        aave.safeBorrow(
+            address(token0),
+            _targetDebtAmount0,
+            2,
+            0,
+            address(this)
+        );
 
         // 5. swap surplus amount0 or amount1
         Balances memory _balances = Balances(
             _targetDebtAmount0,
-            _assets - _targetCollateralAmount1 - _storeBalance1
+            _maxAssets - _targetCollateralAmount1 - _storeBalance1
         );
-        _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
+        _swapSurplusAmount(_balances, _targetLiquidity, _ticks);
 
         // 6. add liquidity
-        uint128 _targetLiquidity = LiquidityAmounts.getLiquidityForAmounts(
-            _ticks.currentTick.getSqrtRatioAtTick(),
-            _ticks.lowerTick.getSqrtRatioAtTick(),
-            _ticks.upperTick.getSqrtRatioAtTick(),
-            _targetAmount0,
-            _targetAmount1
-        );
-
         if (_targetLiquidity > 0) {
             (uint256 _addedAmount0, uint256 _addedAmount1) = pool.mint(
                 address(this),
@@ -479,15 +467,15 @@ contract OrangeAlphaVault is
         }
 
         //mint to receiver
-        _mint(_receiver, _minShares);
+        _mint(_receiver, _shares);
 
         _emitAction(1, _ticks);
-        return _minShares;
+        return _shares;
     }
 
     ///@dev called by deposit
     function _computeHedgeAndLiquidityByShares(
-        uint256 _minShares,
+        uint256 _shares,
         Ticks memory _ticks
     )
         internal
@@ -495,19 +483,18 @@ contract OrangeAlphaVault is
         returns (
             uint256 _targetDebtAmount0,
             uint256 _targetCollateralAmount1,
-            uint256 _targetAmount0,
-            uint256 _targetAmount1
+            uint128 _targetLiquidity
         )
     {
         uint256 _totalSupply = totalSupply();
 
         // compute hedge amount by shares
         _targetDebtAmount0 = debtToken0.balanceOf(address(this)).mulDiv(
-            _minShares,
+            _shares,
             _totalSupply
         );
         _targetCollateralAmount1 = aToken1.balanceOf(address(this)).mulDiv(
-            _minShares,
+            _shares,
             _totalSupply
         );
 
@@ -515,26 +502,28 @@ contract OrangeAlphaVault is
         (uint128 liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
-        uint128 _targetLiquidity = uint128(
-            uint256(liquidity).mulDiv(_minShares, _totalSupply)
+        _targetLiquidity = uint128(
+            uint256(liquidity).mulDiv(_shares, _totalSupply)
         );
-        (_targetAmount0, _targetAmount1) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                _ticks.currentTick.getSqrtRatioAtTick(),
-                _ticks.lowerTick.getSqrtRatioAtTick(),
-                _ticks.upperTick.getSqrtRatioAtTick(),
-                _targetLiquidity
-            );
     }
 
     ///@notice swap surplus amount0 or amount1
     ///@dev called by _computeHedgeAndLiquidityByShares
     function _swapSurplusAmount(
         Balances memory _balances,
-        uint256 _targetAmount0,
-        uint256 _targetAmount1,
+        uint128 _targetLiquidity,
         Ticks memory _ticks
     ) internal {
+        //calulate target amount0 and amount1 by liquidity
+        (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _ticks.currentTick.getSqrtRatioAtTick(),
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _targetLiquidity
+            );
+
+        //calculate surplus amount0 and amount1
         uint256 _surplusAmount0;
         uint256 _surplusAmount1;
         if (_balances.balance0 > _targetAmount0) {
