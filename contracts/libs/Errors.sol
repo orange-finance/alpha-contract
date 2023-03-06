@@ -5,7 +5,7 @@ library Errors {
     //access control
     string public constant ONLY_PERIPHERY = "1";
     string public constant ONLY_DEDICATED_MSG_SENDER = "2";
-    string public constant ONLY_ADMINISTRATOR = "3";
+    string public constant ONLY_STRATEGISTS = "3";
     string public constant ONLY_CALLBACK_CALLER = "4";
     //condition
     string public constant CANNOT_STOPLOSS = "11";

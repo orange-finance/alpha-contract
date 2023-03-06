@@ -62,9 +62,9 @@ contract OrangeAlphaVault is
         _;
     }
 
-    modifier onlyAdministrators() {
-        if (!params.administrators(msg.sender)) {
-            revert(Errors.ONLY_ADMINISTRATOR);
+    modifier onlyStrategists() {
+        if (!params.strategists(msg.sender)) {
+            revert(Errors.ONLY_STRATEGISTS);
         }
         _;
     }
@@ -257,7 +257,7 @@ contract OrangeAlphaVault is
     ) external view returns (uint128 liquidity_) {
         Ticks memory _ticks = _getTicksByStorage();
         uint256 _assets = _totalAssets(_ticks);
-        Position memory _position = _computeSupplyAndBorrow(
+        Position memory _position = _computePosition(
             _assets,
             _ticks.currentTick,
             _newLowerTick,
@@ -279,7 +279,7 @@ contract OrangeAlphaVault is
     }
 
     /// @notice Compute collateral and borrow amount
-    function _computeSupplyAndBorrow(
+    function _computePosition(
         uint256 _assets,
         int24 _currentTick,
         int24 _lowerTick,
@@ -348,7 +348,7 @@ contract OrangeAlphaVault is
     }
 
     ///@notice Get LTV by current and range prices
-    ///@dev called by _computeSupplyAndBorrow. maxLtv * (current price / upper price)
+    ///@dev called by _computePosition. maxLtv * (current price / upper price)
     function _getLtvByRange(int24 _currentTick, int24 _upperTick)
         internal
         view
@@ -735,7 +735,7 @@ contract OrangeAlphaVault is
 
     /* ========== ADMINS FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
-    function removeAllPosition(int24 _inputTick) external onlyAdministrators {
+    function removeAllPosition(int24 _inputTick) external onlyStrategists {
         Ticks memory _ticks = _getTicksByStorage();
         _checkTickSlippage(_ticks.currentTick, _inputTick);
 
@@ -807,7 +807,7 @@ contract OrangeAlphaVault is
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
-    ) external onlyAdministrators {
+    ) external onlyStrategists {
         //validation of tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
@@ -838,7 +838,7 @@ contract OrangeAlphaVault is
         stoplossUpperTick = _newStoplossUpperTick;
 
         // 3. compute new position
-        Position memory _newPosition = _computeSupplyAndBorrow(
+        Position memory _newPosition = _computePosition(
             _assets,
             _ticks.currentTick,
             _newLowerTick,

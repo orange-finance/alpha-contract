@@ -21,7 +21,7 @@ interface IOrangeAlphaParameters {
 
     function lockupPeriod() external view returns (uint40);
 
-    function administrators(address) external view returns (bool);
+    function strategists(address) external view returns (bool);
 
     function allowlistEnabled() external view returns (bool);
 

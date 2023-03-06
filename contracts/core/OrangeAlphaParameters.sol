@@ -23,7 +23,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     uint32 public twapSlippageInterval;
     uint32 public maxLtv;
     uint40 public lockupPeriod;
-    mapping(address => bool) public administrators;
+    mapping(address => bool) public strategists;
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
     address public dedicatedMsgSender;
@@ -40,7 +40,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         twapSlippageInterval = 5 minutes;
         maxLtv = 80000000; //80%
         lockupPeriod = 7 days;
-        administrators[msg.sender] = true;
+        strategists[msg.sender] = true;
         allowlistEnabled = true;
         _setDedicatedMsgSender(msg.sender);
     }
@@ -117,14 +117,11 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
 
     /**
      * @notice Set parameters of Rebalancer
-     * @param _administrator Administrator
+     * @param _strategist Strategist
      * @param _is true or false
      */
-    function setAdministrator(address _administrator, bool _is)
-        external
-        onlyOwner
-    {
-        administrators[_administrator] = _is;
+    function setStrategist(address _strategist, bool _is) external onlyOwner {
+        strategists[_strategist] = _is;
     }
 
     function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
