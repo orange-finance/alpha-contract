@@ -808,6 +808,7 @@ contract OrangeAlphaVault is
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external onlyStrategists {
+        console2.log("rebalance 0");
         //validation of tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
@@ -816,12 +817,14 @@ contract OrangeAlphaVault is
         uint256 _assets = _totalAssets(_ticks);
 
         // 1. burn and collect fees
+        console2.log("rebalance 1");
         (uint128 _liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, _liquidity);
 
         // 2. get current position
+        console2.log("rebalance 2");
         Position memory _oldPosition = Position(
             debtToken0.balanceOf(address(this)),
             aToken1.balanceOf(address(this)),
@@ -838,6 +841,7 @@ contract OrangeAlphaVault is
         stoplossUpperTick = _newStoplossUpperTick;
 
         // 3. compute new position
+        console2.log("rebalance 3");
         Position memory _newPosition = _computePosition(
             _assets,
             _ticks.currentTick,
@@ -849,29 +853,25 @@ contract OrangeAlphaVault is
         );
 
         // 4. execute hedge
+        console2.log("rebalance 4");
         _executeHedgeRebalance(_oldPosition, _newPosition, _ticks);
 
         // 5. Add liquidity
-        uint128 _targetLiquidity = LiquidityAmounts.getLiquidityForAmounts(
-            _ticks.currentTick.getSqrtRatioAtTick(),
-            _ticks.lowerTick.getSqrtRatioAtTick(),
-            _ticks.upperTick.getSqrtRatioAtTick(),
+        console2.log("rebalance 5");
+        //TODO sqrtRatioX96 is necessary
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        uint128 _targetLiquidity = _addLiquidityInRebalance(
+            _sqrtRatioX96,
+            _ticks.lowerTick,
+            _ticks.upperTick,
             _newPosition.addedAmount0,
             _newPosition.addedAmount1
         );
         if (_targetLiquidity < _minNewLiquidity) {
             revert(Errors.LESS_LIQUIDITY);
         }
-        if (_targetLiquidity > 0) {
-            pool.mint(
-                address(this),
-                _ticks.lowerTick,
-                _ticks.upperTick,
-                _targetLiquidity,
-                ""
-            );
-        }
 
+        console2.log("rebalance 6");
         _emitAction(3, _ticks);
 
         //reset stoplossed
@@ -885,164 +885,180 @@ contract OrangeAlphaVault is
         Position memory _newPosition,
         Ticks memory _ticks
     ) internal {
-        //compute total swapping amount
-        (
-            bool _zeroForOne,
-            uint256 _totalSwapAmount
-        ) = _computeTotalSwapAmountForRebalance(_oldPosition, _newPosition);
-
+        console2.log("_executeHedgeRebalance 0");
         if (
-            // 1. repay and withdraw
-            _oldPosition.debtAmount0 > _newPosition.debtAmount0 &&
-            _oldPosition.supplyAmount1 > _newPosition.supplyAmount1
-        ) {
-            // swap (if necessary)
-            _totalSwapAmount -= _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-
-            // repay
-            uint256 _repay = _oldPosition.debtAmount0 -
-                _newPosition.debtAmount0;
-            aave.safeRepay(address(token0), _repay, 2, address(this));
-
-            // withdraw
-            uint256 _withdraw = _oldPosition.supplyAmount1 -
-                _newPosition.supplyAmount1;
-            aave.safeWithdraw(address(token1), _withdraw, address(this));
-
-            // swap (if necessary)
-            _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-        } else if (
-            //2. supply and borrow
+            //1. supply and borrow
             _oldPosition.debtAmount0 < _newPosition.debtAmount0 &&
             _oldPosition.supplyAmount1 < _newPosition.supplyAmount1
         ) {
-            // swap (if necessary)
-            _totalSwapAmount -= _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-
-            // supply
-            uint256 _supply = _newPosition.debtAmount0 -
-                _oldPosition.debtAmount0;
-            aave.safeSupply(address(token1), _supply, address(this), 0);
-
-            // borrow
-            uint256 _borrow = _newPosition.supplyAmount1 -
-                _oldPosition.supplyAmount1;
-            aave.safeBorrow(address(token0), _borrow, 2, 0, address(this));
-
-            // swap (if necessary)
-            _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-        } else if (
-            // 3. repay and supply
-            _oldPosition.debtAmount0 > _newPosition.debtAmount0 &&
-            _oldPosition.supplyAmount1 < _newPosition.supplyAmount1
-        ) {
-            // swap (if necessary)
-            _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-
-            // repay
-            uint256 _repay = _oldPosition.debtAmount0 -
-                _newPosition.debtAmount0;
-            aave.safeRepay(address(token0), _repay, 2, address(this));
+            console2.log("_executeHedgeRebalance case1");
 
             // supply
             uint256 _supply = _newPosition.supplyAmount1 -
                 _oldPosition.supplyAmount1;
+            if (_supply > _oldPosition.addedAmount1) {
+                // swap (if necessary)
+                _swapAmountOut(
+                    true,
+                    uint128(_supply - _oldPosition.addedAmount1),
+                    _ticks.currentTick
+                );
+            }
             aave.safeSupply(address(token1), _supply, address(this), 0);
-        }
-        // 4. withdraw and borrow
-        else {
-            // withdraw
-            uint256 _withdraw = _oldPosition.supplyAmount1 -
-                _newPosition.supplyAmount1;
-            aave.safeWithdraw(address(token1), _withdraw, address(this));
 
             // borrow
-            uint256 _borrow = _newPosition.supplyAmount1 -
-                _oldPosition.supplyAmount1;
+            uint256 _borrow = _newPosition.debtAmount0 -
+                _oldPosition.debtAmount0;
             aave.safeBorrow(address(token0), _borrow, 2, 0, address(this));
+        } else {
+            if (_oldPosition.debtAmount0 > _newPosition.debtAmount0) {
+                // repay
+                uint256 _repay = _oldPosition.debtAmount0 -
+                    _newPosition.debtAmount0;
+                // swap (if necessary)
+                if (_repay > _oldPosition.addedAmount0) {
+                    // swap (if necessary)
+                    _swapAmountOut(
+                        false,
+                        uint128(_repay - _oldPosition.addedAmount0),
+                        _ticks.currentTick
+                    );
+                }
+                aave.safeRepay(address(token0), _repay, 2, address(this));
+            } else {
+                // borrow
+                uint256 _borrow = _newPosition.debtAmount0 -
+                    _oldPosition.debtAmount0;
+                aave.safeBorrow(address(token0), _borrow, 2, 0, address(this));
+            }
 
-            // swap (if necessary)
-            _swapForRebalance(
-                _zeroForOne,
-                _totalSwapAmount,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
+            if (_oldPosition.supplyAmount1 < _newPosition.supplyAmount1) {
+                // supply
+                uint256 _supply = _newPosition.supplyAmount1 -
+                    _oldPosition.supplyAmount1;
+                aave.safeSupply(address(token1), _supply, address(this), 0);
+            } else {
+                // withdraw
+                uint256 _withdraw = _oldPosition.supplyAmount1 -
+                    _newPosition.supplyAmount1;
+                aave.safeWithdraw(address(token1), _withdraw, address(this));
+            }
         }
     }
 
-    /// @notice compute total swapping amount to rebalance
-    /// @dev colled by _executeHedgeRebalance
-    function _computeTotalSwapAmountForRebalance(
-        Position memory _oldPosition,
-        Position memory _newPosition
-    ) internal pure returns (bool zeroForOne_, uint256 totalSwapAmount_) {
-        uint256 _oldTotalAmount1 = _oldPosition.supplyAmount1 +
-            _oldPosition.addedAmount1;
-        uint256 _newTotalAmount1 = _newPosition.supplyAmount1 +
-            _newPosition.addedAmount1;
-        // amount0 is debt, so it's possible to be negative
-        int256 _oldTotalAmount0 = int256(_oldPosition.addedAmount0) -
-            int256(_oldPosition.debtAmount0);
-        int256 _newTotalAmount0 = int256(_newPosition.addedAmount0) -
-            int256(_newPosition.debtAmount0);
+    // /// @notice compute total swapping amount to rebalance
+    // /// @dev colled by _executeHedgeRebalance
+    // function _computeTotalSwapAmountForRebalance(
+    //     Position memory _oldPosition,
+    //     Position memory _newPosition
+    // ) internal pure returns (bool zeroForOne_, uint256 totalSwapAmount_) {
+    //     uint256 _oldTotalAmount1 = _oldPosition.supplyAmount1 +
+    //         _oldPosition.addedAmount1;
+    //     uint256 _newTotalAmount1 = _newPosition.supplyAmount1 +
+    //         _newPosition.addedAmount1;
+    //     // amount0 is debt, so it's possible to be negative
+    //     int256 _oldTotalAmount0 = int256(_oldPosition.addedAmount0) -
+    //         int256(_oldPosition.debtAmount0);
+    //     int256 _newTotalAmount0 = int256(_newPosition.addedAmount0) -
+    //         int256(_newPosition.debtAmount0);
 
-        if (
-            _oldTotalAmount1 < _newTotalAmount1 &&
-            _oldTotalAmount0 < _newTotalAmount0
-        ) {
-            revert("lack of balance");
-        } else if (
-            _oldTotalAmount1 > _newTotalAmount1 &&
-            _oldTotalAmount0 < _newTotalAmount0
-        ) {
-            //swap from token1 to token0
-            totalSwapAmount_ = _oldTotalAmount1 - _newTotalAmount1;
-        } else if (
-            _oldTotalAmount1 < _newTotalAmount1 &&
-            _oldTotalAmount0 > _newTotalAmount0
-        ) {
-            //swap from token0 to token1
-            zeroForOne_ = true;
-            totalSwapAmount_ = uint256(_oldTotalAmount0 - _newTotalAmount0);
-        }
-    }
+    //     if (
+    //         _oldTotalAmount1 < _newTotalAmount1 &&
+    //         _oldTotalAmount0 < _newTotalAmount0
+    //     ) {
+    //         revert("lack of balance");
+    //     } else if (
+    //         _oldTotalAmount1 > _newTotalAmount1 &&
+    //         _oldTotalAmount0 < _newTotalAmount0
+    //     ) {
+    //         //swap from token1 to token0
+    //         totalSwapAmount_ = _oldTotalAmount1 - _newTotalAmount1;
+    //     } else if (
+    //         _oldTotalAmount1 < _newTotalAmount1 &&
+    //         _oldTotalAmount0 > _newTotalAmount0
+    //     ) {
+    //         //swap from token0 to token1
+    //         zeroForOne_ = true;
+    //         totalSwapAmount_ = uint256(_oldTotalAmount0 - _newTotalAmount0);
+    //     }
+    // }
 
     /// @notice if current balance > totalSwapAmount, swap total amount.
     /// Otherwise, swap current balance( and will swap afterward)
     /// @dev called by _executeHedgeRebalance
-    function _swapForRebalance(
+    function _swapAmountOut(
         bool _zeroForOne,
-        uint256 _totalSwapAmount,
-        uint256 _currentSqrtRatioX96
-    ) internal returns (uint256 swapAmount_) {
-        if (_totalSwapAmount > 0) {
-            uint256 _currentBalance = (_zeroForOne)
-                ? token0.balanceOf(address(this))
-                : token1.balanceOf(address(this));
-            swapAmount_ = (_totalSwapAmount > _currentBalance)
-                ? swapAmount_ = _currentBalance
-                : _totalSwapAmount;
-            _swap(_zeroForOne, swapAmount_, _currentSqrtRatioX96);
+        uint128 _minAmountOut,
+        int24 _tick
+    ) internal {
+        uint256 _amountIn;
+        if (_zeroForOne) {
+            _amountIn = OracleLibrary.getQuoteAtTick(
+                _tick,
+                _minAmountOut,
+                address(token1),
+                address(token0)
+            );
+            //TODO
+            _amountIn = _amountIn.mulDiv(102, 100); //2%
+        } else {
+            _amountIn = OracleLibrary.getQuoteAtTick(
+                _tick,
+                _minAmountOut,
+                address(token0),
+                address(token1)
+            );
+            //TODO
+            _amountIn = _amountIn.mulDiv(102, 100); //2%
+        }
+        _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
+    }
+
+    function _addLiquidityInRebalance(
+        uint160 _sqrtRatioX96,
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1
+    ) internal returns (uint128 targetLiquidity_) {
+        uint256 _balance0 = token0.balanceOf(address(this));
+        uint256 _balance1 = token1.balanceOf(address(this));
+        console2.log("balance0", _balance0);
+        console2.log("balance1", _balance1);
+        console2.log("targetAmount0", _targetAmount0);
+        console2.log("targetAmount1", _targetAmount1);
+
+        //swap surplus amount
+        if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
+            //no need to swap
+        } else {
+            if (_balance0 > _targetAmount0) {
+                _swap(true, uint128(_balance0 - _targetAmount0), _sqrtRatioX96);
+            } else if (_balance1 > _targetAmount1) {
+                _swap(
+                    false,
+                    uint128(_balance1 - _targetAmount1),
+                    _sqrtRatioX96
+                );
+            }
+        }
+
+        (_sqrtRatioX96, , , , , , ) = pool.slot0();
+        targetLiquidity_ = LiquidityAmounts.getLiquidityForAmounts(
+            _sqrtRatioX96,
+            _lowerTick.getSqrtRatioAtTick(),
+            _upperTick.getSqrtRatioAtTick(),
+            token0.balanceOf(address(this)),
+            token1.balanceOf(address(this))
+        );
+        if (targetLiquidity_ > 0) {
+            pool.mint(
+                address(this),
+                _lowerTick,
+                _upperTick,
+                targetLiquidity_,
+                ""
+            );
         }
     }
 
