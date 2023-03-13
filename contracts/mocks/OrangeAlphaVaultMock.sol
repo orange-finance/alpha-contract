@@ -89,20 +89,11 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function getLtvByRange(int24 _currentTick, int24 _upperTick)
-        external
-        view
-        returns (uint256)
-    {
+    function getLtvByRange(
+        int24 _currentTick,
+        int24 _upperTick
+    ) external view returns (uint256) {
         return _getLtvByRange(_currentTick, _upperTick);
-    }
-
-    function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
-        external
-        view
-        returns (uint160 _swapThresholdPrice)
-    {
-        return _setSlippage(_currentSqrtRatioX96, _zeroForOne);
     }
 
     function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
@@ -132,29 +123,29 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _getTicksByStorage();
     }
 
-    function computeSupplyAndBorrow(
+    function computePosition(
         uint256 _assets,
         int24 _currentTick,
         int24 _lowerTick,
         int24 _upperTick,
-        int24,
-        int24 _stoplossUpperTick
-    ) external view returns (uint256 supply_, uint256 borrow_) {
+        uint256 _ltv,
+        uint256 _hedgeRatio
+    ) external view returns (Position memory position_) {
         return
-            _computeSupplyAndBorrow(
+            _computePosition(
                 _assets,
                 _currentTick,
                 _lowerTick,
                 _upperTick,
-                0,
-                _stoplossUpperTick
+                _ltv,
+                _hedgeRatio
             );
     }
 
-    function checkTickSlippage(int24 _currentTick, int24 _inputTick)
-        external
-        view
-    {
+    function checkTickSlippage(
+        int24 _currentTick,
+        int24 _inputTick
+    ) external view {
         return _checkTickSlippage(_currentTick, _inputTick);
     }
 
@@ -165,30 +156,21 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 _shares,
         uint256 _totalSupply,
         Ticks memory _ticks
-    )
-        external
-        returns (
-            uint256 burnAndFees0_,
-            uint256 burnAndFees1_,
-            uint128 liquidityBurned_
-        )
-    {
+    ) external returns (uint256 burnAndFees0_, uint256 burnAndFees1_) {
         return _burnShare(_shares, _totalSupply, _ticks);
     }
 
     function burnAndCollectFees(
         int24 _lowerTick,
-        int24 _upperTick,
-        uint128 _liquidity
+        int24 _upperTick
     )
         external
-        returns (
-            uint256 burn0_,
-            uint256 burn1_,
-            uint256 fee0_,
-            uint256 fee1_
-        )
+        returns (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_)
     {
+        (uint128 _liquidity, , , , ) = pool.positions(
+            _getPositionID(_lowerTick, _upperTick)
+        );
+
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
     }
 

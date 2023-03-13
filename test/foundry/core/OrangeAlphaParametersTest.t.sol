@@ -18,12 +18,13 @@ contract OrangeAlphaParametersTest is BaseTest {
     function test_constructor_Success() public {
         assertEq(params.depositCap(), 1_000_000 * 1e6);
         assertEq(params.totalDepositCap(), 1_000_000 * 1e6);
+        assertEq(params.minDepositAmount(), 100 * 1e6);
         assertEq(params.slippageBPS(), 500);
         assertEq(params.tickSlippageBPS(), 10);
         assertEq(params.twapSlippageInterval(), 5 minutes);
         assertEq(params.maxLtv(), 80000000);
         assertEq(params.lockupPeriod(), 7 days);
-        assertEq(params.administrators(address(this)), true);
+        assertEq(params.strategists(address(this)), true);
         assertEq(params.allowlistEnabled(), true);
         assertEq(
             params.dedicatedMsgSender(),
@@ -36,6 +37,8 @@ contract OrangeAlphaParametersTest is BaseTest {
         vm.expectRevert("Ownable");
         params.setDepositCap(1, 1);
         vm.expectRevert("Ownable");
+        params.setMinDepositAmount(1);
+        vm.expectRevert("Ownable");
         params.setSlippage(1, 1);
         vm.expectRevert("Ownable");
         params.setTwapSlippageInterval(1);
@@ -44,7 +47,7 @@ contract OrangeAlphaParametersTest is BaseTest {
         vm.expectRevert("Ownable");
         params.setLockupPeriod(1);
         vm.expectRevert("Ownable");
-        params.setAdministrator(address(this), true);
+        params.setStrategist(address(this), true);
         vm.expectRevert("Ownable");
         params.setAllowlistEnabled(true);
         vm.expectRevert("Ownable");
@@ -60,6 +63,9 @@ contract OrangeAlphaParametersTest is BaseTest {
         assertEq(params.depositCap(), 1);
         assertEq(params.totalDepositCap(), 1);
 
+        params.setMinDepositAmount(1);
+        assertEq(params.minDepositAmount(), 1);
+
         params.setSlippage(1, 1);
         assertEq(params.slippageBPS(), 1);
         assertEq(params.tickSlippageBPS(), 1);
@@ -73,8 +79,8 @@ contract OrangeAlphaParametersTest is BaseTest {
         params.setLockupPeriod(1);
         assertEq(params.lockupPeriod(), 1);
 
-        params.setAdministrator(alice, true);
-        assertEq(params.administrators(alice), true);
+        params.setStrategist(alice, true);
+        assertEq(params.strategists(alice), true);
 
         params.setAllowlistEnabled(true);
         assertEq(params.allowlistEnabled(), true);

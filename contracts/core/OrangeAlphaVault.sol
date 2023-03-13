@@ -294,26 +294,32 @@ contract OrangeAlphaVault is
                 _upperTick.getSqrtRatioAtTick(),
                 1e18 //any amount
             );
-        // console2.log(_amount0, "_amount0");
-        // console2.log(_amount1, "_amount1");
+        console2.log(_amount0, "_amount0");
+        console2.log(_amount1, "_amount1");
         uint256 _amount0Usdc = OracleLibrary.getQuoteAtTick(
             _currentTick,
             uint128(_amount0),
             address(token0),
             address(token1)
         );
+        console2.log(_amount0Usdc, "_amount0Usdc");
 
         //compute collateral/asset ratio
-        uint256 _ltvForAmount0 = _ltv.mulDiv(_amount0Usdc, _amount1);
-        uint256 _collateralRatio = MAGIC_SCALE_1E8 -
+        uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount0Usdc, _amount1);
+        console2.log(_x, "_x");
+        uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
             _ltv +
             MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
-            MAGIC_SCALE_1E8.mulDiv(_ltvForAmount0, _hedgeRatio);
+            MAGIC_SCALE_1E8.mulDiv(
+                _ltv,
+                (_hedgeRatio.mulDiv(_x, MAGIC_SCALE_1E8))
+            );
+        console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
 
         //Collateral
         position_.supplyAmount1 = _assets.mulDiv(
             MAGIC_SCALE_1E8,
-            _collateralRatio
+            _collateralRatioReciprocal
         );
 
         uint256 _borrowUsdc = position_.supplyAmount1.mulDiv(
