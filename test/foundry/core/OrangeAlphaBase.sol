@@ -31,8 +31,8 @@ contract OrangeAlphaBase is BaseTest {
     OrangeAlphaVaultMock public vault;
     IUniswapV3Pool public pool;
     IAaveV3Pool public aave;
-    IERC20 public weth;
-    IERC20 public usdc;
+    IERC20 public token0;
+    IERC20 public token1;
     IERC20 public debtToken0; //weth
     IERC20 public aToken1; //usdc
     OrangeAlphaParameters public params;
@@ -53,8 +53,8 @@ contract OrangeAlphaBase is BaseTest {
         params = new OrangeAlphaParameters();
         router = ISwapRouter(uniswapAddr.routerAddr); //for test
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
-        weth = IERC20(tokenAddr.wethAddr);
-        usdc = IERC20(tokenAddr.usdcAddr);
+        token0 = IERC20(tokenAddr.wethAddr);
+        token1 = IERC20(tokenAddr.usdcAddr);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
         aToken1 = IERC20(aaveAddr.ausdcAddr);
@@ -64,8 +64,8 @@ contract OrangeAlphaBase is BaseTest {
             "ORANGE_ALPHA_VAULT",
             6,
             address(pool),
-            address(weth),
-            address(usdc),
+            address(token0),
+            address(token1),
             address(aave),
             address(debtToken0),
             address(aToken1),
@@ -87,26 +87,26 @@ contract OrangeAlphaBase is BaseTest {
         deal(tokenAddr.usdcAddr, carol, 10_000_000 * 1e6);
 
         //approve
-        usdc.approve(address(vault), type(uint256).max);
+        token1.approve(address(vault), type(uint256).max);
         vm.startPrank(alice);
-        usdc.approve(address(vault), type(uint256).max);
+        token1.approve(address(vault), type(uint256).max);
         vm.stopPrank();
         vm.startPrank(carol);
-        weth.approve(address(router), type(uint256).max);
-        usdc.approve(address(router), type(uint256).max);
+        token0.approve(address(router), type(uint256).max);
+        token1.approve(address(router), type(uint256).max);
         vm.stopPrank();
     }
 
     /* ========== TEST functions ========== */
-    function swapByCarol(bool _zeroForOne, uint256 _amountIn)
-        private
-        returns (uint256 amountOut_)
-    {
+    function swapByCarol(
+        bool _zeroForOne,
+        uint256 _amountIn
+    ) private returns (uint256 amountOut_) {
         ISwapRouter.ExactInputSingleParams memory inputParams;
         if (_zeroForOne) {
             inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(weth),
-                tokenOut: address(usdc),
+                tokenIn: address(token0),
+                tokenOut: address(token1),
                 fee: 3000,
                 recipient: msg.sender,
                 deadline: block.timestamp,
@@ -116,8 +116,8 @@ contract OrangeAlphaBase is BaseTest {
             });
         } else {
             inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(usdc),
-                tokenOut: address(weth),
+                tokenIn: address(token1),
+                tokenOut: address(token0),
                 fee: 3000,
                 recipient: msg.sender,
                 deadline: block.timestamp,
@@ -154,7 +154,7 @@ contract OrangeAlphaBase is BaseTest {
             .getUnderlyingBalances();
         console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
         console2.log(debtToken0.balanceOf(address(vault)), "debtAmount0");
-        console2.log(aToken1.balanceOf(address(vault)), "collateralAmount1");
+        console2.log(aToken1.balanceOf(address(vault)), "supplyAmount1");
         console2.log(_underlyingAssets.amount0Current, "amount0Added");
         console2.log(_underlyingAssets.amount1Current, "amount1Added");
         console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");

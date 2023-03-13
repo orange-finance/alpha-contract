@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
+import "./OrangeAlphaBase.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -16,54 +16,19 @@ import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol
 import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract OrangeAlphaComputePositionTest is BaseTest {
-    struct Position {
-        uint256 debtAmount0;
-        uint256 supplyAmount1;
-        uint256 addedAmount0;
-        uint256 addedAmount1;
-    }
-
+contract OrangeAlphaComputePositionTest is OrangeAlphaBase {
+    using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
     using Ints for int24;
+    using Ints for int256;
 
-    uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-
-    AddressHelper.TokenAddr public tokenAddr;
-    AddressHelper.UniswapAddr uniswapAddr;
-
-    IUniswapV3Pool pool;
-    IERC20 token0;
-    IERC20 token1;
-
-    int24 lowerTick = -205680;
-    int24 upperTick = -203760;
-    int24 stoplossLowerTick = -206280;
-    int24 stoplossUpperTick = -203160;
-    int24 currentTick;
-
-    // currentTick = -204714;
-
-    function setUp() public {
-        (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
-
-        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
-        token0 = IERC20(tokenAddr.wethAddr);
-        token1 = IERC20(tokenAddr.usdcAddr);
-
-        //set Ticks for testing
-        (, int24 _tick, , , , , ) = pool.slot0();
-        currentTick = _tick;
-        console2.log(currentTick.toString(), "currentTick");
-    }
-
-    function test_computeHedgeBalance1() public {
+    function test_computeHedge_SuccessCase1() public {
         //price 2,944
         int24 _tick = -196445;
         // console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        Position memory _position = _computePosition(
+        _testComputePosition(
             100_216 * 1e6,
             _tick,
             -197040,
@@ -71,20 +36,14 @@ contract OrangeAlphaComputePositionTest is BaseTest {
             72913000,
             127200000
         );
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-        console.log(_position.debtAmount0, "debtAmount0");
-        console.log(_position.supplyAmount1, "supplyAmount1");
-        console.log(_position.addedAmount0, "addedAmount0");
-        console.log(_position.addedAmount1, "addedAmount1");
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
-    function test_computeHedgeBalance2() public {
+    function test_computeHedge_SuccessCase2() public {
         //price 2,911
         int24 _tick = -196558;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        Position memory _position = _computePosition(
+        _testComputePosition(
             100_304 * 1e6,
             _tick,
             -197040,
@@ -92,20 +51,14 @@ contract OrangeAlphaComputePositionTest is BaseTest {
             72089000,
             158760000
         );
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-        console.log(_position.debtAmount0, "debtAmount0");
-        console.log(_position.supplyAmount1, "supplyAmount1");
-        console.log(_position.addedAmount0, "addedAmount0");
-        console.log(_position.addedAmount1, "addedAmount1");
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
-    function test_computeHedgeBalance3() public {
+    function test_computeHedge_SuccessCase3() public {
         //price 1,886
         int24 _tick = -200900;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        Position memory _position = _computePosition(
+        _testComputePosition(
             97_251 * 1e6,
             _tick,
             -200940,
@@ -113,20 +66,14 @@ contract OrangeAlphaComputePositionTest is BaseTest {
             62_764_000,
             103_290_000
         );
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-        console.log(_position.debtAmount0, "debtAmount0");
-        console.log(_position.supplyAmount1, "supplyAmount1");
-        console.log(_position.addedAmount0, "addedAmount0");
-        console.log(_position.addedAmount1, "addedAmount1");
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
-    function test_computeHedgeBalance4() public {
+    function test_computeHedge_SuccessCase4() public {
         //price 2,619
         int24 _tick = -197613;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        Position memory _position = _computePosition(
+        _testComputePosition(
             96_719 * 1e6,
             _tick,
             -198296,
@@ -134,81 +81,151 @@ contract OrangeAlphaComputePositionTest is BaseTest {
             72_948_000,
             46_220_000
         );
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-        console.log(_position.debtAmount0, "debtAmount0");
-        console.log(_position.supplyAmount1, "supplyAmount1");
-        console.log(_position.addedAmount0, "addedAmount0");
-        console.log(_position.addedAmount1, "addedAmount1");
-        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
-    function _computePosition(
+    function test_computePosition_SuccessHedgeRatio() public {
+        uint _ltv = 80e6;
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            _ltv,
+            100e6
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            _ltv,
+            200e6
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            _ltv,
+            50e6
+        );
+    }
+
+    function test_computePosition_SuccessRange() public {
+        uint256 _hedgeRatio = 100e6;
+        uint _ltv = 80e6;
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            _ltv,
+            _hedgeRatio
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick - 600,
+            upperTick,
+            _ltv,
+            _hedgeRatio
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick + 600,
+            _ltv,
+            _hedgeRatio
+        );
+    }
+
+    function test_computePosition_SuccessLtv() public {
+        uint256 _hedgeRatio = 100e6;
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            80e6,
+            _hedgeRatio
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            60e6,
+            _hedgeRatio
+        );
+        _testComputePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            40e6,
+            _hedgeRatio
+        );
+    }
+
+    function _testComputePosition(
         uint256 _assets,
         int24 _currentTick,
         int24 _lowerTick,
         int24 _upperTick,
         uint256 _ltv,
         uint256 _hedgeRatio
-    ) internal view returns (Position memory position_) {
-        if (_assets == 0) return Position(0, 0, 0, 0);
-
-        // compute ETH/USDC amount ration to add liquidity
-        (uint256 _amount0, uint256 _amount1) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                _currentTick.getSqrtRatioAtTick(),
-                _lowerTick.getSqrtRatioAtTick(),
-                _upperTick.getSqrtRatioAtTick(),
-                1e18 //any amount
-            );
-        console2.log(_amount0, "_amount0");
-        console2.log(_amount1, "_amount1");
-        uint256 _amount0Usdc = OracleLibrary.getQuoteAtTick(
+    ) internal {
+        IOrangeAlphaVault.Position memory _position = vault.computePosition(
+            _assets,
             _currentTick,
-            uint128(_amount0),
+            _lowerTick,
+            _upperTick,
+            _ltv,
+            _hedgeRatio
+        );
+        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
+        console.log(_position.debtAmount0, "debtAmount0");
+        console.log(_position.supplyAmount1, "supplyAmount1");
+        console.log(_position.addedAmount0, "addedAmount0");
+        console.log(_position.addedAmount1, "addedAmount1");
+        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
+        //assertion
+        //total amount
+        uint _total = _position.supplyAmount1 + _position.addedAmount1;
+        if (_position.debtAmount0 > _position.addedAmount0) {
+            uint _debtUsdc = OracleLibrary.getQuoteAtTick(
+                _currentTick,
+                uint128(_position.debtAmount0 - _position.addedAmount0),
+                address(token0),
+                address(token1)
+            );
+            _total -= _debtUsdc;
+        } else {
+            uint _addedUsdc = OracleLibrary.getQuoteAtTick(
+                _currentTick,
+                uint128(_position.addedAmount0 - _position.debtAmount0),
+                address(token0),
+                address(token1)
+            );
+            _total += _addedUsdc;
+        }
+        assertApproxEqRel(_total, _assets, 1e16);
+        //ltv
+        uint256 _debtUsdc = OracleLibrary.getQuoteAtTick(
+            _currentTick,
+            uint128(_position.debtAmount0),
             address(token0),
             address(token1)
         );
-        console2.log(_amount0Usdc, "_amount0Usdc");
-
-        //compute collateral/asset ratio
-        uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount0Usdc, _amount1);
-        console2.log(_x, "_x");
-        uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
-            _ltv +
-            MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
-            MAGIC_SCALE_1E8.mulDiv(
-                _ltv,
-                (_hedgeRatio.mulDiv(_x, MAGIC_SCALE_1E8))
-            );
-        console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
-
-        //Collateral
-        position_.supplyAmount1 = _assets.mulDiv(
-            MAGIC_SCALE_1E8,
-            _collateralRatioReciprocal
-        );
-
-        uint256 _borrowUsdc = position_.supplyAmount1.mulDiv(
-            _ltv,
-            MAGIC_SCALE_1E8
-        );
-        //borrowing usdc amount to weth
-        position_.debtAmount0 = OracleLibrary.getQuoteAtTick(
-            _currentTick,
-            uint128(_borrowUsdc),
-            address(token1),
-            address(token0)
-        );
-
-        // amount added on Uniswap
-        position_.addedAmount0 = position_.debtAmount0.mulDiv(
-            MAGIC_SCALE_1E8,
-            _hedgeRatio
-        );
-        position_.addedAmount1 = position_.addedAmount0.mulDiv(
-            _amount1,
-            _amount0
-        );
+        uint256 _computedLtv = (_debtUsdc * MAGIC_SCALE_1E8) /
+            _position.supplyAmount1;
+        assertApproxEqRel(_computedLtv, _ltv, 1e16);
+        //hedge ratio
+        uint256 _computedHedgeRatio = (_position.debtAmount0 *
+            MAGIC_SCALE_1E8) / _position.addedAmount0;
+        // console2.log(_computedHedgeRatio, "computedHedgeRatio");
+        assertApproxEqRel(_computedHedgeRatio, _hedgeRatio, 1e16);
     }
 
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
