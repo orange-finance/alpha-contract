@@ -245,7 +245,7 @@ contract OrangeAlphaVault is
     function getRebalancedLiquidity(
         int24 _newLowerTick,
         int24 _newUpperTick,
-        int24 _newStoplossLowerTick,
+        int24,
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio
     ) external view returns (uint128 liquidity_) {
@@ -294,19 +294,19 @@ contract OrangeAlphaVault is
                 _upperTick.getSqrtRatioAtTick(),
                 1e18 //any amount
             );
-        console2.log(_amount0, "_amount0");
-        console2.log(_amount1, "_amount1");
+        // console2.log(_amount0, "_amount0");
+        // console2.log(_amount1, "_amount1");
         uint256 _amount0Usdc = OracleLibrary.getQuoteAtTick(
             _currentTick,
             uint128(_amount0),
             address(token0),
             address(token1)
         );
-        console2.log(_amount0Usdc, "_amount0Usdc");
+        // console2.log(_amount0Usdc, "_amount0Usdc");
 
         //compute collateral/asset ratio
         uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount0Usdc, _amount1);
-        console2.log(_x, "_x");
+        // console2.log(_x, "_x");
         uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
             _ltv +
             MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
@@ -314,7 +314,7 @@ contract OrangeAlphaVault is
                 _ltv,
                 (_hedgeRatio.mulDiv(_x, MAGIC_SCALE_1E8))
             );
-        console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
+        // console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
 
         //Collateral
         position_.supplyAmount1 = _assets.mulDiv(
@@ -896,7 +896,7 @@ contract OrangeAlphaVault is
             _oldPosition.debtAmount0 < _newPosition.debtAmount0 &&
             _oldPosition.supplyAmount1 < _newPosition.supplyAmount1
         ) {
-            console2.log("case1");
+            console2.log("case1 supply and borrow");
             // supply
             uint256 _supply = _newPosition.supplyAmount1 -
                 _oldPosition.supplyAmount1;
@@ -914,7 +914,7 @@ contract OrangeAlphaVault is
                     _ticks.currentTick
                 );
             }
-            console2.log("_executeHedgeRebalance case1 2");
+            console2.log("case1 2");
             aave.safeSupply(address(token1), _supply, address(this), 0);
 
             // borrow
@@ -923,13 +923,13 @@ contract OrangeAlphaVault is
             aave.safeBorrow(address(token0), _borrow, 2, 0, address(this));
         } else {
             if (_oldPosition.debtAmount0 > _newPosition.debtAmount0) {
-                console2.log("case2");
+                console2.log("case2 repay");
                 // repay
                 uint256 _repay = _oldPosition.debtAmount0 -
                     _newPosition.debtAmount0;
-                console2.log(_repay, "_repay");
-                console2.log(token0.balanceOf(address(this)), "token0balance");
-                console2.log(token1.balanceOf(address(this)), "token1balance");
+                // console2.log(_repay, "_repay");
+                // console2.log(token0.balanceOf(address(this)), "token0balance");
+                // console2.log(token1.balanceOf(address(this)), "token1balance");
 
                 // swap (if necessary)
                 if (_repay > _oldPosition.addedAmount0) {
@@ -944,7 +944,7 @@ contract OrangeAlphaVault is
                 aave.safeRepay(address(token0), _repay, 2, address(this));
                 console2.log("case2 2");
             } else {
-                console2.log("_executeHedgeRebalance case3");
+                console2.log("case3 borrow");
                 // borrow
                 uint256 _borrow = _newPosition.debtAmount0 -
                     _oldPosition.debtAmount0;
@@ -952,13 +952,13 @@ contract OrangeAlphaVault is
             }
 
             if (_oldPosition.supplyAmount1 < _newPosition.supplyAmount1) {
-                console2.log("_executeHedgeRebalance case4");
+                console2.log("case4 supply");
                 // supply
                 uint256 _supply = _newPosition.supplyAmount1 -
                     _oldPosition.supplyAmount1;
                 aave.safeSupply(address(token1), _supply, address(this), 0);
             } else {
-                console2.log("_executeHedgeRebalance case5");
+                console2.log("case5 withdraw");
                 // withdraw
                 uint256 _withdraw = _oldPosition.supplyAmount1 -
                     _newPosition.supplyAmount1;

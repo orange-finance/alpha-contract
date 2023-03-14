@@ -45,7 +45,7 @@ contract OrangeAlphaBase is BaseTest {
 
     // currentTick = -204714;
 
-    function setUp() public {
+    function setUp() public virtual {
         (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(
             block.chainid
         );
@@ -101,7 +101,7 @@ contract OrangeAlphaBase is BaseTest {
     function swapByCarol(
         bool _zeroForOne,
         uint256 _amountIn
-    ) private returns (uint256 amountOut_) {
+    ) internal returns (uint256 amountOut_) {
         ISwapRouter.ExactInputSingleParams memory inputParams;
         if (_zeroForOne) {
             inputParams = ISwapRouter.ExactInputSingleParams({
@@ -130,7 +130,7 @@ contract OrangeAlphaBase is BaseTest {
         amountOut_ = router.exactInputSingle(inputParams);
     }
 
-    function multiSwapByCarol() private {
+    function multiSwapByCarol() internal {
         swapByCarol(true, 1 ether);
         swapByCarol(false, 2000 * 1e6);
         swapByCarol(true, 1 ether);
@@ -158,5 +158,15 @@ contract OrangeAlphaBase is BaseTest {
         console2.log(_underlyingAssets.amount0Current, "amount0Added");
         console2.log(_underlyingAssets.amount1Current, "amount1Added");
         console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
+    }
+
+    function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
+        return
+            OracleLibrary.getQuoteAtTick(
+                _tick,
+                1 ether,
+                address(token0),
+                address(token1)
+            );
     }
 }
