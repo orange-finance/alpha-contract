@@ -142,6 +142,21 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
+    function computeHedgeAndLiquidityByShares(
+        uint256 _shares,
+        Ticks memory _ticks
+    )
+        external
+        view
+        returns (
+            uint256 _targetDebtAmount0,
+            uint256 _targetCollateralAmount1,
+            uint128 _targetLiquidity
+        )
+    {
+        return _computeHedgeAndLiquidityByShares(_shares, _ticks);
+    }
+
     function checkTickSlippage(
         int24 _currentTick,
         int24 _inputTick
@@ -172,6 +187,14 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         );
 
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+    }
+
+    function swapSurplusAmount(
+        Balances memory _balances,
+        uint128 _targetLiquidity,
+        Ticks memory _ticks
+    ) external {
+        return _swapSurplusAmount(_balances, _targetLiquidity, _ticks);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {

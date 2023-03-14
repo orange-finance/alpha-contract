@@ -227,14 +227,4 @@ contract OrangeAlphaComputePositionTest is OrangeAlphaBase {
         // console2.log(_computedHedgeRatio, "computedHedgeRatio");
         assertApproxEqRel(_computedHedgeRatio, _hedgeRatio, 1e16);
     }
-
-    function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
-        return
-            OracleLibrary.getQuoteAtTick(
-                _tick,
-                1 ether,
-                address(token0),
-                address(token1)
-            );
-    }
 }

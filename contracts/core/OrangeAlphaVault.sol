@@ -457,9 +457,11 @@ contract OrangeAlphaVault is
 
         //transfer surplus amount to receiver
         if (_balances.balance0 > 0) {
+            console2.log(_balances.balance0, "_balances.balance0");
             token0.safeTransfer(_receiver, _balances.balance0);
         }
         if (_balances.balance1 > 0) {
+            console2.log(_balances.balance1, "_balances.balance1");
             token1.safeTransfer(_receiver, _balances.balance1);
         }
 
@@ -483,6 +485,7 @@ contract OrangeAlphaVault is
             uint128 _targetLiquidity
         )
     {
+        // totalSupply() must not be zero because of validation check in deposit function
         uint256 _totalSupply = totalSupply();
 
         // compute hedge amount by shares
@@ -511,6 +514,9 @@ contract OrangeAlphaVault is
         uint128 _targetLiquidity,
         Ticks memory _ticks
     ) internal {
+        console2.log(_balances.balance0, "_balances.balance0");
+        console2.log(_balances.balance1, "_balances.balance1");
+
         //calulate target amount0 and amount1 by liquidity
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
@@ -519,16 +525,20 @@ contract OrangeAlphaVault is
                 _ticks.upperTick.getSqrtRatioAtTick(),
                 _targetLiquidity
             );
+        console2.log(_targetAmount0, "_targetAmount0");
+        console2.log(_targetAmount1, "_targetAmount1");
 
         //calculate surplus amount0 and amount1
         uint256 _surplusAmount0;
         uint256 _surplusAmount1;
         if (_balances.balance0 > _targetAmount0) {
+            console2.log(_balances.balance0, "_balances.balance0");
             unchecked {
                 _surplusAmount0 = _balances.balance0 - _targetAmount0;
             }
         }
         if (_balances.balance1 > _targetAmount1) {
+            console2.log(_balances.balance1, "_balances.balance1");
             unchecked {
                 _surplusAmount1 = _balances.balance1 - _targetAmount1;
             }
@@ -536,8 +546,10 @@ contract OrangeAlphaVault is
 
         if (_surplusAmount0 > 0 && _surplusAmount1 > 0) {
             //no need to swap
+            console2.log("surplus no need to swap");
         } else if (_surplusAmount0 > 0) {
             //swap amount0 to amount1
+            console2.log("surplus swap amount0 to amount1");
             (int256 _amount0Delta, int256 _amount1Delta) = _swap(
                 true,
                 _surplusAmount0,
@@ -552,6 +564,7 @@ contract OrangeAlphaVault is
             );
         } else if (_surplusAmount1 > 0) {
             //swap amount1 to amount0
+            console2.log("surplus swap amount1 to amount0");
             (int256 _amount0Delta, int256 _amount1Delta) = _swap(
                 false,
                 _surplusAmount1,
@@ -565,6 +578,7 @@ contract OrangeAlphaVault is
                 SafeCast.toInt256(_balances.balance1) - _amount1Delta
             );
         } else if (_surplusAmount0 == 0 && _surplusAmount1 == 0) {
+            console2.log("surplus SURPLUS_ZERO");
             revert(Errors.SURPLUS_ZERO);
         }
     }
@@ -807,7 +821,6 @@ contract OrangeAlphaVault is
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external onlyStrategists {
-        console2.log("rebalance 0");
         //validation of tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
@@ -822,7 +835,6 @@ contract OrangeAlphaVault is
         _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, _liquidity);
 
         // 2. get current position
-        console2.log("rebalance 2");
         Position memory _oldPosition = Position(
             debtToken0.balanceOf(address(this)),
             aToken1.balanceOf(address(this)),
@@ -839,7 +851,6 @@ contract OrangeAlphaVault is
         stoplossUpperTick = _newStoplossUpperTick;
 
         // 3. compute new position
-        console2.log("rebalance 3");
         uint256 _ltv = _getLtvByRange(
             _ticks.currentTick,
             _newStoplossUpperTick
@@ -858,15 +869,10 @@ contract OrangeAlphaVault is
         console2.log(_newPosition.addedAmount1, "addedAmount1");
 
         // 4. execute hedge
-        console2.log("rebalance 4");
         _executeHedgeRebalance(_oldPosition, _newPosition, _ticks);
 
         // 5. Add liquidity
-        console2.log("rebalance 5");
-        //TODO sqrtRatioX96 is necessary
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
         uint128 _targetLiquidity = _addLiquidityInRebalance(
-            _sqrtRatioX96,
             _ticks.lowerTick,
             _ticks.upperTick,
             _newPosition.addedAmount0,
@@ -876,7 +882,6 @@ contract OrangeAlphaVault is
             revert(Errors.LESS_LIQUIDITY);
         }
 
-        console2.log("rebalance 6");
         _emitAction(3, _ticks);
 
         //reset stoplossed
@@ -967,43 +972,6 @@ contract OrangeAlphaVault is
         }
     }
 
-    // /// @notice compute total swapping amount to rebalance
-    // /// @dev colled by _executeHedgeRebalance
-    // function _computeTotalSwapAmountForRebalance(
-    //     Position memory _oldPosition,
-    //     Position memory _newPosition
-    // ) internal pure returns (bool zeroForOne_, uint256 totalSwapAmount_) {
-    //     uint256 _oldTotalAmount1 = _oldPosition.supplyAmount1 +
-    //         _oldPosition.addedAmount1;
-    //     uint256 _newTotalAmount1 = _newPosition.supplyAmount1 +
-    //         _newPosition.addedAmount1;
-    //     // amount0 is debt, so it's possible to be negative
-    //     int256 _oldTotalAmount0 = int256(_oldPosition.addedAmount0) -
-    //         int256(_oldPosition.debtAmount0);
-    //     int256 _newTotalAmount0 = int256(_newPosition.addedAmount0) -
-    //         int256(_newPosition.debtAmount0);
-
-    //     if (
-    //         _oldTotalAmount1 < _newTotalAmount1 &&
-    //         _oldTotalAmount0 < _newTotalAmount0
-    //     ) {
-    //         revert("lack of balance");
-    //     } else if (
-    //         _oldTotalAmount1 > _newTotalAmount1 &&
-    //         _oldTotalAmount0 < _newTotalAmount0
-    //     ) {
-    //         //swap from token1 to token0
-    //         totalSwapAmount_ = _oldTotalAmount1 - _newTotalAmount1;
-    //     } else if (
-    //         _oldTotalAmount1 < _newTotalAmount1 &&
-    //         _oldTotalAmount0 > _newTotalAmount0
-    //     ) {
-    //         //swap from token0 to token1
-    //         zeroForOne_ = true;
-    //         totalSwapAmount_ = uint256(_oldTotalAmount0 - _newTotalAmount0);
-    //     }
-    // }
-
     /// @notice if current balance > totalSwapAmount, swap total amount.
     /// Otherwise, swap current balance( and will swap afterward)
     /// @dev called by _executeHedgeRebalance
@@ -1025,9 +993,8 @@ contract OrangeAlphaVault is
                 MAGIC_SCALE_1E4
             );
             if (_amountIn > token0.balanceOf(address(this))) {
-                //TODO
                 console2.log(_amountIn, token0.balanceOf(address(this)));
-                revert("_swapAmountOut lack of token0");
+                revert(Errors.LACK_OF_TOKEN0);
             }
         } else {
             _amountIn = OracleLibrary.getQuoteAtTick(
@@ -1041,16 +1008,14 @@ contract OrangeAlphaVault is
                 MAGIC_SCALE_1E4
             );
             if (_amountIn > token1.balanceOf(address(this))) {
-                //TODO
                 console2.log(_amountIn, token1.balanceOf(address(this)));
-                revert("_swapAmountOut lack of token1");
+                revert(Errors.LACK_OF_TOKEN1);
             }
         }
         _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
     }
 
     function _addLiquidityInRebalance(
-        uint160 _sqrtRatioX96,
         int24 _lowerTick,
         int24 _upperTick,
         uint256 _targetAmount0,
@@ -1062,14 +1027,17 @@ contract OrangeAlphaVault is
         console2.log("balance1", _balance1);
         console2.log("targetAmount0", _targetAmount0);
         console2.log("targetAmount1", _targetAmount1);
+        uint160 _sqrtRatioX96;
 
         //swap surplus amount
         if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
             //no need to swap
         } else {
             if (_balance0 > _targetAmount0) {
+                (_sqrtRatioX96, , , , , , ) = pool.slot0();
                 _swap(true, uint128(_balance0 - _targetAmount0), _sqrtRatioX96);
             } else if (_balance1 > _targetAmount1) {
+                (_sqrtRatioX96, , , , , , ) = pool.slot0();
                 _swap(
                     false,
                     uint128(_balance1 - _targetAmount1),
