@@ -416,6 +416,68 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         assertApproxEqRel(_afterAssets, _beforeAssets, 1e16);
     }
 
+    function test_swapAmountOut_Revert() public {
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN0));
+        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN1));
+        vault.swapAmountOut(false, 10 ether, currentTick);
+    }
+
+    function test_swapAmountOut_Success0() public {
+        token0.transfer(address(vault), 10 ether);
+        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        assertApproxEqRel(token1.balanceOf(address(vault)), 10000 * 1e6, 5e16); //5%
+    }
+
+    function test_swapAmountOut_Success1() public {
+        token1.transfer(address(vault), 10000 * 1e6);
+        vault.swapAmountOut(false, 2 ether, currentTick);
+        assertApproxEqRel(token0.balanceOf(address(vault)), 2 ether, 5e16); //5%
+    }
+
+    function test_addLiquidityInRebalance_Success0() public {
+        //no need to swap
+        token0.transfer(address(vault), 10 ether);
+        token1.transfer(address(vault), 10000 * 1e6);
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
+            lowerTick,
+            upperTick,
+            10 ether,
+            10000 * 1e6
+        );
+        uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
+        assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
+    }
+
+    function test_addLiquidityInRebalance_Success1() public {
+        //swap 0 to 1
+        token0.transfer(address(vault), 10 ether);
+        token1.transfer(address(vault), 5000 * 1e6);
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
+            lowerTick,
+            upperTick,
+            5 ether,
+            10000 * 1e6
+        );
+        uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
+        assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
+    }
+
+    function test_addLiquidityInRebalance_Success2() public {
+        //swap 1 to 0
+        token0.transfer(address(vault), 3 ether);
+        token1.transfer(address(vault), 20000 * 1e6);
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
+            lowerTick,
+            upperTick,
+            5 ether,
+            10000 * 1e6
+        );
+        uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
+        assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
+    }
+
     function _consoleComputePosition(
         uint256 _assets,
         int24 _currentTick,

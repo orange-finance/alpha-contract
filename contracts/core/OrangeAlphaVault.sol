@@ -615,6 +615,7 @@ contract OrangeAlphaVault is
             _totalSupply
         );
         if (_assets0 < _repayingDebt) {
+            console2.log("redeem case1");
             (int256 amount0Delta, int256 amount1Delta) = _swap(
                 false, //token1 to token0
                 _assets1,
@@ -626,32 +627,23 @@ contract OrangeAlphaVault is
         }
 
         // 4. Repay ETH
-        if (_repayingDebt > 0) {
-            if (
-                _repayingDebt !=
-                aave.repay(address(token0), _repayingDebt, 2, address(this))
-            ) revert(Errors.AAVE_MISMATCH);
-            _assets0 -= _repayingDebt;
-        }
+        aave.safeRepay(address(token0), _repayingDebt, 2, address(this));
+        _assets0 -= _repayingDebt;
 
         // 5. Withdraw USDC as collateral
         uint256 _withdrawingCollateral = aToken1
             .balanceOf(address(this))
             .mulDiv(_shares, _totalSupply);
-        if (_withdrawingCollateral > 0) {
-            if (
-                _withdrawingCollateral !=
-                aave.withdraw(
-                    address(token1),
-                    _withdrawingCollateral,
-                    address(this)
-                )
-            ) revert(Errors.AAVE_MISMATCH);
-            _assets1 += _withdrawingCollateral;
-        }
+        aave.safeWithdraw(
+            address(token1),
+            _withdrawingCollateral,
+            address(this)
+        );
+        _assets1 += _withdrawingCollateral;
 
         // 6. Swap from ETH to USDC (if necessary)
         if (_assets0 > 0) {
+            console2.log("redeem case2");
             (, int256 amount1Delta) = _swap(
                 true, //token0 to token1
                 _assets0,
@@ -678,6 +670,16 @@ contract OrangeAlphaVault is
         uint256 _totalSupply,
         Ticks memory _ticks
     ) internal returns (uint256 burnAndFees0_, uint256 burnAndFees1_) {
+        //compute remaining balance's share
+        uint _shareBalance0 = token0.balanceOf(address(this)).mulDiv(
+            _shares,
+            _totalSupply
+        );
+        uint _shareBalance1 = token1.balanceOf(address(this)).mulDiv(
+            _shares,
+            _totalSupply
+        );
+
         (uint128 _liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
@@ -696,18 +698,10 @@ contract OrangeAlphaVault is
                 _liquidityBurned
             );
         //fee and remaining
-        _fee0 = FullMath.mulDiv(
-            _shares,
-            _fee0 + token0.balanceOf(address(this)),
-            _totalSupply
-        );
-        _fee1 = FullMath.mulDiv(
-            _shares,
-            _fee1 + token1.balanceOf(address(this)),
-            _totalSupply
-        );
-        burnAndFees0_ = _burn0 + _fee0;
-        burnAndFees1_ = _burn1 + _fee1;
+        _fee0 = FullMath.mulDiv(_shares, _fee0, _totalSupply);
+        _fee1 = FullMath.mulDiv(_shares, _fee1, _totalSupply);
+        burnAndFees0_ = _burn0 + _fee0 + _shareBalance0;
+        burnAndFees1_ = _burn1 + _fee1 + _shareBalance1;
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -781,24 +775,15 @@ contract OrangeAlphaVault is
         }
 
         // 4. Repay ETH
-        if (_repayingDebt > 0) {
-            if (
-                _repayingDebt !=
-                aave.repay(address(token0), _repayingDebt, 2, address(this))
-            ) revert(Errors.AAVE_MISMATCH);
-        }
+        aave.safeRepay(address(token0), _repayingDebt, 2, address(this));
+
         // 5. Withdraw USDC as collateral
         uint256 _withdrawingCollateral = aToken1.balanceOf(address(this));
-        if (_withdrawingCollateral > 0) {
-            if (
-                _withdrawingCollateral !=
-                aave.withdraw(
-                    address(token1),
-                    _withdrawingCollateral,
-                    address(this)
-                )
-            ) revert(Errors.AAVE_MISMATCH);
-        }
+        aave.safeWithdraw(
+            address(token1),
+            _withdrawingCollateral,
+            address(this)
+        );
 
         // swap ETH to USDC
         uint256 _balanceToken0 = token0.balanceOf(address(this));
@@ -938,7 +923,6 @@ contract OrangeAlphaVault is
 
                 // swap (if necessary)
                 if (_repay > _oldPosition.addedAmount0) {
-                    // swap (if necessary)
                     _swapAmountOut(
                         false,
                         uint128(_repay - _oldPosition.addedAmount0),
@@ -1034,9 +1018,11 @@ contract OrangeAlphaVault is
             //no need to swap
         } else {
             if (_balance0 > _targetAmount0) {
+                console2.log("_addLiquidityInRebalance case1");
                 (_sqrtRatioX96, , , , , , ) = pool.slot0();
                 _swap(true, uint128(_balance0 - _targetAmount0), _sqrtRatioX96);
             } else if (_balance1 > _targetAmount1) {
+                console2.log("_addLiquidityInRebalance case2");
                 (_sqrtRatioX96, , , , , , ) = pool.slot0();
                 _swap(
                     false,
@@ -1162,7 +1148,52 @@ contract OrangeAlphaVault is
         return Ticks(_tick, lowerTick, upperTick);
     }
 
-    ///@notice Get ticks from this storage and Uniswap
+    function _checkTickSlippage(
+        int24 _currentTick,
+        int24 _inputTick
+    ) internal view {
+        //check slippage by tick
+        if (
+            _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
+            _currentTick < _inputTick - int24(params.tickSlippageBPS())
+        ) {
+            revert(Errors.HIGH_SLIPPAGE);
+        }
+    }
+
+    /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
+
+    ///@notice Burn liquidity per share and compute underlying amount per share
+    ///@dev similar to _withdraw on Arrakis
+    function _burnAndCollectFees(
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint128 _liquidity
+    )
+        internal
+        returns (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_)
+    {
+        uint256 preBalance0 = token0.balanceOf(address(this));
+        uint256 preBalance1 = token1.balanceOf(address(this));
+
+        //burn liquidity
+        if (_liquidity > 0) {
+            (burn0_, burn1_) = pool.burn(_lowerTick, _upperTick, _liquidity);
+        }
+
+        pool.collect(
+            address(this),
+            _lowerTick,
+            _upperTick,
+            type(uint128).max,
+            type(uint128).max
+        );
+
+        fee0_ = token0.balanceOf(address(this)) - preBalance0 - burn0_;
+        fee1_ = token1.balanceOf(address(this)) - preBalance1 - burn1_;
+        emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
+    }
+
     function _swap(
         bool _zeroForOne,
         uint256 _swapAmount,
@@ -1196,50 +1227,6 @@ contract OrangeAlphaVault is
                 _swapThresholdPrice,
                 ""
             );
-    }
-
-    function _checkTickSlippage(
-        int24 _currentTick,
-        int24 _inputTick
-    ) internal view {
-        //check slippage by tick
-        if (
-            _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
-            _currentTick < _inputTick - int24(params.tickSlippageBPS())
-        ) {
-            revert(Errors.HIGH_SLIPPAGE);
-        }
-    }
-
-    /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-
-    ///@notice Burn liquidity per share and compute underlying amount per share
-    ///@dev similar to _withdraw on Arrakis
-    function _burnAndCollectFees(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint128 _liquidity
-    )
-        internal
-        returns (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_)
-    {
-        //burn liquidity
-        (uint128 liquidity, , , , ) = pool.positions(
-            _getPositionID(_lowerTick, _upperTick)
-        );
-        if (_liquidity > 0) {
-            (burn0_, burn1_) = pool.burn(_lowerTick, _upperTick, _liquidity);
-        }
-
-        (fee0_, fee1_) = pool.collect(
-            address(this),
-            _lowerTick,
-            _upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-
-        emit BurnAndCollectFees(burn0_, burn1_, fee0_, fee1_);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */

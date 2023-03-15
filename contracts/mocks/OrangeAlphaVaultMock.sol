@@ -56,6 +56,10 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         stoplossed = _stoplossed;
     }
 
+    function setAvgTick(int24 _avgTick) external {
+        avgTick = _avgTick;
+    }
+
     function getAavePoolLtv() external view returns (uint256) {
         (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave
             .getUserAccountData(address(this));
@@ -68,8 +72,13 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function setAvgTick(int24 _avgTick) external {
-        avgTick = _avgTick;
+    function getLiquidity(
+        int24 _lowerTick,
+        int24 _upperTick
+    ) external view returns (uint128 liquidity_) {
+        (liquidity_, , , , ) = pool.positions(
+            _getPositionID(_lowerTick, _upperTick)
+        );
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
@@ -165,6 +174,28 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
+    function swapAmountOut(
+        bool _zeroForOne,
+        uint128 _minAmountOut,
+        int24 _tick
+    ) external {
+        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
+    }
+
+    function addLiquidityInRebalance(
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1
+    ) external returns (uint128 targetLiquidity_) {
+        return
+            _addLiquidityInRebalance(
+                _lowerTick,
+                _upperTick,
+                _targetAmount0,
+                _targetAmount1
+            );
+    }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
     function burnShare(
@@ -178,15 +209,20 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     function burnAndCollectFees(
         int24 _lowerTick,
         int24 _upperTick
-    )
-        external
-        returns (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_)
-    {
+    ) external returns (uint256, uint256, uint256, uint256) {
         (uint128 _liquidity, , , , ) = pool.positions(
             _getPositionID(_lowerTick, _upperTick)
         );
 
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+    }
+
+    function swap(
+        bool _zeroForOne,
+        uint256 _swapAmount,
+        uint256 _currentSqrtRatioX96
+    ) external returns (int256 _amount0Delta, int256 _amount1Delta) {
+        return _swap(_zeroForOne, _swapAmount, _currentSqrtRatioX96);
     }
 
     function swapSurplusAmount(
