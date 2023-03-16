@@ -62,7 +62,6 @@ contract OrangeAlphaBase is BaseTest {
         vault = new OrangeAlphaVaultMock(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
-            6,
             address(pool),
             address(token0),
             address(token1),

@@ -90,7 +90,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         assertEq(vault.upperTick(), _newUpperTick);
         assertEq(vault.stoplossLowerTick(), _newStoplossLowerTick);
         assertEq(vault.stoplossUpperTick(), _newStoplossUpperTick);
-        assertEq(vault.stoplossed(), false);
+        assertEq(vault.hasPosition(), false);
     }
 
     function test_rebalance_Success1() public {
@@ -121,7 +121,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
         assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
 
-        assertEq(vault.stoplossed(), false);
+        assertEq(vault.hasPosition(), false);
         assertEq(vault.lowerTick(), lowerTick);
         assertEq(vault.upperTick(), upperTick);
         assertEq(vault.stoplossLowerTick(), stoplossLowerTick);

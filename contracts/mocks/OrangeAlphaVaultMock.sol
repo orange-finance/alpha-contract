@@ -16,7 +16,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     constructor(
         string memory _name,
         string memory _symbol,
-        uint8 __decimal,
         address _pool,
         address _token0,
         address _token1,
@@ -28,7 +27,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         OrangeAlphaVault(
             _name,
             _symbol,
-            __decimal,
             _pool,
             _token0,
             _token1,
@@ -52,8 +50,8 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         upperTick = _upperTick;
     }
 
-    function setStoplossed(bool _stoplossed) external {
-        stoplossed = _stoplossed;
+    function setHasPosition(bool _hasPosition) external {
+        hasPosition = _hasPosition;
     }
 
     function setAvgTick(int24 _avgTick) external {
@@ -153,17 +151,19 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
 
     function computeHedgeAndLiquidityByShares(
         uint256 _shares,
+        uint _totalSupply,
         Ticks memory _ticks
     )
         external
         view
         returns (
+            uint _additionalAmount1,
             uint256 _targetDebtAmount0,
             uint256 _targetCollateralAmount1,
             uint128 _targetLiquidity
         )
     {
-        return _computeHedgeAndLiquidityByShares(_shares, _ticks);
+        return _computeHedgeAndLiquidityByShares(_shares, _totalSupply, _ticks);
     }
 
     function checkTickSlippage(
