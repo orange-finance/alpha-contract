@@ -6,17 +6,15 @@ import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {IResolver} from "../vendor/gelato/IResolver.sol";
 
 // import "forge-std/console2.sol";
 // import {Ints} from "../mocks/Ints.sol";
 
-contract OrangeAlphaPeriphery is IResolver {
+contract OrangeAlphaPeriphery {
     using SafeERC20 for IERC20;
 
     /* ========== ERRORS ========== */
     string constant ERROR_MERKLE_ALLOWLISTED = "MERKLE_ALLOWLISTED";
-    string constant ERROR_CANNOT_STOPLOSS = "CANNOT_STOPLOSS";
     string constant ERROR_CAPOVER = "CAPOVER";
     string constant ERROR_LOCKUP = "LOCKUP";
 
@@ -38,38 +36,39 @@ contract OrangeAlphaPeriphery is IResolver {
     constructor(address _vault, address _params) {
         vault = IOrangeAlphaVault(_vault);
         params = IOrangeAlphaParameters(_params);
+        vault.token1().safeApprove(address(vault), type(uint256).max);
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function deposit(
-        uint256 _assets,
-        uint256 _minShares,
+        uint256 _shares,
+        uint256 _maxAssets,
         bytes32[] calldata merkleProof
     ) external returns (uint256) {
         //validation of merkle proof
         _isAllowlisted(msg.sender, merkleProof);
 
         //validation of deposit caps
-        if (deposits[msg.sender].assets + _assets > params.depositCap()) {
+        if (deposits[msg.sender].assets + _maxAssets > params.depositCap()) {
             revert(ERROR_CAPOVER);
         }
-        deposits[msg.sender].assets += _assets;
+        deposits[msg.sender].assets += _maxAssets;
         deposits[msg.sender].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
-        if (_totalDeposits + _assets > params.totalDepositCap()) {
+        if (_totalDeposits + _maxAssets > params.totalDepositCap()) {
             revert(ERROR_CAPOVER);
         }
-        totalDeposits = _totalDeposits + _assets;
+        totalDeposits = _totalDeposits + _maxAssets;
 
         //transfer USDC
-        vault.token1().safeTransferFrom(msg.sender, address(this), _assets);
-        return vault.deposit(_assets, msg.sender, _minShares);
+        vault.token1().safeTransferFrom(msg.sender, address(this), _maxAssets);
+        return vault.deposit(_shares, msg.sender, _maxAssets);
     }
 
-    function redeem(uint256 _shares, uint256 _minAssets)
-        external
-        returns (uint256)
-    {
+    function redeem(
+        uint256 _shares,
+        uint256 _minAssets
+    ) external returns (uint256) {
         if (
             block.timestamp <
             deposits[msg.sender].timestamp + params.lockupPeriod()
@@ -102,43 +101,11 @@ contract OrangeAlphaPeriphery is IResolver {
         return _assets;
     }
 
-    // @inheritdoc IResolver
-    function checker()
-        external
-        view
-        override
-        returns (bool canExec, bytes memory execPayload)
-    {
-        IUniswapV3Pool _pool = vault.pool();
-        (, int24 _currentTick, , , , , ) = _pool.slot0();
-        int24 _twap = _getTwap();
-        if (
-            !vault.canStoploss(
-                _currentTick,
-                vault.stoplossLowerTick(),
-                vault.stoplossUpperTick()
-            ) ||
-            !vault.canStoploss(
-                _twap,
-                vault.stoplossLowerTick(),
-                vault.stoplossUpperTick()
-            )
-        ) {
-            return (false, bytes(ERROR_CANNOT_STOPLOSS));
-        }
-        execPayload = abi.encodeWithSelector(
-            IOrangeAlphaVault.stoploss.selector,
-            _twap
-        );
-        return (true, execPayload);
-    }
-
     /* ========== INTERNAL FUNCTIONS ========== */
-    function _isAllowlisted(address _account, bytes32[] calldata _merkleProof)
-        internal
-        view
-        virtual
-    {
+    function _isAllowlisted(
+        address _account,
+        bytes32[] calldata _merkleProof
+    ) internal view virtual {
         if (params.allowlistEnabled()) {
             if (
                 !MerkleProof.verify(
@@ -149,24 +116,6 @@ contract OrangeAlphaPeriphery is IResolver {
             ) {
                 revert(ERROR_MERKLE_ALLOWLISTED);
             }
-        }
-    }
-
-    function _getTwap() internal view virtual returns (int24 avgTick) {
-        IUniswapV3Pool _pool = vault.pool();
-
-        uint32[] memory secondsAgo = new uint32[](2);
-        secondsAgo[0] = 5 minutes;
-        secondsAgo[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = _pool.observe(secondsAgo);
-
-        require(tickCumulatives.length == 2, "array len");
-        unchecked {
-            avgTick = int24(
-                (tickCumulatives[1] - tickCumulatives[0]) /
-                    int56(uint56(5 minutes))
-            );
         }
     }
 }

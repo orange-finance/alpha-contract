@@ -475,7 +475,7 @@ contract OrangeAlphaVault is
         internal
         view
         returns (
-            uint _additionalAmount1,
+            uint256 _additionalAmount1,
             uint256 _additionalDebtAmount0,
             uint256 _additionalCollateralAmount1,
             uint128 _additionalLiquidity

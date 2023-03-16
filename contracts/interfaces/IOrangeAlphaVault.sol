@@ -82,20 +82,18 @@ interface IOrangeAlphaVault {
      * @param assets amount of assets
      * @return shares
      */
-    function convertToShares(uint256 assets)
-        external
-        view
-        returns (uint256 shares);
+    function convertToShares(
+        uint256 assets
+    ) external view returns (uint256 shares);
 
     /**
      * @notice convert shares to assets
      * @param shares amount of vault token
      * @return assets
      */
-    function convertToAssets(uint256 shares)
-        external
-        view
-        returns (uint256 assets);
+    function convertToAssets(
+        uint256 shares
+    ) external view returns (uint256 assets);
 
     /**
      * @notice get underlying assets
@@ -139,15 +137,15 @@ interface IOrangeAlphaVault {
     /* ========== EXTERNAL FUNCTIONS ========== */
     /**
      * @notice deposit assets and get vault token
-     * @param assets amount of assets
+     * @param _shares amount of vault token
      * @param _receiver receiver address
-     * @param minShares minimum amount of returned vault token
+     * @param _maxAssets maximum amount of assets
      * @return shares
      */
     function deposit(
-        uint256 assets,
+        uint256 _shares,
         address _receiver,
-        uint256 minShares
+        uint256 _maxAssets
     ) external returns (uint256 shares);
 
     /**
