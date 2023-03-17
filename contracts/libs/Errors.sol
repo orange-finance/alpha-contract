@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 library Errors {
     //access control
     string public constant ONLY_PERIPHERY = "1";
-    string public constant ONLY_DEDICATED_MSG_SENDER = "2";
+    string public constant ONLY_STRATEGISTS_OR_GELATO = "2";
     string public constant ONLY_STRATEGISTS = "3";
     string public constant ONLY_CALLBACK_CALLER = "4";
     //validation

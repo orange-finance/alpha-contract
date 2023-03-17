@@ -37,6 +37,14 @@ interface IOrangeAlphaVault {
         uint256 amount1Balance;
     }
 
+    enum ActionType {
+        MANUAL,
+        DEPOSIT,
+        REDEEM,
+        REBALANCE,
+        STOPLOSS
+    }
+
     /* ========== EVENTS ========== */
 
     event BurnAndCollectFees(
@@ -55,7 +63,7 @@ interface IOrangeAlphaVault {
      * 4. stoploss
      */
     event Action(
-        uint8 indexed actionType,
+        ActionType indexed actionType,
         address indexed caller,
         uint256 totalAssets,
         uint256 totalSupply
@@ -162,12 +170,6 @@ interface IOrangeAlphaVault {
      * @param inputTick Input tick for slippage checking
      */
     function stoploss(int24 inputTick) external;
-
-    /**
-     * @notice Remove all positions
-     * @param inputTick Input tick for slippage checking
-     */
-    function removeAllPosition(int24 inputTick) external;
 
     /**
      * @notice Change the range of underlying UniswapV3 position

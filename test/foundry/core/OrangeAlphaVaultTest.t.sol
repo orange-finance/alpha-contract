@@ -53,8 +53,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
     function test_onlyStrategists_Revert() public {
         vm.startPrank(alice);
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS));
-        vault.removeAllPosition(0);
-        vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS));
         vault.rebalance(0, 0, 0, 0, 0, 0);
     }
 
@@ -768,40 +766,18 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Revert() public {
-        vm.expectRevert(bytes(Errors.ONLY_DEDICATED_MSG_SENDER));
+        vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
+        vm.prank(alice);
+        vault.stoploss(1);
+    }
+
+    function test_stoploss_Success0ByGelato() public {
+        vm.prank(params.gelato());
         vault.stoploss(1);
     }
 
     function test_stoploss_Success1() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(8 days);
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO,
-            0
-        );
-        skip(1);
-
-        swapByCarol(true, 1000 ether); //current price under lowerPrice
-        vault.setAvgTick(-206587);
-        (, int24 __tick, , , , , ) = pool.slot0();
-        vm.prank(params.dedicatedMsgSender());
-        vault.stoploss(__tick);
-        assertEq(vault.hasPosition(), false);
-        //assertion of removePosition
-        assertEq(aToken1.balanceOf(address(vault)), 0);
-        assertEq(debtToken0.balanceOf(address(vault)), 0);
-    }
-
-    /* ========== OWNERS FUNCTIONS ========== */
-
-    function test_removeAllPosition_Success0() public {
-        (, int24 _tick, , , , , ) = pool.slot0();
-        vault.removeAllPosition(_tick);
+        vault.stoploss(_ticks.currentTick);
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
         assertEq(
             __ticks.currentTick.getSqrtRatioAtTick(),
@@ -812,13 +788,13 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertEq(__ticks.upperTick, _ticks.upperTick);
     }
 
-    function test_removeAllPosition_Success1WithoutPosition() public {
+    function test_stoploss_Success2WithoutPosition() public {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.removeAllPosition(_tick);
+        vault.stoploss(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -828,7 +804,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e16);
     }
 
-    function test_removeAllPosition_Success2() public {
+    function test_stoploss_Success3() public {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         vault.deposit(10_000 * 1e6, address(this), _shares);
@@ -844,10 +820,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.removeAllPosition(_tick);
+        vault.stoploss(_tick);
         skip(1);
         (, _tick, , , , , ) = pool.slot0();
-        vault.removeAllPosition(_tick);
+        vault.stoploss(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -856,6 +832,8 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertEq(token0.balanceOf(address(vault)), 0);
         assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
     }
+
+    /* ========== OWNERS FUNCTIONS ========== */
 
     // rebalance,_swapAmountOut,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
 

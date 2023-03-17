@@ -121,7 +121,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
         assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
 
-        assertEq(vault.hasPosition(), false);
+        assertEq(vault.hasPosition(), true);
         assertEq(vault.lowerTick(), lowerTick);
         assertEq(vault.upperTick(), upperTick);
         assertEq(vault.stoplossLowerTick(), stoplossLowerTick);

@@ -27,7 +27,7 @@ contract OrangeAlphaParametersTest is BaseTest {
         assertEq(params.strategists(address(this)), true);
         assertEq(params.allowlistEnabled(), true);
         assertEq(
-            params.dedicatedMsgSender(),
+            params.gelato(),
             GelatoOps.getDedicatedMsgSender(address(this))
         );
     }
@@ -53,7 +53,7 @@ contract OrangeAlphaParametersTest is BaseTest {
         vm.expectRevert("Ownable");
         params.setMerkleRoot(0x0);
         vm.expectRevert("Ownable");
-        params.setDedicatedMsgSender(address(this));
+        params.setGelato(address(this));
         vm.expectRevert("Ownable");
         params.setPeriphery(address(this));
     }
@@ -88,11 +88,8 @@ contract OrangeAlphaParametersTest is BaseTest {
         params.setMerkleRoot(0x0);
         assertEq(params.merkleRoot(), 0x0);
 
-        params.setDedicatedMsgSender(alice);
-        assertEq(
-            params.dedicatedMsgSender(),
-            GelatoOps.getDedicatedMsgSender(alice)
-        );
+        params.setGelato(alice);
+        assertEq(params.gelato(), GelatoOps.getDedicatedMsgSender(alice));
 
         params.setPeriphery(address(this));
         assertEq(params.periphery(), address(this));

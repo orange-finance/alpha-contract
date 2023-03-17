@@ -63,13 +63,6 @@ contract OrangeAlphaVault is
         _;
     }
 
-    modifier onlyStrategists() {
-        if (!params.strategists(msg.sender)) {
-            revert(Errors.ONLY_STRATEGISTS);
-        }
-        _;
-    }
-
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -444,7 +437,7 @@ contract OrangeAlphaVault is
         //mint to receiver
         _mint(_receiver, _shares);
 
-        _emitAction(1, _ticks);
+        _emitAction(ActionType.DEPOSIT, _ticks);
         return _shares;
     }
 
@@ -645,7 +638,7 @@ contract OrangeAlphaVault is
         }
         token1.safeTransfer(_receiver, _assets1);
 
-        _emitAction(2, _ticks);
+        _emitAction(ActionType.REDEEM, _ticks);
         return _assets1;
     }
 
@@ -692,10 +685,10 @@ contract OrangeAlphaVault is
 
     /// @inheritdoc IOrangeAlphaVault
     function emitAction() external {
-        _emitAction(0, _getTicksByStorage());
+        _emitAction(ActionType.MANUAL, _getTicksByStorage());
     }
 
-    function _emitAction(uint8 _actionType, Ticks memory _ticks) internal {
+    function _emitAction(ActionType _actionType, Ticks memory _ticks) internal {
         emit Action(
             _actionType,
             msg.sender,
@@ -706,30 +699,14 @@ contract OrangeAlphaVault is
 
     /// @inheritdoc IOrangeAlphaVault
     function stoploss(int24 _inputTick) external {
-        if (params.dedicatedMsgSender() != msg.sender) {
-            revert(Errors.ONLY_DEDICATED_MSG_SENDER);
+        if (!params.strategists(msg.sender) && params.gelato() != msg.sender) {
+            revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
 
-        Ticks memory _ticks = _getTicksByStorage();
-        _checkTickSlippage(_ticks.currentTick, _inputTick);
-
-        _removeAllPosition(_ticks);
-        _emitAction(4, _ticks);
-    }
-
-    /* ========== ADMINS FUNCTIONS ========== */
-    /// @inheritdoc IOrangeAlphaVault
-    function removeAllPosition(int24 _inputTick) external onlyStrategists {
-        Ticks memory _ticks = _getTicksByStorage();
-        _checkTickSlippage(_ticks.currentTick, _inputTick);
-
-        _removeAllPosition(_ticks);
-        _emitAction(5, _ticks);
-    }
-
-    ///@notice remove all positions and swap to USDC
-    function _removeAllPosition(Ticks memory _ticks) internal {
         if (totalSupply() == 0) return;
+
+        Ticks memory _ticks = _getTicksByStorage();
+        _checkTickSlippage(_ticks.currentTick, _inputTick);
 
         // 1. Remove liquidity
         // 2. Collect fees
@@ -778,6 +755,7 @@ contract OrangeAlphaVault is
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
 
+        _emitAction(ActionType.STOPLOSS, _ticks);
         hasPosition = false;
     }
 
@@ -789,7 +767,10 @@ contract OrangeAlphaVault is
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
-    ) external onlyStrategists {
+    ) external {
+        if (!params.strategists(msg.sender)) {
+            revert(Errors.ONLY_STRATEGISTS);
+        }
         //validation of tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
         _validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
@@ -851,7 +832,7 @@ contract OrangeAlphaVault is
             revert(Errors.LESS_LIQUIDITY);
         }
 
-        _emitAction(3, _ticks);
+        _emitAction(ActionType.REBALANCE, _ticks);
 
         if (_targetLiquidity > 0) {
             hasPosition = true;
@@ -865,14 +846,13 @@ contract OrangeAlphaVault is
         Position memory _newPosition,
         Ticks memory _ticks
     ) internal {
-        console2.log("_executeHedgeRebalance 0");
         if (
             //1. supply and borrow
             _oldPosition.debtAmount0 < _newPosition.debtAmount0 &&
             _oldPosition.supplyAmount1 < _newPosition.supplyAmount1
         ) {
             console2.log("case1 supply and borrow");
-            // supply
+            // case1 supply and borrow
             uint256 _supply = _newPosition.supplyAmount1 -
                 _oldPosition.supplyAmount1;
 
@@ -882,14 +862,12 @@ contract OrangeAlphaVault is
                 console2.log(token1.balanceOf(address(this)), "token1balance");
 
                 // swap (if necessary)
-                console2.log("case1 1");
                 _swapAmountOut(
                     true,
                     uint128(_supply - _oldPosition.addedAmount1),
                     _ticks.currentTick
                 );
             }
-            console2.log("case1 2");
             aave.safeSupply(
                 address(token1),
                 _supply,
@@ -910,7 +888,7 @@ contract OrangeAlphaVault is
         } else {
             if (_oldPosition.debtAmount0 > _newPosition.debtAmount0) {
                 console2.log("case2 repay");
-                // repay
+                // case2 repay
                 uint256 _repay = _oldPosition.debtAmount0 -
                     _newPosition.debtAmount0;
                 // console2.log(_repay, "_repay");
@@ -925,17 +903,38 @@ contract OrangeAlphaVault is
                         _ticks.currentTick
                     );
                 }
-                console2.log("case2 1");
                 aave.safeRepay(
                     address(token0),
                     _repay,
                     AAVE_INTEREST,
                     address(this)
                 );
-                console2.log("case2 2");
+
+                if (_oldPosition.supplyAmount1 < _newPosition.supplyAmount1) {
+                    console2.log("case2_1 repay and supply");
+                    // case2_1 repay and supply
+                    uint256 _supply = _newPosition.supplyAmount1 -
+                        _oldPosition.supplyAmount1;
+                    aave.safeSupply(
+                        address(token1),
+                        _supply,
+                        address(this),
+                        AAVE_REFERRAL
+                    );
+                } else {
+                    console2.log("case2_2 repay and withdraw");
+                    // case2_2 repay and withdraw
+                    uint256 _withdraw = _oldPosition.supplyAmount1 -
+                        _newPosition.supplyAmount1;
+                    aave.safeWithdraw(
+                        address(token1),
+                        _withdraw,
+                        address(this)
+                    );
+                }
             } else {
-                console2.log("case3 borrow");
-                // borrow
+                console2.log("case3 borrow and withdraw");
+                // case3 borrow and withdraw
                 uint256 _borrow = _newPosition.debtAmount0 -
                     _oldPosition.debtAmount0;
                 aave.safeBorrow(
@@ -945,21 +944,6 @@ contract OrangeAlphaVault is
                     AAVE_REFERRAL,
                     address(this)
                 );
-            }
-
-            if (_oldPosition.supplyAmount1 < _newPosition.supplyAmount1) {
-                console2.log("case4 supply");
-                // supply
-                uint256 _supply = _newPosition.supplyAmount1 -
-                    _oldPosition.supplyAmount1;
-                aave.safeSupply(
-                    address(token1),
-                    _supply,
-                    address(this),
-                    AAVE_REFERRAL
-                );
-            } else {
-                console2.log("case5 withdraw");
                 // withdraw
                 uint256 _withdraw = _oldPosition.supplyAmount1 -
                     _newPosition.supplyAmount1;
