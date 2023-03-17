@@ -362,25 +362,6 @@ contract OrangeAlphaVault is
         }
     }
 
-    /// @inheritdoc IOrangeAlphaVault
-    function canStoploss(
-        int24 _targetTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external view returns (bool) {
-        return _canStoploss(_targetTick, _lowerTick, _upperTick);
-    }
-
-    ///@notice Can stoploss when has position and out of range
-    function _canStoploss(
-        int24 _targetTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) internal view returns (bool) {
-        return (hasPosition &&
-            (_targetTick > _upperTick || _targetTick < _lowerTick));
-    }
-
     /* ========== EXTERNAL FUNCTIONS ========== */
     /// @inheritdoc IOrangeAlphaVault
     function deposit(
@@ -429,15 +410,16 @@ contract OrangeAlphaVault is
             address(this)
         );
 
-        // 5. swap surplus amount0 or amount1
         Balances memory _balances = Balances(
             _additionalDebtAmount0,
             _maxAssets - _additionalCollateralAmount1 - _additionalAmount1
         );
-        _swapSurplusAmount(_balances, _additionalLiquidity, _ticks);
 
-        // 6. add liquidity
         if (_additionalLiquidity > 0) {
+            // 5. swap surplus amount0 or amount1
+            _swapSurplusAmount(_balances, _additionalLiquidity, _ticks);
+
+            // 6. add liquidity
             (uint256 _addedAmount0, uint256 _addedAmount1) = pool.mint(
                 address(this),
                 _ticks.lowerTick,
@@ -576,7 +558,7 @@ contract OrangeAlphaVault is
             _balances.balance1 = uint256(
                 SafeCast.toInt256(_balances.balance1) - _amount1Delta
             );
-        } else if (_surplusAmount0 == 0 && _surplusAmount1 == 0) {
+        } else {
             console2.log("surplus SURPLUS_ZERO");
             revert(Errors.SURPLUS_ZERO);
         }
@@ -688,7 +670,7 @@ contract OrangeAlphaVault is
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
         uint128 _liquidityBurned = SafeCast.toUint128(
-            FullMath.mulDiv(_shares, _liquidity, _totalSupply)
+            uint256(_liquidity).mulDiv(_shares, _totalSupply)
         );
 
         (
@@ -702,8 +684,8 @@ contract OrangeAlphaVault is
                 _liquidityBurned
             );
         //fee and remaining
-        _fee0 = FullMath.mulDiv(_shares, _fee0, _totalSupply);
-        _fee1 = FullMath.mulDiv(_shares, _fee1, _totalSupply);
+        _fee0 = _fee0.mulDiv(_shares, _totalSupply);
+        _fee1 = _fee1.mulDiv(_shares, _totalSupply);
         burnAndFees0_ = _burn0 + _fee0 + _shareBalance0;
         burnAndFees1_ = _burn1 + _fee1 + _shareBalance1;
     }
@@ -727,19 +709,10 @@ contract OrangeAlphaVault is
         if (params.dedicatedMsgSender() != msg.sender) {
             revert(Errors.ONLY_DEDICATED_MSG_SENDER);
         }
+
         Ticks memory _ticks = _getTicksByStorage();
-        if (
-            !_canStoploss(
-                _ticks.currentTick,
-                stoplossLowerTick,
-                stoplossUpperTick
-            )
-        ) {
-            revert(Errors.CANNOT_STOPLOSS);
-        }
         _checkTickSlippage(_ticks.currentTick, _inputTick);
 
-        hasPosition = false;
         _removeAllPosition(_ticks);
         _emitAction(4, _ticks);
     }
@@ -804,6 +777,8 @@ contract OrangeAlphaVault is
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
+
+        hasPosition = false;
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -1138,8 +1113,7 @@ contract OrangeAlphaVault is
             uint256 feeGrowthInside = feeGrowthGlobal -
                 feeGrowthBelow -
                 feeGrowthAbove;
-            fee = FullMath.mulDiv(
-                liquidity,
+            fee = uint256(liquidity).mulDiv(
                 feeGrowthInside - feeGrowthInsideLast,
                 0x100000000000000000000000000000000
             );
@@ -1239,16 +1213,14 @@ contract OrangeAlphaVault is
         uint160 _swapThresholdPrice;
         if (_zeroForOne) {
             _swapThresholdPrice = uint160(
-                FullMath.mulDiv(
-                    _currentSqrtRatioX96,
-                    params.slippageBPS(),
+                _currentSqrtRatioX96.mulDiv(
+                    MAGIC_SCALE_1E4 - params.slippageBPS(),
                     MAGIC_SCALE_1E4
                 )
             );
         } else {
             _swapThresholdPrice = uint160(
-                FullMath.mulDiv(
-                    _currentSqrtRatioX96,
+                _currentSqrtRatioX96.mulDiv(
                     MAGIC_SCALE_1E4 + params.slippageBPS(),
                     MAGIC_SCALE_1E4
                 )

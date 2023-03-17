@@ -60,30 +60,38 @@ contract OrangeAlphaResolverTest is BaseTest {
         console2.log("currentTick", _currentTick.toString());
         console2.log("twap", _twap.toString());
 
-        //currentTick -204714
-        //in range
-        vault.setStoplossTicks(-206280, -203160);
-        (bool canExec, bytes memory execPayload) = resolver.checker();
-        assertEq(canExec, false);
-
-        //out of range
         vault.setStoplossTicks(-200000, -190000);
-        (canExec, execPayload) = resolver.checker();
+        (bool canExec, ) = resolver.checker();
         assertEq(canExec, true);
     }
 
-    function test_checker_Success2() public {
-        _swap(false, 100_000 * 1e6);
+    function test_checker_Success2False() public {
+        //no position
+        vault.setHasPosition(false);
+        (bool canExec, bytes memory execPayload) = resolver.checker();
+        assertEq(canExec, false);
+
+        vault.setHasPosition(true);
+
         (, int24 _currentTick, , , , , ) = pool.slot0();
         int24 _twap = pool.getTwap();
         console2.log("currentTick", _currentTick.toString());
         console2.log("twap", _twap.toString());
-        //   currentTick -204610
-        //   twap -204714
+        //currentTick -204714
+        //twap -204714
+
+        //both in range
+        vault.setStoplossTicks(-206280, -203160);
+        (canExec, execPayload) = resolver.checker();
+        assertEq(canExec, false);
+
+        _swap(false, 100_000 * 1e6);
+        //currentTick -204610
+        //twap -204714
 
         //current is in and twap is out
         vault.setStoplossTicks(-204620, -204600);
-        (bool canExec, bytes memory execPayload) = resolver.checker();
+        (canExec, execPayload) = resolver.checker();
         assertEq(canExec, false);
 
         //current is out and twap is in
@@ -128,6 +136,7 @@ contract OrangeAlphaVaultMockForResolver {
     IUniswapV3Pool public pool;
     int24 public stoplossLowerTick;
     int24 public stoplossUpperTick;
+    bool public hasPosition = true;
 
     constructor(address _pool) {
         pool = IUniswapV3Pool(_pool);
@@ -141,11 +150,7 @@ contract OrangeAlphaVaultMockForResolver {
         stoplossUpperTick = _stoplossUpperTick;
     }
 
-    function canStoploss(
-        int24 _targetTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external pure returns (bool) {
-        return (_targetTick > _upperTick || _targetTick < _lowerTick);
+    function setHasPosition(bool _hasPosition) external {
+        hasPosition = _hasPosition;
     }
 }

@@ -63,6 +63,8 @@ interface IOrangeAlphaVault {
 
     /* ========== VIEW FUNCTIONS ========== */
 
+    function hasPosition() external view returns (bool);
+
     function stoplossLowerTick() external view returns (int24);
 
     function stoplossUpperTick() external view returns (int24);
@@ -120,19 +122,6 @@ interface IOrangeAlphaVault {
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio
     ) external view returns (uint128 liquidity_);
-
-    /**
-     * @notice whether can stoploss
-     * @param _currentTick current tick
-     * @param _lowerTick lower tick
-     * @param _upperTick upper tick
-     * @return bool whether can stoploss
-     */
-    function canStoploss(
-        int24 _currentTick,
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external view returns (bool);
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     /**

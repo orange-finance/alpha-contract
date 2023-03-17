@@ -32,22 +32,19 @@ contract OrangeAlphaResolver is IResolver {
         override
         returns (bool canExec, bytes memory execPayload)
     {
-        IUniswapV3Pool _pool = vault.pool();
-        (, int24 _currentTick, , , , , ) = _pool.slot0();
-        if (
-            vault.canStoploss(
-                _currentTick,
-                vault.stoplossLowerTick(),
-                vault.stoplossUpperTick()
-            )
-        ) {
+        if (vault.hasPosition()) {
+            IUniswapV3Pool _pool = vault.pool();
+            (, int24 _currentTick, , , , , ) = _pool.slot0();
             int24 _twap = _pool.getTwap();
+            int24 _stoplossLowerTick = vault.stoplossLowerTick();
+            int24 _stoplossUpperTick = vault.stoplossUpperTick();
             if (
-                vault.canStoploss(
-                    _twap,
-                    vault.stoplossLowerTick(),
-                    vault.stoplossUpperTick()
-                )
+                _isOutOfRange(
+                    _currentTick,
+                    _stoplossLowerTick,
+                    _stoplossUpperTick
+                ) &&
+                _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
                 execPayload = abi.encodeWithSelector(
                     IOrangeAlphaVault.stoploss.selector,
@@ -57,5 +54,14 @@ contract OrangeAlphaResolver is IResolver {
             }
         }
         return (false, bytes(ERROR_CANNOT_STOPLOSS));
+    }
+
+    ///@notice Can stoploss when has position and out of range
+    function _isOutOfRange(
+        int24 _targetTick,
+        int24 _lowerTick,
+        int24 _upperTick
+    ) internal pure returns (bool) {
+        return (_targetTick > _upperTick || _targetTick < _lowerTick);
     }
 }

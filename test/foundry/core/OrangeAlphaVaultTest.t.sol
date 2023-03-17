@@ -339,35 +339,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertEq(MAX_LTV, vault.getLtvByRange(_tick, -203500));
     }
 
-    function test_canStoploss_Success1() public {
-        //has position = false, range out
-        assertEq(
-            vault.canStoploss(-300000, stoplossLowerTick, stoplossUpperTick),
-            false
-        );
-
-        vault.setHasPosition(true);
-        //has position = true, range out
-        assertEq(
-            vault.canStoploss(-300000, stoplossLowerTick, stoplossUpperTick),
-            true
-        );
-        //has position = true, range out
-        assertEq(
-            vault.canStoploss(0, stoplossLowerTick, stoplossUpperTick),
-            true
-        );
-        //has position = true, range in
-        assertEq(
-            vault.canStoploss(
-                _ticks.currentTick,
-                stoplossLowerTick,
-                stoplossUpperTick
-            ),
-            false
-        );
-    }
-
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     function test_deposit_Revert1() public {
@@ -798,9 +769,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
 
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_DEDICATED_MSG_SENDER));
-        vault.stoploss(1);
-        vm.prank(params.dedicatedMsgSender());
-        vm.expectRevert(bytes(Errors.CANNOT_STOPLOSS));
         vault.stoploss(1);
     }
 

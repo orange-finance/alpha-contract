@@ -7,8 +7,6 @@ library Errors {
     string public constant ONLY_DEDICATED_MSG_SENDER = "2";
     string public constant ONLY_STRATEGISTS = "3";
     string public constant ONLY_CALLBACK_CALLER = "4";
-    //condition
-    string public constant CANNOT_STOPLOSS = "11";
     //validation
     string public constant INVALID_TICKS = "21";
     string public constant INVALID_AMOUNT = "22";

@@ -50,10 +50,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         upperTick = _upperTick;
     }
 
-    function setHasPosition(bool _hasPosition) external {
-        hasPosition = _hasPosition;
-    }
-
     function setAvgTick(int24 _avgTick) external {
         avgTick = _avgTick;
     }
