@@ -126,16 +126,16 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _getTicksByStorage();
     }
 
-    function computePosition(
+    function computeRebalancePosition(
         uint256 _assets,
         int24 _currentTick,
         int24 _lowerTick,
         int24 _upperTick,
         uint256 _ltv,
         uint256 _hedgeRatio
-    ) external view returns (Position memory position_) {
+    ) external view returns (Positions memory position_) {
         return
-            _computePosition(
+            _computeRebalancePosition(
                 _assets,
                 _currentTick,
                 _lowerTick,
@@ -145,21 +145,23 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function computeHedgeAndLiquidityByShares(
+    function computeTargetPositionByShares(
+        uint256 _debtAmount0,
+        uint256 _collateralAmount1,
+        uint256 _token0Balance,
+        uint256 _token1Balance,
         uint256 _shares,
-        uint _totalSupply,
-        Ticks memory _ticks
-    )
-        external
-        view
-        returns (
-            uint _additionalAmount1,
-            uint256 _targetDebtAmount0,
-            uint256 _targetCollateralAmount1,
-            uint128 _targetLiquidity
-        )
-    {
-        return _computeHedgeAndLiquidityByShares(_shares, _totalSupply, _ticks);
+        uint256 _totalSupply
+    ) external view returns (Positions memory _position) {
+        return
+            _computeTargetPositionByShares(
+                _debtAmount0,
+                _collateralAmount1,
+                _token0Balance,
+                _token1Balance,
+                _shares,
+                _totalSupply
+            );
     }
 
     function checkTickSlippage(
@@ -194,23 +196,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function burnShare(
-        uint256 _shares,
-        uint256 _totalSupply,
-        Ticks memory _ticks
-    ) external returns (uint256 burnAndFees0_, uint256 burnAndFees1_) {
-        return _burnShare(_shares, _totalSupply, _ticks);
-    }
-
-    function burnAndCollectFees(
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external returns (uint256, uint256, uint256, uint256) {
+    function burnAndCollectFees(int24 _lowerTick, int24 _upperTick) external {
         (uint128 _liquidity, , , , ) = pool.positions(
             _getPositionID(_lowerTick, _upperTick)
         );
 
-        return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+        _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
     }
 
     function swap(
@@ -223,10 +214,17 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
 
     function swapSurplusAmount(
         Balances memory _balances,
-        uint128 _targetLiquidity,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1,
         Ticks memory _ticks
     ) external {
-        return _swapSurplusAmount(_balances, _targetLiquidity, _ticks);
+        return
+            _swapSurplusAmount(
+                _balances,
+                _targetAmount0,
+                _targetAmount1,
+                _ticks
+            );
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {

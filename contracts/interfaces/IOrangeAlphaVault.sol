@@ -5,29 +5,34 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IOrangeAlphaVault {
+    enum ActionType {
+        MANUAL,
+        DEPOSIT,
+        REDEEM,
+        REBALANCE,
+        STOPLOSS
+    }
+
     /* ========== STRUCTS ========== */
 
-    ///@dev this struct only used in memory
     struct Ticks {
         int24 currentTick;
         int24 lowerTick;
         int24 upperTick;
     }
 
-    ///@dev this struct only used in memory
     struct Balances {
         uint256 balance0;
         uint256 balance1;
     }
 
-    struct Position {
+    struct Positions {
         uint256 debtAmount0;
-        uint256 supplyAmount1;
-        uint256 addedAmount0;
-        uint256 addedAmount1;
+        uint256 collateralAmount1;
+        uint256 token0Balance;
+        uint256 token1Balance;
     }
 
-    ///@dev this struct only used in memory and interfaces
     struct UnderlyingAssets {
         uint256 amount0Current;
         uint256 amount1Current;
@@ -35,14 +40,6 @@ interface IOrangeAlphaVault {
         uint256 accruedFees1;
         uint256 amount0Balance;
         uint256 amount1Balance;
-    }
-
-    enum ActionType {
-        MANUAL,
-        DEPOSIT,
-        REDEEM,
-        REBALANCE,
-        STOPLOSS
     }
 
     /* ========== EVENTS ========== */

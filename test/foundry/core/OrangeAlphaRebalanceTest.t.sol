@@ -203,7 +203,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
 
         (, currentTick, , , , , ) = pool.slot0();
         uint256 _hedgeRatio = 100e6;
-        _consoleComputePosition(
+        _consolecomputeRebalancePosition(
             10_000 * 1e6,
             currentTick,
             lowerTick,
@@ -243,7 +243,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
 
         _hedgeRatio = 50e6;
         // (, currentTick, , , , , ) = pool.slot0();
-        // _consoleComputePosition(
+        // _consolecomputeRebalancePosition(
         //     10_000 * 1e6,
         //     currentTick,
         //     lowerTick,
@@ -295,7 +295,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         stoplossUpperTick = -201060;
 
         // (, currentTick, , , , , ) = pool.slot0();
-        // _consoleComputePosition(
+        // _consolecomputeRebalancePosition(
         //     10_000 * 1e6,
         //     currentTick,
         //     lowerTick,
@@ -338,7 +338,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         upperTick = -204000;
         stoplossUpperTick = -203880;
         // (, currentTick, , , , , ) = pool.slot0();
-        // _consoleComputePosition(
+        // _consolecomputeRebalancePosition(
         //     10_000 * 1e6,
         //     currentTick,
         //     lowerTick,
@@ -478,7 +478,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
     }
 
-    function _consoleComputePosition(
+    function _consolecomputeRebalancePosition(
         uint256 _assets,
         int24 _currentTick,
         int24 _lowerTick,
@@ -486,18 +486,19 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         uint256 _ltv,
         uint256 _hedgeRatio
     ) private {
-        IOrangeAlphaVault.Position memory _position = vault.computePosition(
-            _assets,
-            _currentTick,
-            _lowerTick,
-            _upperTick,
-            _ltv,
-            _hedgeRatio
-        );
-        console.log("++++++++ _consoleComputePosition ++++++++");
+        IOrangeAlphaVault.Positions memory _position = vault
+            .computeRebalancePosition(
+                _assets,
+                _currentTick,
+                _lowerTick,
+                _upperTick,
+                _ltv,
+                _hedgeRatio
+            );
+        console.log("++++++++ _consolecomputeRebalancePosition ++++++++");
         console.log(_position.debtAmount0, "debtAmount0");
-        console.log(_position.supplyAmount1, "supplyAmount1");
-        console.log(_position.addedAmount0, "addedAmount0");
-        console.log(_position.addedAmount1, "addedAmount1");
+        console.log(_position.collateralAmount1, "collateralAmount1");
+        console.log(_position.token0Balance, "token0Balance");
+        console.log(_position.token1Balance, "token1Balance");
     }
 }

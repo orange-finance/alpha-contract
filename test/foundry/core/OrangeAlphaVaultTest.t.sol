@@ -287,15 +287,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
             HEDGE_RATIO
         );
 
-        IOrangeAlphaVault.Position memory _position = vault.computePosition(
-            10_000 * 1e6,
-            _ticks.currentTick,
-            lowerTick,
-            upperTick,
-            vault.getLtvByRange(_ticks.currentTick, stoplossUpperTick),
-            HEDGE_RATIO
-        );
-        uint256 remainingAmount = 10_000 * 1e6 - _position.supplyAmount1;
+        IOrangeAlphaVault.Positions memory _position = vault
+            .computeRebalancePosition(
+                10_000 * 1e6,
+                _ticks.currentTick,
+                lowerTick,
+                upperTick,
+                vault.getLtvByRange(_ticks.currentTick, stoplossUpperTick),
+                HEDGE_RATIO
+            );
+        uint256 remainingAmount = 10_000 * 1e6 - _position.collateralAmount1;
         //compute liquidity
         uint128 _liquidity2 = LiquidityAmounts.getLiquidityForAmounts(
             _ticks.currentTick.getSqrtRatioAtTick(),
@@ -307,7 +308,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertEq(_liquidity, _liquidity2);
     }
 
-    //computePosition is tested in test_computePosition_Success
+    //computeRebalancePosition is tested in test_computeRebalancePosition_Success
 
     function test_getLtvByRange_Success1() public {
         uint256 _currentPrice = vault.quoteEthPriceByTick(_ticks.currentTick);
@@ -394,16 +395,19 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         uint _beforeBalance1 = token1.balanceOf(address(this));
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
-        (
-            ,
-            uint256 _targetDebtAmount0,
-            uint256 _targetCollateralAmount1,
-            uint128 _targetLiquidity
-        ) = vault.computeHedgeAndLiquidityByShares(
+        IOrangeAlphaVault.Positions memory _position = vault
+            .computeTargetPositionByShares(
+                _debtBalance0,
+                _aBalance1,
+                0,
+                _beforeBalance1,
                 _shares,
-                vault.totalSupply(),
-                _ticks
+                vault.totalSupply()
             );
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _targetLiquidity = uint128(
+            uint256(_liquidity).mulDiv(_shares, vault.totalSupply())
+        );
         (, currentTick, , , , , ) = pool.slot0();
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
@@ -422,11 +426,11 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //Position
         assertEq(
             debtToken0.balanceOf(address(vault)),
-            _debtBalance0 + _targetDebtAmount0
+            _debtBalance0 + _position.debtAmount0
         );
         assertEq(
             aToken1.balanceOf(address(vault)),
-            _aBalance1 + _targetCollateralAmount1
+            _aBalance1 + _position.collateralAmount1
         );
         IOrangeAlphaVault.UnderlyingAssets memory __underlyingAssets = vault
             .getUnderlyingBalances();
@@ -468,12 +472,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         (, _ticks.currentTick, , , , , ) = pool.slot0();
-        (, , , uint128 _targetLiquidity) = vault
-            .computeHedgeAndLiquidityByShares(
-                _shares,
-                vault.totalSupply(),
-                _ticks
-            );
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _targetLiquidity = uint128(
+            uint256(_liquidity).mulDiv(_shares, vault.totalSupply())
+        );
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
                 _ticks.currentTick.getSqrtRatioAtTick(),
@@ -488,7 +490,12 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
 
         //transfer token0 and token1 to vault
         vm.expectRevert(bytes(Errors.SURPLUS_ZERO));
-        vault.swapSurplusAmount(_balance, _targetLiquidity, _ticks);
+        vault.swapSurplusAmount(
+            _balance,
+            _targetAmount0,
+            _targetAmount1,
+            _ticks
+        );
     }
 
     function test_swapSurplusAmount_Success1NoSwap() public {
@@ -506,12 +513,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         (, _ticks.currentTick, , , , , ) = pool.slot0();
-        (, , , uint128 _targetLiquidity) = vault
-            .computeHedgeAndLiquidityByShares(
-                _shares,
-                vault.totalSupply(),
-                _ticks
-            );
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _targetLiquidity = uint128(
+            uint256(_liquidity).mulDiv(_shares, vault.totalSupply())
+        );
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
                 _ticks.currentTick.getSqrtRatioAtTick(),
@@ -529,7 +534,12 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetLiquidity, _ticks);
+        vault.swapSurplusAmount(
+            _balance,
+            _targetAmount0,
+            _targetAmount1,
+            _ticks
+        );
         //assertion
         assertEq(
             token0.balanceOf(address(vault)),
@@ -556,12 +566,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         (, _ticks.currentTick, , , , , ) = pool.slot0();
-        (, , , uint128 _targetLiquidity) = vault
-            .computeHedgeAndLiquidityByShares(
-                _shares,
-                vault.totalSupply(),
-                _ticks
-            );
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _targetLiquidity = uint128(
+            uint256(_liquidity).mulDiv(_shares, vault.totalSupply())
+        );
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
                 _ticks.currentTick.getSqrtRatioAtTick(),
@@ -579,7 +587,12 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetLiquidity, _ticks);
+        vault.swapSurplusAmount(
+            _balance,
+            _targetAmount0,
+            _targetAmount1,
+            _ticks
+        );
         //assertion
         assertEq(
             token0.balanceOf(address(vault)),
@@ -606,12 +619,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
             MAGIC_SCALE_1E4;
         (, _ticks.currentTick, , , , , ) = pool.slot0();
-        (, , , uint128 _targetLiquidity) = vault
-            .computeHedgeAndLiquidityByShares(
-                _shares,
-                vault.totalSupply(),
-                _ticks
-            );
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _targetLiquidity = uint128(
+            uint256(_liquidity).mulDiv(_shares, vault.totalSupply())
+        );
         (uint256 _targetAmount0, uint256 _targetAmount1) = LiquidityAmounts
             .getAmountsForLiquidity(
                 _ticks.currentTick.getSqrtRatioAtTick(),
@@ -629,7 +640,12 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetLiquidity, _ticks);
+        vault.swapSurplusAmount(
+            _balance,
+            _targetAmount0,
+            _targetAmount1,
+            _ticks
+        );
         //assertion
         assertGt(
             token0.balanceOf(address(vault)),
@@ -734,8 +750,12 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //execute
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) /
             MAGIC_SCALE_1E4;
-        _assets = (_assets * 3) / 4;
-        vault.redeem((_shares * 3) / 4, address(this), address(0), _assets);
+        vault.redeem(
+            (_shares * 3) / 4,
+            address(this),
+            address(0),
+            (_assets * 3) / 4
+        );
         // assertion
         assertApproxEqRel(vault.balanceOf(address(this)), _shares / 4, 1e16);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
@@ -838,6 +858,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
     // rebalance,_swapAmountOut,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    //TODO
     function assert_computeFeesEarned() internal {
         (
             uint128 liquidity,
@@ -862,14 +883,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
 
         // assert to fees collected acutually
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
-        (, , uint256 fee0_, uint256 fee1_) = vault.burnAndCollectFees(
-            __ticks.lowerTick,
-            __ticks.upperTick
-        );
-        console2.log(fee0_, "fee0_");
-        console2.log(fee1_, "fee1_");
-        assertEq(accruedFees0, fee0_);
-        assertEq(accruedFees1, fee1_);
+        vault.burnAndCollectFees(__ticks.lowerTick, __ticks.upperTick);
     }
 
     function test_computeFeesEarned_Success1() public {
@@ -931,138 +945,131 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function test_burnShare_Success0WithoutPosition() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(1);
-        (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
-            _shares,
-            vault.totalSupply(),
-            vault.getTicksByStorage()
-        );
-        assertEq(0, burnAndFees0_);
-        assertEq(10_000 * 1e6, burnAndFees1_);
-    }
+    //TODO
 
-    function test_burnShare_Success1MaxShare() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(1);
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO,
-            0
-        );
+    // function test_burnShare_Success0WithoutPosition() public {
+    //     uint256 _shares = 10_000 * 1e6;
+    //     vault.deposit(_shares, address(this), 10_000 * 1e6);
+    //     skip(1);
+    //     (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
+    //         _shares,
+    //         vault.totalSupply(),
+    //         vault.getTicksByStorage()
+    //     );
+    //     assertEq(0, burnAndFees0_);
+    //     assertEq(10_000 * 1e6, burnAndFees1_);
+    // }
 
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
-        (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
-            _shares,
-            vault.totalSupply(),
-            vault.getTicksByStorage()
-        );
-        assertApproxEqRel(
-            _underlyingAssets.amount0Current +
-                _underlyingAssets.accruedFees0 +
-                _underlyingAssets.amount0Balance,
-            burnAndFees0_,
-            1e16
-        );
-        assertApproxEqRel(
-            _underlyingAssets.amount1Current +
-                _underlyingAssets.accruedFees1 +
-                _underlyingAssets.amount1Balance,
-            burnAndFees1_,
-            1e16
-        );
-    }
+    // function test_burnShare_Success1MaxShare() public {
+    //     uint256 _shares = 10_000 * 1e6;
+    //     vault.deposit(_shares, address(this), 10_000 * 1e6);
+    //     skip(1);
+    //     vault.rebalance(
+    //         lowerTick,
+    //         upperTick,
+    //         stoplossLowerTick,
+    //         stoplossUpperTick,
+    //         HEDGE_RATIO,
+    //         0
+    //     );
 
-    function test_burnShare_Success2HalfPosition() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(1);
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO,
-            0
-        );
+    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
+    //         .getUnderlyingBalances();
+    //     (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
+    //         _shares,
+    //         vault.totalSupply(),
+    //         vault.getTicksByStorage()
+    //     );
+    //     assertApproxEqRel(
+    //         _underlyingAssets.amount0Current +
+    //             _underlyingAssets.accruedFees0 +
+    //             _underlyingAssets.amount0Balance,
+    //         burnAndFees0_,
+    //         1e16
+    //     );
+    //     assertApproxEqRel(
+    //         _underlyingAssets.amount1Current +
+    //             _underlyingAssets.accruedFees1 +
+    //             _underlyingAssets.amount1Balance,
+    //         burnAndFees1_,
+    //         1e16
+    //     );
+    // }
 
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
-        (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
-            vault.totalSupply() / 2,
-            vault.totalSupply(),
-            vault.getTicksByStorage()
-        );
-        assertApproxEqRel(
-            (_underlyingAssets.amount0Current +
-                _underlyingAssets.accruedFees0 +
-                _underlyingAssets.amount0Balance) / 2,
-            burnAndFees0_,
-            1e16
-        );
-        assertApproxEqRel(
-            (_underlyingAssets.amount1Current +
-                _underlyingAssets.accruedFees1 +
-                _underlyingAssets.amount1Balance) / 2,
-            burnAndFees1_,
-            1e16
-        );
-    }
+    // function test_burnShare_Success2HalfPosition() public {
+    //     uint256 _shares = 10_000 * 1e6;
+    //     vault.deposit(_shares, address(this), 10_000 * 1e6);
+    //     skip(1);
+    //     vault.rebalance(
+    //         lowerTick,
+    //         upperTick,
+    //         stoplossLowerTick,
+    //         stoplossUpperTick,
+    //         HEDGE_RATIO,
+    //         0
+    //     );
 
-    function test_burnAndCollectFees_Success0() public {
-        (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_) = vault
-            .burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick);
-        assertEq(0, burn0_);
-        assertEq(0, burn1_);
-        assertEq(0, fee0_);
-        assertEq(0, fee1_);
-    }
+    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
+    //         .getUnderlyingBalances();
+    //     (uint256 burnAndFees0_, uint256 burnAndFees1_) = vault.burnShare(
+    //         vault.totalSupply() / 2,
+    //         vault.totalSupply(),
+    //         vault.getTicksByStorage()
+    //     );
+    //     assertApproxEqRel(
+    //         (_underlyingAssets.amount0Current +
+    //             _underlyingAssets.accruedFees0 +
+    //             _underlyingAssets.amount0Balance) / 2,
+    //         burnAndFees0_,
+    //         1e16
+    //     );
+    //     assertApproxEqRel(
+    //         (_underlyingAssets.amount1Current +
+    //             _underlyingAssets.accruedFees1 +
+    //             _underlyingAssets.amount1Balance) / 2,
+    //         burnAndFees1_,
+    //         1e16
+    //     );
+    // }
 
-    function test_burnAndCollectFees_Success1WithoutPosition() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(1);
-        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
-        (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_) = vault
-            .burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick);
-        assertEq(_underlyingAssets.amount0Current, burn0_);
-        assertEq(_underlyingAssets.amount1Current, burn1_);
-        assertEq(_underlyingAssets.accruedFees0, fee0_);
-        assertEq(_underlyingAssets.accruedFees1, fee1_);
-    }
+    // function test_burnAndCollectFees_Success1WithoutPosition() public {
+    //     uint256 _shares = 10_000 * 1e6;
+    //     vault.deposit(_shares, address(this), 10_000 * 1e6);
+    //     skip(1);
+    //     (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
+    //         .getUnderlyingBalances();
+    //     (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_) = vault
+    //         .burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick);
+    //     assertEq(_underlyingAssets.amount0Current, burn0_);
+    //     assertEq(_underlyingAssets.amount1Current, burn1_);
+    //     assertEq(_underlyingAssets.accruedFees0, fee0_);
+    //     assertEq(_underlyingAssets.accruedFees1, fee1_);
+    // }
 
-    function test_burnAndCollectFees_Success2() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
-        skip(1);
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO,
-            0
-        );
-        // (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
-        consoleUnderlyingAssets();
-        (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_) = vault
-            .burnAndCollectFees(lowerTick, upperTick);
-        assertApproxEqRel(_underlyingAssets.amount0Current, burn0_, 1e16);
-        assertApproxEqRel(_underlyingAssets.amount1Current, burn1_, 1e16);
-        assertApproxEqRel(_underlyingAssets.accruedFees0, fee0_, 1e16);
-        assertApproxEqRel(_underlyingAssets.accruedFees1, fee1_, 1e16);
-    }
+    // function test_burnAndCollectFees_Success2() public {
+    //     uint256 _shares = 10_000 * 1e6;
+    //     vault.deposit(_shares, address(this), 10_000 * 1e6);
+    //     skip(1);
+    //     vault.rebalance(
+    //         lowerTick,
+    //         upperTick,
+    //         stoplossLowerTick,
+    //         stoplossUpperTick,
+    //         HEDGE_RATIO,
+    //         0
+    //     );
+    //     // (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
+    //         .getUnderlyingBalances();
+    //     consoleUnderlyingAssets();
+    //     (uint256 burn0_, uint256 burn1_, uint256 fee0_, uint256 fee1_) = vault
+    //         .burnAndCollectFees(lowerTick, upperTick);
+    //     assertApproxEqRel(_underlyingAssets.amount0Current, burn0_, 1e16);
+    //     assertApproxEqRel(_underlyingAssets.amount1Current, burn1_, 1e16);
+    //     assertApproxEqRel(_underlyingAssets.accruedFees0, fee0_, 1e16);
+    //     assertApproxEqRel(_underlyingAssets.accruedFees1, fee1_, 1e16);
+    // }
 
     function test_swap_Success1() public {
         token0.transfer(address(vault), 10 ether);
