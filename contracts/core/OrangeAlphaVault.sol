@@ -678,7 +678,7 @@ contract OrangeAlphaVault is
         (uint128 _liquidity, , , , ) = pool.positions(
             _getPositionID(_ticks.lowerTick, _ticks.upperTick)
         );
-        uint128 _targetLiquidity = SafeCast.toUint128(
+        uint128 _burnLiquidity = SafeCast.toUint128(
             uint256(_liquidity).mulDiv(_shares, _totalSupply)
         );
         (
@@ -687,7 +687,7 @@ contract OrangeAlphaVault is
         ) = _burnAndCollectFees(
             _ticks.lowerTick,
             _ticks.upperTick,
-            _targetLiquidity
+            _burnLiquidity
         );
     }
 
