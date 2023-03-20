@@ -49,13 +49,13 @@ contract OrangeAlphaVault is
     int24 public stoplossUpperTick;
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3Pool public pool;
-    IERC20 public token0; //weth
-    IERC20 public token1; //usdc
-    IAaveV3Pool public aave;
-    IERC20 debtToken0; //weth
-    IERC20 aToken1; //usdc
-    IOrangeAlphaParameters public params;
+    IUniswapV3Pool public immutable pool;
+    IERC20 public immutable token0; //weth
+    IERC20 public immutable token1; //usdc
+    IAaveV3Pool public immutable aave;
+    IERC20 immutable debtToken0; //weth
+    IERC20 immutable aToken1; //usdc
+    IOrangeAlphaParameters public immutable params;
 
     /* ========== MODIFIER ========== */
     modifier onlyPeriphery() {
