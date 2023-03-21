@@ -174,7 +174,7 @@ interface IOrangeAlphaVault {
      * @param _newUpperTick The new upper bound of the position's range
      * @param _newStoplossLowerTick The new lower bound of the stoploss range
      * @param _newStoplossUpperTick The new upper bound of the stoploss range
-     * @param _hedgeRatio hedge ratio
+     * @param _hedgeRatio hedge ratio in 1e8 (100% = 1e8)
      * @param _minNewLiquidity minimum liqidiity
      */
     function rebalance(
