@@ -850,94 +850,36 @@ contract OrangeAlphaVault is
         Positions memory _targetPosition,
         Ticks memory _ticks
     ) internal {
-        if (
-            //1. supply and borrow
-            _currentPosition.collateralAmount1 <
-            _targetPosition.collateralAmount1 &&
-            _currentPosition.debtAmount0 < _targetPosition.debtAmount0
-        ) {
-            console2.log("case1 supply and borrow");
-            // case1 supply and borrow
-            uint256 _supply = _targetPosition.collateralAmount1 -
-                _currentPosition.collateralAmount1;
+        unchecked {
+            if (
+                //1. supply and borrow
+                _currentPosition.collateralAmount1 <
+                _targetPosition.collateralAmount1 &&
+                _currentPosition.debtAmount0 < _targetPosition.debtAmount0
+            ) {
+                console2.log("case1 supply and borrow");
+                // case1 supply and borrow
+                uint256 _supply = _targetPosition.collateralAmount1 -
+                    _currentPosition.collateralAmount1; //uncheckable
 
-            if (_supply > _currentPosition.token1Balance) {
-                // swap (if necessary)
-                _swapAmountOut(
-                    true,
-                    uint128(_supply - _currentPosition.token1Balance),
-                    _ticks.currentTick
-                );
-            }
-            aave.safeSupply(
-                address(token1),
-                _supply,
-                address(this),
-                AAVE_REFERRAL
-            );
-
-            // borrow
-            uint256 _borrow = _targetPosition.debtAmount0 -
-                _currentPosition.debtAmount0;
-            aave.safeBorrow(
-                address(token0),
-                _borrow,
-                AAVE_INTEREST,
-                AAVE_REFERRAL,
-                address(this)
-            );
-        } else {
-            if (_currentPosition.debtAmount0 > _targetPosition.debtAmount0) {
-                console2.log("case2 repay");
-                // case2 repay
-                uint256 _repay = _currentPosition.debtAmount0 -
-                    _targetPosition.debtAmount0;
-
-                // swap (if necessary)
-                if (_repay > _currentPosition.token0Balance) {
+                if (_supply > _currentPosition.token1Balance) {
+                    // swap (if necessary)
                     _swapAmountOut(
-                        false,
-                        uint128(_repay - _currentPosition.token0Balance),
+                        true,
+                        uint128(_supply - _currentPosition.token1Balance), //uncheckable
                         _ticks.currentTick
                     );
                 }
-                aave.safeRepay(
-                    address(token0),
-                    _repay,
-                    AAVE_INTEREST,
-                    address(this)
+                aave.safeSupply(
+                    address(token1),
+                    _supply,
+                    address(this),
+                    AAVE_REFERRAL
                 );
 
-                if (
-                    _currentPosition.collateralAmount1 <
-                    _targetPosition.collateralAmount1
-                ) {
-                    console2.log("case2_1 repay and supply");
-                    // case2_1 repay and supply
-                    uint256 _supply = _targetPosition.collateralAmount1 -
-                        _currentPosition.collateralAmount1;
-                    aave.safeSupply(
-                        address(token1),
-                        _supply,
-                        address(this),
-                        AAVE_REFERRAL
-                    );
-                } else {
-                    console2.log("case2_2 repay and withdraw");
-                    // case2_2 repay and withdraw
-                    uint256 _withdraw = _currentPosition.collateralAmount1 -
-                        _targetPosition.collateralAmount1;
-                    aave.safeWithdraw(
-                        address(token1),
-                        _withdraw,
-                        address(this)
-                    );
-                }
-            } else {
-                console2.log("case3 borrow and withdraw");
-                // case3 borrow and withdraw
+                // borrow
                 uint256 _borrow = _targetPosition.debtAmount0 -
-                    _currentPosition.debtAmount0;
+                    _currentPosition.debtAmount0; //uncheckable
                 aave.safeBorrow(
                     address(token0),
                     _borrow,
@@ -945,10 +887,76 @@ contract OrangeAlphaVault is
                     AAVE_REFERRAL,
                     address(this)
                 );
-                // withdraw
-                uint256 _withdraw = _currentPosition.collateralAmount1 -
-                    _targetPosition.collateralAmount1;
-                aave.safeWithdraw(address(token1), _withdraw, address(this));
+            } else {
+                if (
+                    _currentPosition.debtAmount0 > _targetPosition.debtAmount0
+                ) {
+                    console2.log("case2 repay");
+                    // case2 repay
+                    uint256 _repay = _currentPosition.debtAmount0 -
+                        _targetPosition.debtAmount0; //uncheckable
+
+                    // swap (if necessary)
+                    if (_repay > _currentPosition.token0Balance) {
+                        _swapAmountOut(
+                            false,
+                            uint128(_repay - _currentPosition.token0Balance), //uncheckable
+                            _ticks.currentTick
+                        );
+                    }
+                    aave.safeRepay(
+                        address(token0),
+                        _repay,
+                        AAVE_INTEREST,
+                        address(this)
+                    );
+
+                    if (
+                        _currentPosition.collateralAmount1 <
+                        _targetPosition.collateralAmount1
+                    ) {
+                        console2.log("case2_1 repay and supply");
+                        // case2_1 repay and supply
+                        uint256 _supply = _targetPosition.collateralAmount1 -
+                            _currentPosition.collateralAmount1; //uncheckable
+                        aave.safeSupply(
+                            address(token1),
+                            _supply,
+                            address(this),
+                            AAVE_REFERRAL
+                        );
+                    } else {
+                        console2.log("case2_2 repay and withdraw");
+                        // case2_2 repay and withdraw
+                        uint256 _withdraw = _currentPosition.collateralAmount1 -
+                            _targetPosition.collateralAmount1; //uncheckable. //possibly, equal
+                        aave.safeWithdraw(
+                            address(token1),
+                            _withdraw,
+                            address(this)
+                        );
+                    }
+                } else {
+                    console2.log("case3 borrow and withdraw");
+                    // case3 borrow and withdraw
+                    uint256 _borrow = _targetPosition.debtAmount0 -
+                        _currentPosition.debtAmount0; //uncheckable. //possibly, equal
+                    aave.safeBorrow(
+                        address(token0),
+                        _borrow,
+                        AAVE_INTEREST,
+                        AAVE_REFERRAL,
+                        address(this)
+                    );
+                    // withdraw should be the only option here.
+                    uint256 _withdraw = _currentPosition.collateralAmount1 -
+                        _targetPosition.collateralAmount1; //should be uncheckable.
+                    aave.safeWithdraw(
+                        address(token1),
+                        _withdraw,
+                        address(this)
+                    );
+                }
             }
         }
     }
