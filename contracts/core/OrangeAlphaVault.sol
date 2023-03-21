@@ -1030,18 +1030,24 @@ contract OrangeAlphaVault is
         if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
             //no need to swap
         } else {
-            if (_balance0 > _targetAmount0) {
-                console2.log("_addLiquidityInRebalance case1");
-                (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                _swap(true, uint128(_balance0 - _targetAmount0), _sqrtRatioX96);
-            } else if (_balance1 > _targetAmount1) {
-                console2.log("_addLiquidityInRebalance case2");
-                (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                _swap(
-                    false,
-                    uint128(_balance1 - _targetAmount1),
-                    _sqrtRatioX96
-                );
+            unchecked {
+                if (_balance0 > _targetAmount0) {
+                    console2.log("_addLiquidityInRebalance case1");
+                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
+                    _swap(
+                        true,
+                        uint128(_balance0 - _targetAmount0), //uncheckable
+                        _sqrtRatioX96
+                    );
+                } else if (_balance1 > _targetAmount1) {
+                    console2.log("_addLiquidityInRebalance case2");
+                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
+                    _swap(
+                        false,
+                        uint128(_balance1 - _targetAmount1), //uncheckable
+                        _sqrtRatioX96
+                    );
+                }
             }
         }
 
