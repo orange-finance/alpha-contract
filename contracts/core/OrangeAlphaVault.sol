@@ -850,6 +850,11 @@ contract OrangeAlphaVault is
         Positions memory _targetPosition,
         Ticks memory _ticks
     ) internal {
+        /**memo
+         * what if current.collateral == target.collateral. both borrow or repay can come after.
+         * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
+         * Maybe, we can revert when one of them is equal.
+         */
         unchecked {
             if (
                 //1. supply and borrow
@@ -930,32 +935,38 @@ contract OrangeAlphaVault is
                         // case2_2 repay and withdraw
                         uint256 _withdraw = _currentPosition.collateralAmount1 -
                             _targetPosition.collateralAmount1; //uncheckable. //possibly, equal
-                        aave.safeWithdraw(
-                            address(token1),
-                            _withdraw,
-                            address(this)
-                        );
+                        if (_withdraw > 0) {
+                            aave.safeWithdraw(
+                                address(token1),
+                                _withdraw,
+                                address(this)
+                            );
+                        }
                     }
                 } else {
                     console2.log("case3 borrow and withdraw");
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount0 -
                         _currentPosition.debtAmount0; //uncheckable. //possibly, equal
-                    aave.safeBorrow(
-                        address(token0),
-                        _borrow,
-                        AAVE_INTEREST,
-                        AAVE_REFERRAL,
-                        address(this)
-                    );
+                    if (_borrow > 0) {
+                        aave.safeBorrow(
+                            address(token0),
+                            _borrow,
+                            AAVE_INTEREST,
+                            AAVE_REFERRAL,
+                            address(this)
+                        );
+                    }
                     // withdraw should be the only option here.
                     uint256 _withdraw = _currentPosition.collateralAmount1 -
-                        _targetPosition.collateralAmount1; //should be uncheckable.
-                    aave.safeWithdraw(
-                        address(token1),
-                        _withdraw,
-                        address(this)
-                    );
+                        _targetPosition.collateralAmount1; //should be uncheckable. //possibly, equal
+                    if (_withdraw > 0) {
+                        aave.safeWithdraw(
+                            address(token1),
+                            _withdraw,
+                            address(this)
+                        );
+                    }
                 }
             }
         }
