@@ -852,9 +852,9 @@ contract OrangeAlphaVault is
     ) internal {
         if (
             //1. supply and borrow
-            _currentPosition.debtAmount0 < _targetPosition.debtAmount0 &&
             _currentPosition.collateralAmount1 <
-            _targetPosition.collateralAmount1
+            _targetPosition.collateralAmount1 &&
+            _currentPosition.debtAmount0 < _targetPosition.debtAmount0
         ) {
             console2.log("case1 supply and borrow");
             // case1 supply and borrow
