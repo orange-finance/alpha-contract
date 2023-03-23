@@ -768,28 +768,22 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                         console2.log("case2_2 repay and withdraw");
                         // case2_2 repay and withdraw
                         uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //uncheckable. //possibly, equal
-                        if (_withdraw > 0) {
-                            aave.safeWithdraw(address(token1), _withdraw, address(this));
-                        }
+                        aave.safeWithdraw(address(token1), _withdraw, address(this));
                     }
                 } else {
                     console2.log("case3 borrow and withdraw");
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable. //possibly, equal
-                    if (_borrow > 0) {
-                        aave.safeBorrow(
-                            address(token0),
-                            _borrow,
-                            AAVE_VARIABLE_INTEREST,
-                            AAVE_REFERRAL_NONE,
-                            address(this)
-                        );
-                    }
+                    aave.safeBorrow(
+                        address(token0),
+                        _borrow,
+                        AAVE_VARIABLE_INTEREST,
+                        AAVE_REFERRAL_NONE,
+                        address(this)
+                    );
                     // withdraw should be the only option here.
                     uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //should be uncheckable. //possibly, equal
-                    if (_withdraw > 0) {
-                        aave.safeWithdraw(address(token1), _withdraw, address(this));
-                    }
+                    aave.safeWithdraw(address(token1), _withdraw, address(this));
                 }
             }
         }
