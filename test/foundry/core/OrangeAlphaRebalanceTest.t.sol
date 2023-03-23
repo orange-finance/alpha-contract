@@ -62,9 +62,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
 
     function test_rebalance_RevertNewLiquidity() public {
         uint256 _hedgeRatio = 100e6;
-        //prepare
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-
+        uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), _shares);
 
         uint128 _liquidity = vault.getRebalancedLiquidity(

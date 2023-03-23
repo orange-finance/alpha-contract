@@ -420,7 +420,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
     ///@notice swap surplus amount0 or amount1
     ///@dev called by _depositLiquidityByShares
-    //TODO into _depositLiquidityByShares
     function _swapSurplusAmount(
         Balances memory _balances,
         uint256 _targetAmount0,
