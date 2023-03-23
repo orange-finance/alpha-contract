@@ -50,10 +50,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      * @param _depositCap Deposit cap of each accounts
      * @param _totalDepositCap Total deposit cap
      */
-    function setDepositCap(
-        uint256 _depositCap,
-        uint256 _totalDepositCap
-    ) external onlyOwner {
+    function setDepositCap(uint256 _depositCap, uint256 _totalDepositCap) external onlyOwner {
         if (_depositCap > _totalDepositCap) {
             revert(PARAM);
         }
@@ -74,10 +71,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      * @param _slippageBPS Slippage BPS
      * @param _tickSlippageBPS Check ticks BPS
      */
-    function setSlippage(
-        uint16 _slippageBPS,
-        uint24 _tickSlippageBPS
-    ) external onlyOwner {
+    function setSlippage(uint16 _slippageBPS, uint24 _tickSlippageBPS) external onlyOwner {
         if (_slippageBPS > MAGIC_SCALE_1E4) {
             revert(PARAM);
         }
@@ -89,9 +83,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      * @notice Set parameters of lockup period
      * @param _twapSlippageInterval TWAP slippage interval
      */
-    function setTwapSlippageInterval(
-        uint32 _twapSlippageInterval
-    ) external onlyOwner {
+    function setTwapSlippageInterval(uint32 _twapSlippageInterval) external onlyOwner {
         twapSlippageInterval = _twapSlippageInterval;
     }
 

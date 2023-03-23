@@ -19,12 +19,7 @@ interface IVariableDebtToken {
      * @return True if the previous balance of the user is 0, false otherwise
      * @return The scaled total debt of the reserve
      **/
-    function mint(
-        address user,
-        address onBehalfOf,
-        uint256 amount,
-        uint256 index
-    ) external returns (bool, uint256);
+    function mint(address user, address onBehalfOf, uint256 amount, uint256 index) external returns (bool, uint256);
 
     /**
      * @notice Burns user variable debt
@@ -35,11 +30,7 @@ interface IVariableDebtToken {
      * @param index The variable debt index of the reserve
      * @return The scaled total debt of the reserve
      **/
-    function burn(
-        address from,
-        uint256 amount,
-        uint256 index
-    ) external returns (uint256);
+    function burn(address from, uint256 amount, uint256 index) external returns (uint256);
 
     /**
      * @notice Returns the address of the underlying asset of this debtToken (E.g. WETH for variableDebtWETH)

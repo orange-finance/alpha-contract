@@ -10,10 +10,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../vendor/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
 
-contract UniswapV3PoolAccessorMock is
-    IUniswapV3MintCallback,
-    IUniswapV3SwapCallback
-{
+contract UniswapV3PoolAccessorMock is IUniswapV3MintCallback, IUniswapV3SwapCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -38,12 +35,7 @@ contract UniswapV3PoolAccessorMock is
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
-    function mint(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint256 _amount0,
-        uint256 _amount1
-    ) external {
+    function mint(int24 _lowerTick, int24 _upperTick, uint256 _amount0, uint256 _amount1) external {
         token0.safeTransferFrom(msg.sender, address(this), _amount0);
         token1.safeTransferFrom(msg.sender, address(this), _amount1);
 
@@ -58,11 +50,7 @@ contract UniswapV3PoolAccessorMock is
         pool.mint(address(this), _lowerTick, _upperTick, liquidity_, "");
     }
 
-    function swap(
-        bool _zeroForOne,
-        uint256 _amount,
-        uint160 _sqrtPriceLimitX96
-    ) external {
+    function swap(bool _zeroForOne, uint256 _amount, uint160 _sqrtPriceLimitX96) external {
         if (_zeroForOne) {
             token0.safeTransferFrom(msg.sender, address(this), _amount);
         } else {
@@ -78,19 +66,14 @@ contract UniswapV3PoolAccessorMock is
         );
     }
 
-    function burn(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint128 _liquidity
-    ) external {
+    function burn(int24 _lowerTick, int24 _upperTick, uint128 _liquidity) external {
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint256 amount0, uint256 amount1) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                _sqrtRatioX96,
-                _lowerTick.getSqrtRatioAtTick(),
-                _upperTick.getSqrtRatioAtTick(),
-                _liquidity
-            );
+        (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
+            _sqrtRatioX96,
+            _lowerTick.getSqrtRatioAtTick(),
+            _upperTick.getSqrtRatioAtTick(),
+            _liquidity
+        );
         pool.burn(_lowerTick, _upperTick, _liquidity);
 
         token0.safeTransfer(msg.sender, amount0);

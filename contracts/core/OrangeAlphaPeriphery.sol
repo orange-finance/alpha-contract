@@ -40,11 +40,7 @@ contract OrangeAlphaPeriphery {
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
-    function deposit(
-        uint256 _shares,
-        uint256 _maxAssets,
-        bytes32[] calldata merkleProof
-    ) external returns (uint256) {
+    function deposit(uint256 _shares, uint256 _maxAssets, bytes32[] calldata merkleProof) external returns (uint256) {
         //validation of merkle proof
         _isAllowlisted(msg.sender, merkleProof);
 
@@ -65,22 +61,11 @@ contract OrangeAlphaPeriphery {
         return vault.deposit(_shares, msg.sender, _maxAssets);
     }
 
-    function redeem(
-        uint256 _shares,
-        uint256 _minAssets
-    ) external returns (uint256) {
-        if (
-            block.timestamp <
-            deposits[msg.sender].timestamp + params.lockupPeriod()
-        ) {
+    function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256) {
+        if (block.timestamp < deposits[msg.sender].timestamp + params.lockupPeriod()) {
             revert(ERROR_LOCKUP);
         }
-        uint256 _assets = vault.redeem(
-            _shares,
-            msg.sender,
-            msg.sender,
-            _minAssets
-        );
+        uint256 _assets = vault.redeem(_shares, msg.sender, msg.sender, _minAssets);
 
         //subtract depositsCap
         uint256 _deposited = deposits[msg.sender].assets;
@@ -102,18 +87,9 @@ contract OrangeAlphaPeriphery {
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
-    function _isAllowlisted(
-        address _account,
-        bytes32[] calldata _merkleProof
-    ) internal view virtual {
+    function _isAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view virtual {
         if (params.allowlistEnabled()) {
-            if (
-                !MerkleProof.verify(
-                    _merkleProof,
-                    params.merkleRoot(),
-                    keccak256(abi.encodePacked(_account))
-                )
-            ) {
+            if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
                 revert(ERROR_MERKLE_ALLOWLISTED);
             }
         }

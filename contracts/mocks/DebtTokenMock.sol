@@ -56,11 +56,7 @@ contract DebtTokenMock is IVariableDebtToken, ERC20 {
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
+    function _transfer(address from, address to, uint256 amount) internal override {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
 
@@ -96,10 +92,12 @@ contract DebtTokenMock is IVariableDebtToken, ERC20 {
 
         UserState memory oldState = _userState[user];
         uint256 _income;
-        if(oldState.lastNormalizedVariableDebtsRate == 0){
+        if (oldState.lastNormalizedVariableDebtsRate == 0) {
             _income = 0;
-        }else{
-            _income = oldState.balance * (_newNormalizedVariableDebt - oldState.lastNormalizedVariableDebtsRate) / oldState.lastNormalizedVariableDebtsRate;
+        } else {
+            _income =
+                (oldState.balance * (_newNormalizedVariableDebt - oldState.lastNormalizedVariableDebtsRate)) /
+                oldState.lastNormalizedVariableDebtsRate;
         }
         return oldState.balance + _income;
     }
@@ -110,10 +108,13 @@ contract DebtTokenMock is IVariableDebtToken, ERC20 {
 
         UserState memory oldTotalSupply = _totalSupply;
         uint256 _incomeTotalSupply;
-        if(oldTotalSupply.lastNormalizedVariableDebtsRate == 0){
+        if (oldTotalSupply.lastNormalizedVariableDebtsRate == 0) {
             _incomeTotalSupply = 0;
-        }else{
-            _incomeTotalSupply = oldTotalSupply.balance * (_newNormalizedVariableDebt - oldTotalSupply.lastNormalizedVariableDebtsRate) / oldTotalSupply.lastNormalizedVariableDebtsRate;
+        } else {
+            _incomeTotalSupply =
+                (oldTotalSupply.balance *
+                    (_newNormalizedVariableDebt - oldTotalSupply.lastNormalizedVariableDebtsRate)) /
+                oldTotalSupply.lastNormalizedVariableDebtsRate;
         }
         return oldTotalSupply.balance + _incomeTotalSupply;
     }
@@ -145,11 +146,7 @@ contract DebtTokenMock is IVariableDebtToken, ERC20 {
     }
 
     /// @inheritdoc IVariableDebtToken
-    function burn(
-        address from,
-        uint256 amount,
-        uint256 
-    ) external virtual override onlyPool returns (uint256){
+    function burn(address from, uint256 amount, uint256) external virtual override onlyPool returns (uint256) {
         require(amount != 0, "mint zero amount");
         require(from != address(0), "ERC20: mint to the zero address");
 
@@ -161,5 +158,4 @@ contract DebtTokenMock is IVariableDebtToken, ERC20 {
         emit Transfer(from, address(0), amount);
         return amount;
     }
-
 }

@@ -21,12 +21,7 @@ interface IAaveV3Pool {
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
      **/
-    function supply(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
@@ -39,11 +34,7 @@ interface IAaveV3Pool {
      *   different wallet
      * @return The final amount withdrawn
      **/
-    function withdraw(
-        address asset,
-        uint256 amount,
-        address to
-    ) external returns (uint256);
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256);
 
     /**
      * @notice Allows users to borrow a specific `amount` of the reserve underlying asset, provided that the borrower
@@ -99,11 +90,7 @@ interface IAaveV3Pool {
      * @param interestRateMode The interest rate mode at of the debt the user wants to repay: 1 for Stable, 2 for Variable
      * @return The final amount repaid
      **/
-    function repayWithATokens(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode
-    ) external returns (uint256);
+    function repayWithATokens(address asset, uint256 amount, uint256 interestRateMode) external returns (uint256);
 
     /**
      * @notice Supplies an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
@@ -117,42 +104,28 @@ interface IAaveV3Pool {
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
      **/
-    function deposit(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Returns the normalized income normalized income of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The reserve's normalized income
      */
-    function getReserveNormalizedIncome(address asset)
-        external
-        view
-        returns (uint256);
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
 
     /**
      * @notice Returns the normalized variable debt per unit of asset
      * @param asset The address of the underlying asset of the reserve
      * @return The reserve normalized variable debt
      */
-    function getReserveNormalizedVariableDebt(address asset)
-        external
-        view
-        returns (uint256);
+    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
 
     /**
      * @notice Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The state and configuration data of the reserve
      **/
-    function getReserveData(address asset)
-        external
-        view
-        returns (DataTypes.ReserveData memory);
+    function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
 
     /**
      * @notice Returns the user account data across all the reserves
@@ -164,7 +137,9 @@ interface IAaveV3Pool {
      * @return ltv The loan to value of The user
      * @return healthFactor The current health factor of the user
      **/
-    function getUserAccountData(address user)
+    function getUserAccountData(
+        address user
+    )
         external
         view
         returns (

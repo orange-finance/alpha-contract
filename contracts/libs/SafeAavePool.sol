@@ -24,12 +24,7 @@ library SafeAavePool {
         }
     }
 
-    function safeWithdraw(
-        IAaveV3Pool pool,
-        address asset,
-        uint256 amount,
-        address to
-    ) external {
+    function safeWithdraw(IAaveV3Pool pool, address asset, uint256 amount, address to) external {
         if (amount > 0) {
             if (amount != pool.withdraw(asset, amount, to)) {
                 revert(AAVE_MISMATCH);
@@ -46,13 +41,7 @@ library SafeAavePool {
         address onBehalfOf
     ) external {
         if (amount > 0) {
-            pool.borrow(
-                asset,
-                amount,
-                interestRateMode,
-                referralCode,
-                onBehalfOf
-            );
+            pool.borrow(asset, amount, interestRateMode, referralCode, onBehalfOf);
         }
     }
 
@@ -64,10 +53,7 @@ library SafeAavePool {
         address onBehalfOf
     ) external {
         if (amount > 0) {
-            if (
-                amount !=
-                pool.repay(asset, amount, interestRateMode, onBehalfOf)
-            ) {
+            if (amount != pool.repay(asset, amount, interestRateMode, onBehalfOf)) {
                 revert(AAVE_MISMATCH);
             }
         }

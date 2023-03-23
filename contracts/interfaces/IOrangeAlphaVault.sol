@@ -44,12 +44,7 @@ interface IOrangeAlphaVault {
 
     /* ========== EVENTS ========== */
 
-    event BurnAndCollectFees(
-        uint256 burn0,
-        uint256 burn1,
-        uint256 fee0,
-        uint256 fee1
-    );
+    event BurnAndCollectFees(uint256 burn0, uint256 burn1, uint256 fee0, uint256 fee1);
 
     /**
      * @notice actionTypes
@@ -59,12 +54,7 @@ interface IOrangeAlphaVault {
      * 3. rebalance
      * 4. stoploss
      */
-    event Action(
-        ActionType indexed actionType,
-        address indexed caller,
-        uint256 totalAssets,
-        uint256 totalSupply
-    );
+    event Action(ActionType indexed actionType, address indexed caller, uint256 totalAssets, uint256 totalSupply);
 
     /* ========== VIEW FUNCTIONS ========== */
 
@@ -89,27 +79,20 @@ interface IOrangeAlphaVault {
      * @param assets amount of assets
      * @return shares
      */
-    function convertToShares(
-        uint256 assets
-    ) external view returns (uint256 shares);
+    function convertToShares(uint256 assets) external view returns (uint256 shares);
 
     /**
      * @notice convert shares to assets
      * @param shares amount of vault token
      * @return assets
      */
-    function convertToAssets(
-        uint256 shares
-    ) external view returns (uint256 assets);
+    function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
     /**
      * @notice get underlying assets
      * @return underlyingAssets amount0Current, amount1Current, accruedFees0, accruedFees1, amount0Balance, amount1Balance
      */
-    function getUnderlyingBalances()
-        external
-        view
-        returns (UnderlyingAssets memory underlyingAssets);
+    function getUnderlyingBalances() external view returns (UnderlyingAssets memory underlyingAssets);
 
     /**
      * @notice get simuldated liquidity if rebalanced
@@ -136,11 +119,7 @@ interface IOrangeAlphaVault {
      * @param _maxAssets maximum amount of assets
      * @return shares
      */
-    function deposit(
-        uint256 _shares,
-        address _receiver,
-        uint256 _maxAssets
-    ) external returns (uint256 shares);
+    function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external returns (uint256 shares);
 
     /**
      * @notice redeem vault token to assets

@@ -23,19 +23,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _debtToken0,
         address _aToken1,
         address _params
-    )
-        OrangeAlphaVault(
-            _name,
-            _symbol,
-            _pool,
-            _token0,
-            _token1,
-            _aave,
-            _debtToken0,
-            _aToken1,
-            _params
-        )
-    {}
+    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _aave, _debtToken0, _aToken1, _params) {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
@@ -55,24 +43,13 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     function getAavePoolLtv() external view returns (uint256) {
-        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave
-            .getUserAccountData(address(this));
+        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave.getUserAccountData(address(this));
         if (totalCollateralBase == 0) return 0;
-        return
-            FullMath.mulDiv(
-                MAGIC_SCALE_1E8,
-                totalDebtBase,
-                totalCollateralBase
-            );
+        return FullMath.mulDiv(MAGIC_SCALE_1E8, totalDebtBase, totalCollateralBase);
     }
 
-    function getLiquidity(
-        int24 _lowerTick,
-        int24 _upperTick
-    ) external view returns (uint128 liquidity_) {
-        (liquidity_, , , , ) = pool.positions(
-            _getPositionID(_lowerTick, _upperTick)
-        );
+    function getLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity_) {
+        (liquidity_, , , , ) = pool.positions(_getPositionID(_lowerTick, _upperTick));
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
@@ -82,20 +59,10 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 amount0Debt,
         uint256 amount1Supply
     ) external view returns (uint256 totalAlignedAssets) {
-        return
-            _alignTotalAsset(
-                _getTicksByStorage(),
-                amount0Current,
-                amount1Current,
-                amount0Debt,
-                amount1Supply
-            );
+        return _alignTotalAsset(_getTicksByStorage(), amount0Current, amount1Current, amount0Debt, amount1Supply);
     }
 
-    function getLtvByRange(
-        int24 _currentTick,
-        int24 _upperTick
-    ) external view returns (uint256) {
+    function getLtvByRange(int24 _currentTick, int24 _upperTick) external view returns (uint256) {
         return _getLtvByRange(_currentTick, _upperTick);
     }
 
@@ -108,13 +75,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 feeGrowthInsideLast,
         uint128 liquidity
     ) external view returns (uint256 fee) {
-        return
-            _computeFeesEarned(
-                isZero,
-                feeGrowthInsideLast,
-                liquidity,
-                _getTicksByStorage()
-            );
+        return _computeFeesEarned(isZero, feeGrowthInsideLast, liquidity, _getTicksByStorage());
     }
 
     function getPositionID() external view returns (bytes32 positionID) {
@@ -134,15 +95,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 _ltv,
         uint256 _hedgeRatio
     ) external view returns (Positions memory position_) {
-        return
-            _computeRebalancePosition(
-                _assets,
-                _currentTick,
-                _lowerTick,
-                _upperTick,
-                _ltv,
-                _hedgeRatio
-            );
+        return _computeRebalancePosition(_assets, _currentTick, _lowerTick, _upperTick, _ltv, _hedgeRatio);
     }
 
     function computeTargetPositionByShares(
@@ -164,19 +117,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
             );
     }
 
-    function checkTickSlippage(
-        int24 _currentTick,
-        int24 _inputTick
-    ) external view {
+    function checkTickSlippage(int24 _currentTick, int24 _inputTick) external view {
         return _checkTickSlippage(_currentTick, _inputTick);
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
-    function swapAmountOut(
-        bool _zeroForOne,
-        uint128 _minAmountOut,
-        int24 _tick
-    ) external {
+    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
         _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
     }
 
@@ -186,20 +132,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 _targetAmount0,
         uint256 _targetAmount1
     ) external returns (uint128 targetLiquidity_) {
-        return
-            _addLiquidityInRebalance(
-                _lowerTick,
-                _upperTick,
-                _targetAmount0,
-                _targetAmount1
-            );
+        return _addLiquidityInRebalance(_lowerTick, _upperTick, _targetAmount0, _targetAmount1);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
     function burnAndCollectFees(int24 _lowerTick, int24 _upperTick) external {
-        (uint128 _liquidity, , , , ) = pool.positions(
-            _getPositionID(_lowerTick, _upperTick)
-        );
+        (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_lowerTick, _upperTick));
 
         _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
     }
@@ -218,13 +156,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 _targetAmount1,
         Ticks memory _ticks
     ) external {
-        return
-            _swapSurplusAmount(
-                _balances,
-                _targetAmount0,
-                _targetAmount1,
-                _ticks
-            );
+        return _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {

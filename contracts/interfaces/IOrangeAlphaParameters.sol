@@ -6,10 +6,7 @@ interface IOrangeAlphaParameters {
 
     function totalDepositCap() external view returns (uint256 assets);
 
-    function minDepositAmount()
-        external
-        view
-        returns (uint256 minDepositAmount);
+    function minDepositAmount() external view returns (uint256 minDepositAmount);
 
     function slippageBPS() external view returns (uint16);
 

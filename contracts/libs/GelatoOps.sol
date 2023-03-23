@@ -12,16 +12,9 @@ interface IOpsProxyFactory {
  * - Have call restrictions for functions to be automated.
  */
 library GelatoOps {
-    address private constant OPS_PROXY_FACTORY =
-        0xC815dB16D4be6ddf2685C201937905aBf338F5D7;
+    address private constant OPS_PROXY_FACTORY = 0xC815dB16D4be6ddf2685C201937905aBf338F5D7;
 
-    function getDedicatedMsgSender(address msgSender)
-        external
-        view
-        returns (address dedicatedMsgSender)
-    {
-        (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(
-            msgSender
-        );
+    function getDedicatedMsgSender(address msgSender) external view returns (address dedicatedMsgSender) {
+        (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(msgSender);
     }
 }
