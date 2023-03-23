@@ -321,13 +321,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
 
-        //TODO validate minimum amount
-        // if (token1.balanceOf(address(this)) < params.minDepositAmount())
-        //     revert(Errors.INVALID_DEPOSIT_AMOUNT);
-
         // initial deposit
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
+            if (_maxAssets < params.minDepositAmount()) {
+                revert(Errors.INVALID_DEPOSIT_AMOUNT);
+            }
             token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
             _mint(_receiver, _maxAssets);
             return _maxAssets;
