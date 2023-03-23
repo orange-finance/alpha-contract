@@ -16,7 +16,7 @@ import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol
 import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
+contract OrangeAlphaComputeRebalancePositionTest is OrangeAlphaBase {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -28,14 +28,7 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
         int24 _tick = -196445;
         // console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        _testComputeRebalancePosition(
-            100_216 * 1e6,
-            _tick,
-            -197040,
-            -195850,
-            72913000,
-            127200000
-        );
+        _testComputeRebalancePosition(100_216 * 1e6, _tick, -197040, -195850, 72913000, 127200000);
     }
 
     function test_computeHedge_SuccessCase2() public {
@@ -43,14 +36,7 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
         int24 _tick = -196558;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        _testComputeRebalancePosition(
-            100_304 * 1e6,
-            _tick,
-            -197040,
-            -195909,
-            72089000,
-            158760000
-        );
+        _testComputeRebalancePosition(100_304 * 1e6, _tick, -197040, -195909, 72089000, 158760000);
     }
 
     function test_computeHedge_SuccessCase3() public {
@@ -58,14 +44,7 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
         int24 _tick = -200900;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        _testComputeRebalancePosition(
-            97_251 * 1e6,
-            _tick,
-            -200940,
-            -199646,
-            62_764_000,
-            103_290_000
-        );
+        _testComputeRebalancePosition(97_251 * 1e6, _tick, -200940, -199646, 62_764_000, 103_290_000);
     }
 
     function test_computeHedge_SuccessCase4() public {
@@ -73,99 +52,29 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
         int24 _tick = -197613;
         console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
-        _testComputeRebalancePosition(
-            96_719 * 1e6,
-            _tick,
-            -198296,
-            -197013,
-            72_948_000,
-            46_220_000
-        );
+        _testComputeRebalancePosition(96_719 * 1e6, _tick, -198296, -197013, 72_948_000, 46_220_000);
     }
 
     function test_computeRebalancePosition_SuccessHedgeRatio() public {
         uint _ltv = 80e6;
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            _ltv,
-            100e6
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            _ltv,
-            200e6
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            _ltv,
-            50e6
-        );
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, _ltv, 100e6);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, _ltv, 200e6);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, _ltv, 50e6);
     }
 
     function test_computeRebalancePosition_SuccessRange() public {
         uint256 _hedgeRatio = 100e6;
         uint _ltv = 80e6;
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            _ltv,
-            _hedgeRatio
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick - 600,
-            upperTick,
-            _ltv,
-            _hedgeRatio
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick + 600,
-            _ltv,
-            _hedgeRatio
-        );
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, _ltv, _hedgeRatio);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick - 600, upperTick, _ltv, _hedgeRatio);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick + 600, _ltv, _hedgeRatio);
     }
 
     function test_computeRebalancePosition_SuccessLtv() public {
         uint256 _hedgeRatio = 100e6;
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            80e6,
-            _hedgeRatio
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            60e6,
-            _hedgeRatio
-        );
-        _testComputeRebalancePosition(
-            10_000 * 1e6,
-            currentTick,
-            lowerTick,
-            upperTick,
-            40e6,
-            _hedgeRatio
-        );
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, 80e6, _hedgeRatio);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, 60e6, _hedgeRatio);
+        _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, 40e6, _hedgeRatio);
     }
 
     function _testComputeRebalancePosition(
@@ -176,15 +85,14 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
         uint256 _ltv,
         uint256 _hedgeRatio
     ) internal {
-        IOrangeAlphaVault.Positions memory _position = vault
-            .computeRebalancePosition(
-                _assets,
-                _currentTick,
-                _lowerTick,
-                _upperTick,
-                _ltv,
-                _hedgeRatio
-            );
+        IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
+            _assets,
+            _currentTick,
+            _lowerTick,
+            _upperTick,
+            _ltv,
+            _hedgeRatio
+        );
         console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
         console.log(_position.debtAmount0, "debtAmount0");
         console.log(_position.collateralAmount1, "collateralAmount1");
@@ -219,12 +127,10 @@ contract OrangeAlphacomputeRebalancePositionTest is OrangeAlphaBase {
             address(token0),
             address(token1)
         );
-        uint256 _computedLtv = (_debtUsdc * MAGIC_SCALE_1E8) /
-            _position.collateralAmount1;
+        uint256 _computedLtv = (_debtUsdc * MAGIC_SCALE_1E8) / _position.collateralAmount1;
         assertApproxEqRel(_computedLtv, _ltv, 1e16);
         //hedge ratio
-        uint256 _computedHedgeRatio = (_position.debtAmount0 *
-            MAGIC_SCALE_1E8) / _position.token0Balance;
+        uint256 _computedHedgeRatio = (_position.debtAmount0 * MAGIC_SCALE_1E8) / _position.token0Balance;
         // console2.log(_computedHedgeRatio, "computedHedgeRatio");
         assertApproxEqRel(_computedHedgeRatio, _hedgeRatio, 1e16);
     }
