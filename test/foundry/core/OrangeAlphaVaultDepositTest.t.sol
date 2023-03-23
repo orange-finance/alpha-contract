@@ -43,11 +43,10 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         vault.deposit(1000, address(this), 0);
     }
 
-    //TODO
-    // function test_deposit_Revert2() public {
-    //     vm.expectRevert(bytes(Errors.INVALID_DEPOSIT_AMOUNT));
-    //     vault.deposit(1, address(this), 1);
-    // }
+    function test_deposit_Revert2() public {
+        vm.expectRevert(bytes(Errors.INVALID_DEPOSIT_AMOUNT));
+        vault.deposit(1, address(this), 1);
+    }
 
     function test_deposit_Success0() public {
         //initial depositing

@@ -100,7 +100,7 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 _token1Balance,
         uint256 _shares,
         uint256 _totalSupply
-    ) external view returns (Positions memory _position) {
+    ) external pure returns (Positions memory _position) {
         return
             _computeTargetPositionByShares(
                 _debtAmount0,
@@ -131,10 +131,10 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function burnAndCollectFees(int24 _lowerTick, int24 _upperTick) external {
+    function burnAndCollectFees(int24 _lowerTick, int24 _upperTick) external returns (uint256 burn0_, uint256 burn1_) {
         (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_lowerTick, _upperTick));
 
-        _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+        return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
     }
 
     function swap(
