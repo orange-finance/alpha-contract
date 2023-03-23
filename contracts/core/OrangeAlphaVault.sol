@@ -675,8 +675,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Positions memory _targetPosition = _computeRebalancePosition(
             _assets,
             _ticks.currentTick,
-            _newLowerTick,
-            _newUpperTick,
+            _ticks.lowerTick,
+            _ticks.upperTick,
             _ltv,
             _hedgeRatio
         );
