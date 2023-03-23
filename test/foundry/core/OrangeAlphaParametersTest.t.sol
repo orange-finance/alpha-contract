@@ -21,15 +21,13 @@ contract OrangeAlphaParametersTest is BaseTest {
         assertEq(params.minDepositAmount(), 100 * 1e6);
         assertEq(params.slippageBPS(), 500);
         assertEq(params.tickSlippageBPS(), 10);
+        assertEq(params.minAmountOutBPS(), 1000);
         assertEq(params.twapSlippageInterval(), 5 minutes);
         assertEq(params.maxLtv(), 80000000);
         assertEq(params.lockupPeriod(), 7 days);
         assertEq(params.strategists(address(this)), true);
         assertEq(params.allowlistEnabled(), true);
-        assertEq(
-            params.gelato(),
-            GelatoOps.getDedicatedMsgSender(address(this))
-        );
+        assertEq(params.gelato(), GelatoOps.getDedicatedMsgSender(address(this)));
     }
 
     function test_onlyOwner() public {
@@ -40,6 +38,8 @@ contract OrangeAlphaParametersTest is BaseTest {
         params.setMinDepositAmount(1);
         vm.expectRevert("Ownable");
         params.setSlippage(1, 1);
+        vm.expectRevert("Ownable");
+        params.setMinAmountOutBPS(1);
         vm.expectRevert("Ownable");
         params.setTwapSlippageInterval(1);
         vm.expectRevert("Ownable");
@@ -69,6 +69,9 @@ contract OrangeAlphaParametersTest is BaseTest {
         params.setSlippage(1, 1);
         assertEq(params.slippageBPS(), 1);
         assertEq(params.tickSlippageBPS(), 1);
+
+        params.setMinAmountOutBPS(1);
+        assertEq(params.minAmountOutBPS(), 1);
 
         params.setTwapSlippageInterval(1);
         assertEq(params.twapSlippageInterval(), 1);

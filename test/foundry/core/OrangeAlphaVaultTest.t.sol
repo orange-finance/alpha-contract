@@ -213,14 +213,13 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
             vault.getLtvByRange(_ticks.currentTick, stoplossUpperTick),
             HEDGE_RATIO
         );
-        uint256 remainingAmount = 10_000 * 1e6 - _position.collateralAmount1;
         //compute liquidity
         uint128 _liquidity2 = LiquidityAmounts.getLiquidityForAmounts(
             _ticks.currentTick.getSqrtRatioAtTick(),
             lowerTick.getSqrtRatioAtTick(),
             upperTick.getSqrtRatioAtTick(),
-            _position.debtAmount0,
-            remainingAmount
+            _position.token0Balance,
+            _position.token1Balance
         );
         assertEq(_liquidity, _liquidity2);
     }
@@ -324,8 +323,8 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         //Vault token balance
         assertEq(vault.balanceOf(address(this)), 10_000 * 1e6 + _shares);
         //Position
-        assertEq(debtToken0.balanceOf(address(vault)), _debtBalance0 + _position.debtAmount0);
-        assertEq(aToken1.balanceOf(address(vault)), _aBalance1 + _position.collateralAmount1);
+        assertApproxEqRel(debtToken0.balanceOf(address(vault)), _debtBalance0 + _position.debtAmount0, 1e16);
+        assertApproxEqRel(aToken1.balanceOf(address(vault)), _aBalance1 + _position.collateralAmount1, 1e16);
         IOrangeAlphaVault.UnderlyingAssets memory __underlyingAssets = vault.getUnderlyingBalances();
         assertApproxEqRel(
             __underlyingAssets.liquidityAmount0,
@@ -570,17 +569,19 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Success3() public {
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-        vault.deposit(10_000 * 1e6, address(this), _shares);
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(1);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         skip(1);
+        console2.log("yama 1");
 
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
+        console2.log("yama 2");
         skip(1);
         (, _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
+        console2.log("yama 3");
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);

@@ -17,7 +17,7 @@ library Errors {
     string public constant LESS_AMOUNT = "33";
     string public constant LESS_LIQUIDITY = "34";
     string public constant HIGH_SLIPPAGE = "35";
-    string public constant LACK_OF_TOKEN0 = "36";
-    string public constant LACK_OF_TOKEN1 = "37";
+    string public constant LACK_OF_TOKEN = "36";
+    string public constant LACK_OF_AMOUNT_OUT = "37";
     string public constant EQUAL_COLLATERAL_OR_DEBT = "38";
 }

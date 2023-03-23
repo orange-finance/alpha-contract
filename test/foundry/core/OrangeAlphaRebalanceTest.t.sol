@@ -297,10 +297,10 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
     }
 
     function test_swapAmountOut_Revert() public {
-        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN0));
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
         vault.swapAmountOut(true, 10000 * 1e6, currentTick);
 
-        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN1));
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
         vault.swapAmountOut(false, 10 ether, currentTick);
     }
 

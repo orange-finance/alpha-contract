@@ -244,8 +244,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _ticks.currentTick.getSqrtRatioAtTick(),
             _newLowerTick.getSqrtRatioAtTick(),
             _newUpperTick.getSqrtRatioAtTick(),
-            _position.debtAmount0,
-            _position.collateralAmount1
+            _position.token0Balance,
+            _position.token1Balance
         );
         // console2.log(liquidity_, "liquidity_");
     }
@@ -592,26 +592,33 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Ticks memory _ticks = _getTicksByStorage();
         _checkTickSlippage(_ticks.currentTick, _inputTick);
 
+        console2.log("stoploss 0");
         // 1. Remove liquidity
         // 2. Collect fees
         (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
         if (liquidity > 0) {
             _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
         }
+        console2.log("stoploss 1");
 
         // 3. Swap from USDC to ETH (if necessary)
         uint256 _repayingDebt = debtToken0.balanceOf(address(this));
         uint256 _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 < _repayingDebt) {
+            console2.log("stoploss 2");
             _swapAmountOut(
                 false, //token1 to token0
                 uint128(_repayingDebt - _balanceToken0),
                 _ticks.currentTick
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
+            console2.log("stoploss 3");
         }
 
         // 4. Repay ETH
+        console2.log("stoploss 4");
+        console2.log(token0.balanceOf(address(this)));
+        console2.log(_repayingDebt);
         aave.safeRepay(address(token0), _repayingDebt, AAVE_VARIABLE_INTEREST, address(this));
 
         // 5. Withdraw USDC as collateral
@@ -619,6 +626,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         aave.safeWithdraw(address(token1), _withdrawingCollateral, address(this));
 
         // swap ETH to USDC
+        console2.log("stoploss 5");
         _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 > 0) {
             _swap(
@@ -795,29 +803,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
     }
 
-    /// @notice if current balance > totalSwapAmount, swap total amount.
-    /// Otherwise, swap current balance( and will swap afterward)
-    /// @dev called by _executeHedgeRebalance
-    function _swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) internal {
-        uint256 _amountIn;
-        if (_zeroForOne) {
-            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
-            if (_amountIn > token0.balanceOf(address(this))) {
-                console2.log(_amountIn, token0.balanceOf(address(this)));
-                revert(Errors.LACK_OF_TOKEN0);
-            }
-        } else {
-            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token0), address(token1));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
-            if (_amountIn > token1.balanceOf(address(this))) {
-                console2.log(_amountIn, token1.balanceOf(address(this)));
-                revert(Errors.LACK_OF_TOKEN1);
-            }
-        }
-        _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
-    }
-
     /// @dev called by rebalance
     function _addLiquidityInRebalance(
         int24 _lowerTick,
@@ -957,6 +942,37 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
 
         pool.collect(address(this), _lowerTick, _upperTick, type(uint128).max, type(uint128).max);
+    }
+
+    function _swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) internal {
+        uint256 _amountIn;
+        if (_zeroForOne) {
+            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
+            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.minAmountOutBPS(), MAGIC_SCALE_1E4);
+            if (_amountIn > token0.balanceOf(address(this))) {
+                console2.log(_amountIn, token0.balanceOf(address(this)));
+                revert(Errors.LACK_OF_TOKEN);
+            }
+            (, int256 _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
+            if (_minAmountOut > uint256(-_amount1Delta)) {
+                console2.log(_minAmountOut, uint256(-_amount1Delta));
+                revert(Errors.LACK_OF_AMOUNT_OUT);
+            }
+        } else {
+            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token0), address(token1));
+            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.minAmountOutBPS(), MAGIC_SCALE_1E4);
+            // avoid amountIn of USDC under $1 because of the precision loss
+            _amountIn = (_amountIn < 1e6) ? 1e6 : _amountIn;
+            if (_amountIn > token1.balanceOf(address(this))) {
+                console2.log(_amountIn, token1.balanceOf(address(this)));
+                revert(Errors.LACK_OF_TOKEN);
+            }
+            (int256 _amount0Delta, ) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
+            if (_minAmountOut > uint256(-_amount0Delta)) {
+                console2.log(_minAmountOut, uint256(-_amount0Delta));
+                revert(Errors.LACK_OF_AMOUNT_OUT);
+            }
+        }
     }
 
     function _swap(
