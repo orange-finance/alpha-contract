@@ -688,8 +688,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         uint128 _targetLiquidity = _addLiquidityInRebalance(
             _ticks.lowerTick,
             _ticks.upperTick,
-            _targetPosition.token0Balance,
-            _targetPosition.token1Balance
+            _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
+            _targetPosition.token1Balance // amount of token1 to be added to Uniswap
         );
         if (_targetLiquidity < _minNewLiquidity) {
             revert(Errors.LESS_LIQUIDITY);
