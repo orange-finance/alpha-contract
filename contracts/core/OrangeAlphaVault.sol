@@ -600,11 +600,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         // 3. Swap from USDC to ETH (if necessary)
         uint256 _repayingDebt = debtToken0.balanceOf(address(this));
-        if (token0.balanceOf(address(this)) < _repayingDebt) {
-            _swap(
+        uint256 _balanceToken0 = token0.balanceOf(address(this));
+        if (_balanceToken0 < _repayingDebt) {
+            _swapAmountOut(
                 false, //token1 to token0
-                token1.balanceOf(address(this)),
-                _ticks.currentTick.getSqrtRatioAtTick()
+                uint128(_repayingDebt - _balanceToken0),
+                _ticks.currentTick
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
@@ -617,7 +618,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         aave.safeWithdraw(address(token1), _withdrawingCollateral, address(this));
 
         // swap ETH to USDC
-        uint256 _balanceToken0 = token0.balanceOf(address(this));
+        _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 > 0) {
             _swap(
                 true, //token0 to token1
