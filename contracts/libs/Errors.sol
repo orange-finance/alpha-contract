@@ -19,4 +19,5 @@ library Errors {
     string public constant HIGH_SLIPPAGE = "35";
     string public constant LACK_OF_TOKEN0 = "36";
     string public constant LACK_OF_TOKEN1 = "37";
+    string public constant EQUAL_COLLATERAL_OR_DEBT = "38";
 }

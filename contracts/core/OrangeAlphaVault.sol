@@ -714,6 +714,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
          * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
          * Maybe, we can revert when one of them is equal.
          */
+        if (
+            _currentPosition.collateralAmount1 == _targetPosition.collateralAmount1 ||
+            _currentPosition.debtAmount0 == _targetPosition.debtAmount0
+        ) {
+            revert(Errors.EQUAL_COLLATERAL_OR_DEBT);
+        }
         unchecked {
             if (
                 //1. supply and borrow
