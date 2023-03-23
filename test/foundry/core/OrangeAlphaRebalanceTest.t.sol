@@ -22,6 +22,36 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
     // int24 public stoplossUpperTick = -203160;
     // currentTick = -204714;
 
+    function test_getRebalancedLiquidity_Success() public {
+        uint256 _hedgeRatio = 100e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        uint128 _liquidity = vault.getRebalancedLiquidity(
+            lowerTick,
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        );
+
+        IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            vault.getLtvByRange(currentTick, stoplossUpperTick),
+            _hedgeRatio
+        );
+        //compute liquidity
+        uint128 _liquidity2 = LiquidityAmounts.getLiquidityForAmounts(
+            currentTick.getSqrtRatioAtTick(),
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            _position.token0Balance,
+            _position.token1Balance
+        );
+        assertEq(_liquidity, _liquidity2);
+    }
+
     function test_rebalance_RevertTickSpacing() public {
         uint256 _hedgeRatio = 100e6;
         vm.expectRevert(bytes(Errors.INVALID_TICKS));

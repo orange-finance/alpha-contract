@@ -948,7 +948,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         uint256 _amountIn;
         if (_zeroForOne) {
             _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.minAmountOutBPS(), MAGIC_SCALE_1E4);
+            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
             if (_amountIn > token0.balanceOf(address(this))) {
                 console2.log(_amountIn, token0.balanceOf(address(this)));
                 revert(Errors.LACK_OF_TOKEN);
@@ -960,7 +960,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             }
         } else {
             _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token0), address(token1));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.minAmountOutBPS(), MAGIC_SCALE_1E4);
+            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
             // avoid amountIn of USDC under $1 because of the precision loss
             _amountIn = (_amountIn < 1e6) ? 1e6 : _amountIn;
             if (_amountIn > token1.balanceOf(address(this))) {

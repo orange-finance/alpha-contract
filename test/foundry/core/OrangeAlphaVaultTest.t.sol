@@ -195,36 +195,9 @@ contract OrangeAlphaVaultTest is OrangeAlphaBase, IOrangeAlphaVaultEvent {
         assertGe(_underlyingAssets.token1Balance, 0);
     }
 
-    function test_getRebalancedLiquidity_Success() public {
-        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
-        uint128 _liquidity = vault.getRebalancedLiquidity(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO
-        );
+    //getRebalancedLiquidity is tested in OrangeAlphaRebalanceTest.t.sol
 
-        IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
-            10_000 * 1e6,
-            _ticks.currentTick,
-            lowerTick,
-            upperTick,
-            vault.getLtvByRange(_ticks.currentTick, stoplossUpperTick),
-            HEDGE_RATIO
-        );
-        //compute liquidity
-        uint128 _liquidity2 = LiquidityAmounts.getLiquidityForAmounts(
-            _ticks.currentTick.getSqrtRatioAtTick(),
-            lowerTick.getSqrtRatioAtTick(),
-            upperTick.getSqrtRatioAtTick(),
-            _position.token0Balance,
-            _position.token1Balance
-        );
-        assertEq(_liquidity, _liquidity2);
-    }
-
-    //computeRebalancePosition is tested in test_computeRebalancePosition_Success
+    //computeRebalancePosition is tested in OrangeAlphaComputeRebalancePositionTest.t.sol
 
     function test_getLtvByRange_Success1() public {
         uint256 _currentPrice = vault.quoteEthPriceByTick(_ticks.currentTick);

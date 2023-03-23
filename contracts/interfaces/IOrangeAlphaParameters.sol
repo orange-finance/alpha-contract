@@ -12,8 +12,6 @@ interface IOrangeAlphaParameters {
 
     function tickSlippageBPS() external view returns (uint24);
 
-    function minAmountOutBPS() external view returns (uint16);
-
     function twapSlippageInterval() external view returns (uint32);
 
     function maxLtv() external view returns (uint32);

@@ -38,7 +38,6 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         minDepositAmount = 100 * 1e6;
         slippageBPS = 500; // default: 5% slippage
         tickSlippageBPS = 10;
-        minAmountOutBPS = 1000; // default: 10% slippage
         twapSlippageInterval = 5 minutes;
         maxLtv = 80000000; //80%
         lockupPeriod = 7 days;
@@ -79,17 +78,6 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         }
         slippageBPS = _slippageBPS;
         tickSlippageBPS = _tickSlippageBPS;
-    }
-
-    /**
-     * @notice Set parameters of minAmountOutBPS
-     * @param _minAmountOutBPS Min amount out BPS
-     */
-    function setMinAmountOutBPS(uint16 _minAmountOutBPS) external onlyOwner {
-        if (_minAmountOutBPS > MAGIC_SCALE_1E4) {
-            revert(PARAM);
-        }
-        minAmountOutBPS = _minAmountOutBPS;
     }
 
     /**
