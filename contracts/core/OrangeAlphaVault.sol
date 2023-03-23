@@ -492,7 +492,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         //burn
         _burn(_receiver, _shares);
 
-        // 1. Remove liquidity and collect fees
+        // 1. Remove liquidity by shares and collect all fees
         (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) = _redeemLiqidityByShares(
             _shares,
             _totalSupply,
@@ -500,6 +500,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         );
 
         //compute redeem positions except liquidity
+        //because liquidity is computed by shares
+        //so `token0.balanceOf(address(this)) - _burnedLiquidityAmount0` means remaining balance and colleted fee
         Positions memory _redeemPosition = _computeTargetPositionByShares(
             debtToken0.balanceOf(address(this)),
             aToken1.balanceOf(address(this)),
@@ -509,7 +511,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _totalSupply
         );
 
-        //_redeemedBalances are currently hold balances in this vault and will transfer to receiver
+        // `_redeemedBalances` are currently hold balances in this vault and will transfer to receiver
         Balances memory _redeemableBalances = Balances(
             _redeemPosition.token0Balance + _burnedLiquidityAmount0,
             _redeemPosition.token1Balance + _burnedLiquidityAmount1
