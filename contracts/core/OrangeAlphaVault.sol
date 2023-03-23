@@ -279,12 +279,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         // console2.log(_amount0ValueInToken1, "_amount0ValueInToken1");
 
         //compute collateral/asset ratio
-        uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount0ValueInToken1, _amount1);
+        uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
         // console2.log(_x, "_x");
         uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
             _ltv +
             MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
-            MAGIC_SCALE_1E8.mulDiv(_ltv, (_hedgeRatio.mulDiv(_x, MAGIC_SCALE_1E8)));
+            MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
         // console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
 
         //Collateral
@@ -960,7 +960,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         bool _zeroForOne,
         uint256 _swapAmount,
         uint256 _currentSqrtRatioX96
-    ) internal returns (int256 _amount0Delta, int256 _amount1Delta) {
+    ) internal returns (int256, int256) {
         uint160 _swapThresholdPrice;
         if (_zeroForOne) {
             _swapThresholdPrice = uint160(
