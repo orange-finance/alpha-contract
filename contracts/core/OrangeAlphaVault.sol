@@ -408,7 +408,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 );
 
             // 5. swap surplus amount0 or amount1
-            _swapSurplusAmount(_depositedBalances, _additionalLiquidityAmount0, _additionalLiquidityAmount1, _ticks);
+            _swapSurplusAmountInDeposit(
+                _depositedBalances,
+                _additionalLiquidityAmount0,
+                _additionalLiquidityAmount1,
+                _ticks
+            );
 
             // 6. add liquidity
             (uint256 _token0Balance, uint256 _token1Balance) = pool.mint(
@@ -427,7 +432,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
     ///@notice swap surplus amount0 or amount1
     ///@dev called by _depositLiquidityByShares
-    function _swapSurplusAmount(
+    function _swapSurplusAmountInDeposit(
         Balances memory _balances,
         uint256 _targetAmount0,
         uint256 _targetAmount1,
@@ -525,11 +530,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         // 3. Swap from USDC to ETH (if necessary)
         if (_redeemableBalances.balance0 < _redeemPosition.debtAmount0) {
-            //TODO _swapAmountOut
-            (int256 amount0Delta, int256 amount1Delta) = _swap(
+            (int256 amount0Delta, int256 amount1Delta) = _swapAmountOut(
                 false, //token1 to token0
-                _redeemableBalances.balance1,
-                _ticks.currentTick.getSqrtRatioAtTick()
+                uint128(_redeemPosition.debtAmount0 - _redeemableBalances.balance0),
+                _ticks.currentTick
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
             _redeemableBalances.balance0 = uint256(SafeCast.toInt256(_redeemableBalances.balance0) - amount0Delta);
@@ -952,7 +956,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         pool.collect(address(this), _lowerTick, _upperTick, type(uint128).max, type(uint128).max);
     }
 
-    function _swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) internal {
+    function _swapAmountOut(
+        bool _zeroForOne,
+        uint128 _minAmountOut,
+        int24 _tick
+    ) internal returns (int256 _amount0Delta, int256 _amount1Delta) {
         uint256 _amountIn;
         if (_zeroForOne) {
             _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
@@ -961,7 +969,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 console2.log(_amountIn, token0.balanceOf(address(this)));
                 revert(Errors.LACK_OF_TOKEN);
             }
-            (, int256 _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
+            (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount1Delta)) {
                 console2.log(_minAmountOut, uint256(-_amount1Delta));
                 revert(Errors.LACK_OF_AMOUNT_OUT);
@@ -975,7 +983,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 console2.log(_amountIn, token1.balanceOf(address(this)));
                 revert(Errors.LACK_OF_TOKEN);
             }
-            (int256 _amount0Delta, ) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
+            (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount0Delta)) {
                 console2.log(_minAmountOut, uint256(-_amount0Delta));
                 revert(Errors.LACK_OF_AMOUNT_OUT);

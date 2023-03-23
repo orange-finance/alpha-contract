@@ -178,7 +178,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         assertEq(_balance.balance1 - _additionalLiquidityAmount1, 1);
     }
 
-    function test_swapSurplusAmount_Revert() public {
+    function test_swapSurplusAmountInDeposit_Revert() public {
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
@@ -197,10 +197,10 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
 
         //transfer token0 and token1 to vault
         vm.expectRevert(bytes(Errors.SURPLUS_ZERO));
-        vault.swapSurplusAmount(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
     }
 
-    function test_swapSurplusAmount_Success1NoSwap() public {
+    function test_swapSurplusAmountInDeposit_Success1NoSwap() public {
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
@@ -222,13 +222,13 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
         //assertion
         assertEq(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0);
         assertEq(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1);
     }
 
-    function test_swapSurplusAmount_Success2SwapAmount0() public {
+    function test_swapSurplusAmountInDeposit_Success2SwapAmount0() public {
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
@@ -253,13 +253,13 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
         //assertion
         assertEq(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0 - 1e14);
         assertGt(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1);
     }
 
-    function test_swapSurplusAmount_Success3SwapAmount1() public {
+    function test_swapSurplusAmountInDeposit_Success3SwapAmount1() public {
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
@@ -284,7 +284,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmount(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
         //assertion
         assertGt(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0);
         assertEq(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1 - 10);
