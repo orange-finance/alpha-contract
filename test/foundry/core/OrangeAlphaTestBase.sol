@@ -19,7 +19,7 @@ import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol
 import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract OrangeAlphaBase is BaseTest {
+contract OrangeAlphaTestBase is BaseTest {
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "./OrangeAlphaBase.sol";
+import "./OrangeAlphaTestBase.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -16,7 +16,7 @@ import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol
 import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract OrangeAlphaComputeRebalancePositionTest is OrangeAlphaBase {
+contract OrangeAlphaComputeRebalancePositionTest is OrangeAlphaTestBase {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
