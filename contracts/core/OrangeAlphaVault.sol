@@ -364,7 +364,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         );
 
         // Add liquidity
+        console2.log(_depositedBalances.balance0, "before _depositedBalances.balance0");
+        console2.log(_depositedBalances.balance1, "before _depositedBalances.balance1");
         _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
+        console2.log(_depositedBalances.balance0, "after _depositedBalances.balance0");
+        console2.log(_depositedBalances.balance1, "after _depositedBalances.balance1");
 
         // Transfer surplus amount to receiver
         if (_depositedBalances.balance0 > 0) {
@@ -394,9 +398,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, _totalSupply));
 
         if (_additionalLiquidity > 0) {
+            (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
             (uint256 _additionalLiquidityAmount0, uint256 _additionalLiquidityAmount1) = LiquidityAmounts
                 .getAmountsForLiquidity(
-                    _ticks.currentTick.getSqrtRatioAtTick(),
+                    _sqrtRatioX96,
                     _ticks.lowerTick.getSqrtRatioAtTick(),
                     _ticks.upperTick.getSqrtRatioAtTick(),
                     _additionalLiquidity
@@ -413,6 +418,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _additionalLiquidity,
                 ""
             );
+            console2.log(_token0Balance, "_token0Balance");
+            console2.log(_token1Balance, "_token1Balance");
             _depositedBalances.balance0 -= _token0Balance;
             _depositedBalances.balance1 -= _token1Balance;
         }

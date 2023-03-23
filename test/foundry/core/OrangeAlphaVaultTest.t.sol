@@ -43,12 +43,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.redeem(0, address(this), address(0), 0);
     }
 
-    function test_onlyStrategists_Revert() public {
-        vm.startPrank(alice);
-        vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS));
-        vault.rebalance(0, 0, 0, 0, 0, 0);
-    }
-
     /* ========== CONSTRUCTOR ========== */
     function test_constructor_Success() public {
         assertEq(vault.decimals(), IERC20Decimals(address(token1)).decimals());
@@ -241,7 +235,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    // deposit,_swapSurplusAmount are tested in OrangeAlphaVaultDepositTest.t.t.sol
+    // deposit,_depositLiquidityByShares,_swapSurplusAmount are tested in OrangeAlphaVaultDepositTest.t.sol
 
     function test_redeem_Revert1() public {
         vm.expectRevert(bytes(Errors.INVALID_AMOUNT));
@@ -370,7 +364,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
     }
 
-    // rebalance,_swapAmountOut,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
+    // rebalance,_executeHedgeRebalance,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
 
     function test_eventAction_Success() public {
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
@@ -492,6 +486,26 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         (uint256 burn0_, uint256 burn1_) = vault.burnAndCollectFees(lowerTick, upperTick);
         assertApproxEqRel(_underlyingAssets.liquidityAmount0, burn0_, 1e16);
         assertApproxEqRel(_underlyingAssets.liquidityAmount1, burn1_, 1e16);
+    }
+
+    function test_swapAmountOut_Revert() public {
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
+        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+
+        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
+        vault.swapAmountOut(false, 10 ether, currentTick);
+    }
+
+    function test_swapAmountOut_Success0() public {
+        token0.transfer(address(vault), 10 ether);
+        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        assertApproxEqRel(token1.balanceOf(address(vault)), 10000 * 1e6, 5e16); //5%
+    }
+
+    function test_swapAmountOut_Success1() public {
+        token1.transfer(address(vault), 10000 * 1e6);
+        vault.swapAmountOut(false, 2 ether, currentTick);
+        assertApproxEqRel(token0.balanceOf(address(vault)), 2 ether, 5e16); //5%
     }
 
     function test_swap_Success1() public {

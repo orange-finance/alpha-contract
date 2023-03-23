@@ -124,6 +124,60 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         assertApproxEqRel(token1.balanceOf(address(this)), _beforeBalance1 - (10_000 * 1e6), 1e16);
     }
 
+    function test_depositLiquidityByShares_Success0Max() public {
+        uint _shares = 10_000 * 1e6;
+        vault.deposit(_shares, address(this), 10_000 * 1e6);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _additionalLiquidity = uint128(uint256(_liquidity).mulDiv(_shares, vault.totalSupply()));
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (uint256 _additionalLiquidityAmount0, uint256 _additionalLiquidityAmount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _additionalLiquidity
+            );
+        IOrangeAlphaVault.Balances memory _balance = IOrangeAlphaVault.Balances(
+            _additionalLiquidityAmount0 + 1,
+            _additionalLiquidityAmount1 + 1
+        );
+        token0.transfer(address(vault), _balance.balance0);
+        token1.transfer(address(vault), _balance.balance1);
+        vault.depositLiquidityByShares(_balance, _shares, vault.totalSupply(), _ticks);
+        assertEq(_balance.balance0 - _additionalLiquidityAmount0, 1);
+        assertEq(_balance.balance1 - _additionalLiquidityAmount1, 1);
+    }
+
+    function test_depositLiquidityByShares_Success1Quater() public {
+        uint _shares = 10_000 * 1e6;
+        vault.deposit(_shares, address(this), 10_000 * 1e6);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        uint128 _additionalLiquidity = uint128(uint256(_liquidity).mulDiv(_shares / 4, vault.totalSupply()));
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (uint256 _additionalLiquidityAmount0, uint256 _additionalLiquidityAmount1) = LiquidityAmounts
+            .getAmountsForLiquidity(
+                _sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _additionalLiquidity
+            );
+        IOrangeAlphaVault.Balances memory _balance = IOrangeAlphaVault.Balances(
+            _additionalLiquidityAmount0 + 1,
+            _additionalLiquidityAmount1 + 1
+        );
+        token0.transfer(address(vault), _balance.balance0);
+        token1.transfer(address(vault), _balance.balance1);
+        vault.depositLiquidityByShares(_balance, _shares / 4, vault.totalSupply(), _ticks);
+        assertEq(_balance.balance0 - _additionalLiquidityAmount0, 1);
+        assertEq(_balance.balance1 - _additionalLiquidityAmount1, 1);
+    }
+
     function test_swapSurplusAmount_Revert() public {
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);

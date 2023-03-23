@@ -117,8 +117,22 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
-    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
-        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
+    function depositLiquidityByShares(
+        Balances memory _depositedBalances,
+        uint256 _shares,
+        uint256 _totalSupply,
+        Ticks memory _ticks
+    ) external {
+        return _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
+    }
+
+    function swapSurplusAmount(
+        Balances memory _balances,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1,
+        Ticks memory _ticks
+    ) external {
+        return _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
     }
 
     function addLiquidityInRebalance(
@@ -145,13 +159,8 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _swap(_zeroForOne, _swapAmount, _currentSqrtRatioX96);
     }
 
-    function swapSurplusAmount(
-        Balances memory _balances,
-        uint256 _targetAmount0,
-        uint256 _targetAmount1,
-        Ticks memory _ticks
-    ) external {
-        return _swapSurplusAmount(_balances, _targetAmount0, _targetAmount1, _ticks);
+    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
+        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
