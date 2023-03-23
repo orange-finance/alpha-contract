@@ -656,14 +656,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
         _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, _liquidity);
 
-        // 2. get current position
-        Positions memory _currentPosition = Positions(
-            debtToken0.balanceOf(address(this)),
-            aToken1.balanceOf(address(this)),
-            token0.balanceOf(address(this)),
-            token1.balanceOf(address(this))
-        );
-
         // Update storage of ranges
         _ticks.lowerTick = _newLowerTick; //memory
         _ticks.upperTick = _newUpperTick; //memory
@@ -671,6 +663,18 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         upperTick = _newUpperTick;
         stoplossLowerTick = _newStoplossLowerTick;
         stoplossUpperTick = _newStoplossUpperTick;
+
+        if (totalSupply() == 0) {
+            return;
+        }
+
+        // 2. get current position
+        Positions memory _currentPosition = Positions(
+            debtToken0.balanceOf(address(this)),
+            aToken1.balanceOf(address(this)),
+            token0.balanceOf(address(this)),
+            token1.balanceOf(address(this))
+        );
 
         // 3. compute new position
         uint256 _ltv = _getLtvByRange(_ticks.currentTick, _newStoplossUpperTick);
