@@ -420,6 +420,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
     ///@notice swap surplus amount0 or amount1
     ///@dev called by _depositLiquidityByShares
+    //TODO into _depositLiquidityByShares
     function _swapSurplusAmount(
         Balances memory _balances,
         uint256 _targetAmount0,
@@ -518,6 +519,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         // 3. Swap from USDC to ETH (if necessary)
         if (_redeemableBalances.balance0 < _redeemPosition.debtAmount0) {
+            //TODO _swapAmountOut
             (int256 amount0Delta, int256 amount1Delta) = _swap(
                 false, //token1 to token0
                 _redeemableBalances.balance1,
@@ -570,15 +572,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _ticks.upperTick,
             _burnLiquidity
         );
-    }
-
-    /// @inheritdoc IOrangeAlphaVault
-    function emitAction() external {
-        _emitAction(ActionType.MANUAL, _getTicksByStorage());
-    }
-
-    function _emitAction(ActionType _actionType, Ticks memory _ticks) internal {
-        emit Action(_actionType, msg.sender, _totalAssets(_ticks), totalSupply());
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -850,6 +843,15 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         if (targetLiquidity_ > 0) {
             pool.mint(address(this), _lowerTick, _upperTick, targetLiquidity_, "");
         }
+    }
+
+    /// @inheritdoc IOrangeAlphaVault
+    function emitAction() external {
+        _emitAction(ActionType.MANUAL, _getTicksByStorage());
+    }
+
+    function _emitAction(ActionType _actionType, Ticks memory _ticks) internal {
+        emit Action(_actionType, msg.sender, _totalAssets(_ticks), totalSupply());
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */

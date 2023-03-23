@@ -241,8 +241,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    // deposit is tested in OrangeAlphaVaultDepositTest.t.t.sol
-    // _swapSurplusAmount is tested in OrangeAlphaVaultDepositTest.t.t.sol
+    // deposit,_swapSurplusAmount are tested in OrangeAlphaVaultDepositTest.t.t.sol
 
     function test_redeem_Revert1() public {
         vm.expectRevert(bytes(Errors.INVALID_AMOUNT));
@@ -316,13 +315,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(this)), 9_997_500 * 1e6, 1e16);
     }
 
-    function test_eventAction_Success() public {
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
-        vm.expectEmit(false, false, false, false);
-        emit Action(0, address(this), 0, 0);
-        vault.emitAction();
-    }
-
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
@@ -378,9 +370,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
     }
 
-    /* ========== OWNERS FUNCTIONS ========== */
-
     // rebalance,_swapAmountOut,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
+
+    function test_eventAction_Success() public {
+        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
+        vm.expectEmit(false, false, false, false);
+        emit Action(0, address(this), 0, 0);
+        vault.emitAction();
+    }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
     function assert_computeFeesEarned() internal {
