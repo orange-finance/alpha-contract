@@ -44,13 +44,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     int24 public stoplossUpperTick;
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3Pool public pool;
-    IERC20 public token0; //weth
-    IERC20 public token1; //usdc
-    IAaveV3Pool public aave;
-    IERC20 debtToken0; //weth
-    IERC20 aToken1; //usdc
-    IOrangeAlphaParameters public params;
+    IUniswapV3Pool public immutable pool;
+    IERC20 public immutable token0; //weth
+    IERC20 public immutable token1; //usdc
+    IAaveV3Pool public immutable aave;
+    IERC20 immutable debtToken0; //weth
+    IERC20 immutable aToken1; //usdc
+    IOrangeAlphaParameters public immutable params;
 
     /* ========== MODIFIER ========== */
     modifier onlyPeriphery() {
@@ -557,11 +557,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Ticks memory _ticks
     ) internal returns (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) {
         (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
-        uint128 _targetLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
+        uint128 _burnLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
         (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = _burnAndCollectFees(
             _ticks.lowerTick,
             _ticks.upperTick,
-            _targetLiquidity
+            _burnLiquidity
         );
     }
 
@@ -703,55 +703,76 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Positions memory _targetPosition,
         Ticks memory _ticks
     ) internal {
-        if (
-            //1. supply and borrow
-            _currentPosition.debtAmount0 < _targetPosition.debtAmount0 &&
-            _currentPosition.collateralAmount1 < _targetPosition.collateralAmount1
-        ) {
-            console2.log("case1 supply and borrow");
-            // case1 supply and borrow
-            uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1;
+        /**memo
+         * what if current.collateral == target.collateral. both borrow or repay can come after.
+         * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
+         * Maybe, we can revert when one of them is equal.
+         */
+        unchecked {
+            if (
+                //1. supply and borrow
+                _currentPosition.collateralAmount1 < _targetPosition.collateralAmount1 &&
+                _currentPosition.debtAmount0 < _targetPosition.debtAmount0
+            ) {
+                console2.log("case1 supply and borrow");
+                // case1 supply and borrow
+                uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1; //uncheckable
 
-            if (_supply > _currentPosition.token1Balance) {
-                // swap (if necessary)
-                _swapAmountOut(true, uint128(_supply - _currentPosition.token1Balance), _ticks.currentTick);
-            }
-            aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
-
-            // borrow
-            uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0;
-            aave.safeBorrow(address(token0), _borrow, AAVE_INTEREST, AAVE_REFERRAL, address(this));
-        } else {
-            if (_currentPosition.debtAmount0 > _targetPosition.debtAmount0) {
-                console2.log("case2 repay");
-                // case2 repay
-                uint256 _repay = _currentPosition.debtAmount0 - _targetPosition.debtAmount0;
-
-                // swap (if necessary)
-                if (_repay > _currentPosition.token0Balance) {
-                    _swapAmountOut(false, uint128(_repay - _currentPosition.token0Balance), _ticks.currentTick);
+                if (_supply > _currentPosition.token1Balance) {
+                    // swap (if necessary)
+                    _swapAmountOut(
+                        true,
+                        uint128(_supply - _currentPosition.token1Balance), //uncheckable
+                        _ticks.currentTick
+                    );
                 }
-                aave.safeRepay(address(token0), _repay, AAVE_INTEREST, address(this));
+                aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
 
-                if (_currentPosition.collateralAmount1 < _targetPosition.collateralAmount1) {
-                    console2.log("case2_1 repay and supply");
-                    // case2_1 repay and supply
-                    uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1;
-                    aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
-                } else {
-                    console2.log("case2_2 repay and withdraw");
-                    // case2_2 repay and withdraw
-                    uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1;
-                    aave.safeWithdraw(address(token1), _withdraw, address(this));
-                }
-            } else {
-                console2.log("case3 borrow and withdraw");
-                // case3 borrow and withdraw
-                uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0;
+                // borrow
+                uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable
                 aave.safeBorrow(address(token0), _borrow, AAVE_INTEREST, AAVE_REFERRAL, address(this));
-                // withdraw
-                uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1;
-                aave.safeWithdraw(address(token1), _withdraw, address(this));
+            } else {
+                if (_currentPosition.debtAmount0 > _targetPosition.debtAmount0) {
+                    console2.log("case2 repay");
+                    // case2 repay
+                    uint256 _repay = _currentPosition.debtAmount0 - _targetPosition.debtAmount0; //uncheckable
+
+                    // swap (if necessary)
+                    if (_repay > _currentPosition.token0Balance) {
+                        _swapAmountOut(
+                            false,
+                            uint128(_repay - _currentPosition.token0Balance), //uncheckable
+                            _ticks.currentTick
+                        );
+                    }
+                    aave.safeRepay(address(token0), _repay, AAVE_INTEREST, address(this));
+
+                    if (_currentPosition.collateralAmount1 < _targetPosition.collateralAmount1) {
+                        console2.log("case2_1 repay and supply");
+                        // case2_1 repay and supply
+                        uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1; //uncheckable
+                        aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
+                    } else {
+                        console2.log("case2_2 repay and withdraw");
+                        // case2_2 repay and withdraw
+                        uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //uncheckable. //possibly, equal
+                        if (_withdraw > 0) {
+                            aave.safeWithdraw(address(token1), _withdraw, address(this));
+                        }
+                    }
+                } else {
+                    console2.log("case3 borrow and withdraw");
+                    // case3 borrow and withdraw
+                    uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable. //possibly, equal
+                    if (_borrow > 0) {
+                        aave.safeBorrow(address(token0), _borrow, AAVE_INTEREST, AAVE_REFERRAL, address(this));
+                    }
+                    // withdraw should be the only option here.
+                    uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //should be uncheckable. //possibly, equal
+                    if (_withdraw > 0) {
+                        aave.safeWithdraw(address(token1), _withdraw, address(this));
+                    }
+                }
             }
         }
     }
@@ -794,14 +815,24 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
             //no need to swap
         } else {
-            if (_balance0 > _targetAmount0) {
-                console2.log("_addLiquidityInRebalance case1");
-                (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                _swap(true, uint128(_balance0 - _targetAmount0), _sqrtRatioX96);
-            } else if (_balance1 > _targetAmount1) {
-                console2.log("_addLiquidityInRebalance case2");
-                (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                _swap(false, uint128(_balance1 - _targetAmount1), _sqrtRatioX96);
+            unchecked {
+                if (_balance0 > _targetAmount0) {
+                    console2.log("_addLiquidityInRebalance case1");
+                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
+                    _swap(
+                        true,
+                        uint128(_balance0 - _targetAmount0), //uncheckable
+                        _sqrtRatioX96
+                    );
+                } else if (_balance1 > _targetAmount1) {
+                    console2.log("_addLiquidityInRebalance case2");
+                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
+                    _swap(
+                        false,
+                        uint128(_balance1 - _targetAmount1), //uncheckable
+                        _sqrtRatioX96
+                    );
+                }
             }
         }
 
