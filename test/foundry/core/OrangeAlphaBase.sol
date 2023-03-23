@@ -46,9 +46,7 @@ contract OrangeAlphaBase is BaseTest {
     // currentTick = -204714;
 
     function setUp() public virtual {
-        (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(
-            block.chainid
-        );
+        (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
 
         params = new OrangeAlphaParameters();
         router = ISwapRouter(uniswapAddr.routerAddr); //for test
@@ -97,10 +95,7 @@ contract OrangeAlphaBase is BaseTest {
     }
 
     /* ========== TEST functions ========== */
-    function swapByCarol(
-        bool _zeroForOne,
-        uint256 _amountIn
-    ) internal returns (uint256 amountOut_) {
+    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
         ISwapRouter.ExactInputSingleParams memory inputParams;
         if (_zeroForOne) {
             inputParams = ISwapRouter.ExactInputSingleParams({
@@ -136,36 +131,28 @@ contract OrangeAlphaBase is BaseTest {
     }
 
     function consoleUnderlyingAssets() internal view {
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
+        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
         console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
-        console2.log(_underlyingAssets.amount0Current, "amount0Current");
-        console2.log(_underlyingAssets.amount1Current, "amount1Current");
+        console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
+        console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
         console2.log(_underlyingAssets.accruedFees0, "accruedFees0");
         console2.log(_underlyingAssets.accruedFees1, "accruedFees1");
-        console2.log(_underlyingAssets.amount0Balance, "amount0Balance");
-        console2.log(_underlyingAssets.amount1Balance, "amount1Balance");
+        console2.log(_underlyingAssets.token0Balance, "token0Balance");
+        console2.log(_underlyingAssets.token1Balance, "token1Balance");
         console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
     }
 
     function consoleCurrentPosition() internal view {
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
+        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
         console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
         console2.log(debtToken0.balanceOf(address(vault)), "debtAmount0");
         console2.log(aToken1.balanceOf(address(vault)), "supplyAmount1");
-        console2.log(_underlyingAssets.amount0Current, "amount0Added");
-        console2.log(_underlyingAssets.amount1Current, "amount1Added");
+        console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
+        console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
         console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
     }
 
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
-        return
-            OracleLibrary.getQuoteAtTick(
-                _tick,
-                1 ether,
-                address(token0),
-                address(token1)
-            );
+        return OracleLibrary.getQuoteAtTick(_tick, 1 ether, address(token0), address(token1));
     }
 }

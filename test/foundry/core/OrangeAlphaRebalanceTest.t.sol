@@ -25,30 +25,15 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
     function test_rebalance_RevertTickSpacing() public {
         uint256 _hedgeRatio = 100e6;
         vm.expectRevert(bytes(Errors.INVALID_TICKS));
-        vault.rebalance(
-            -1,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        vault.rebalance(-1, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
         vm.expectRevert(bytes(Errors.INVALID_TICKS));
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            -1,
-            _hedgeRatio,
-            1
-        );
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, -1, _hedgeRatio, 1);
     }
 
     function test_rebalance_RevertNewLiquidity() public {
         uint256 _hedgeRatio = 100e6;
         //prepare
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
 
         vault.deposit(10_000 * 1e6, address(this), _shares);
 
@@ -61,14 +46,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         );
 
         vm.expectRevert(bytes(Errors.LESS_LIQUIDITY));
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            _liquidity
-        );
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
     }
 
     function test_rebalance_Success0() public {
@@ -78,14 +56,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         int24 _newUpperTick = -205680;
         int24 _newStoplossLowerTick = -208740;
         int24 _newStoplossUpperTick = -204480;
-        vault.rebalance(
-            _newLowerTick,
-            _newUpperTick,
-            _newStoplossLowerTick,
-            _newStoplossUpperTick,
-            _hedgeRatio,
-            0
-        );
+        vault.rebalance(_newLowerTick, _newUpperTick, _newStoplossLowerTick, _newStoplossUpperTick, _hedgeRatio, 0);
         assertEq(vault.lowerTick(), _newLowerTick);
         assertEq(vault.upperTick(), _newUpperTick);
         assertEq(vault.stoplossLowerTick(), _newStoplossLowerTick);
@@ -95,8 +66,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
 
     function test_rebalance_Success1() public {
         uint256 _hedgeRatio = 100e6;
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(10_000 * 1e6, address(this), _shares);
 
         skip(1);
@@ -109,14 +79,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
             stoplossUpperTick,
             _hedgeRatio
         ) * 9900) / MAGIC_SCALE_1E4;
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            _liquidity
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
 
         (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
         assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
@@ -130,8 +93,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
 
     function test_rebalance_Success2UnderRange() public {
         uint256 _hedgeRatio = 100e6;
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(10_000 * 1e6, address(this), _shares);
 
         skip(1);
@@ -148,14 +110,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
             stoplossUpperTick,
             _hedgeRatio
         ) * 9900) / MAGIC_SCALE_1E4;
-        _rebalance(
-            _newLowerTick,
-            _newUpperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            _liquidity
-        );
+        _rebalance(_newLowerTick, _newUpperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
 
         (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
         assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
@@ -163,8 +118,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
 
     function test_rebalance_Success3OverRange() public {
         uint256 _hedgeRatio = 100e6;
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(10_000 * 1e6, address(this), _shares);
 
         skip(1);
@@ -181,14 +135,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
             stoplossUpperTick,
             _hedgeRatio
         ) * 9900) / MAGIC_SCALE_1E4;
-        _rebalance(
-            _newLowerTick,
-            _newUpperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            _liquidity
-        );
+        _rebalance(_newLowerTick, _newUpperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
 
         (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
         assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
@@ -197,8 +144,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
     //Supply and Borrow
     function test_rebalance_SuccessCase1() public {
         //deposit
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
 
         (, currentTick, , , , , ) = pool.slot0();
@@ -213,33 +159,18 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         );
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
     }
 
     //Repay and Withdraw
     function test_rebalance_SuccessCase2() public {
         uint256 _hedgeRatio = 100e6;
         //deposit
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
 
         _hedgeRatio = 50e6;
         // (, currentTick, , , , , ) = pool.slot0();
@@ -254,33 +185,18 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         // return;
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
     }
 
     //Repay and Supply
     function test_rebalance_SuccessCase3() public {
         uint256 _hedgeRatio = 100e6;
         //deposit
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
 
         // lowerTick = -205020;
         // int24 public lowerTick = -205680;
@@ -306,33 +222,18 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         // return;
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
     }
 
     //Borrow and Withdraw
     function test_rebalance_SuccessCase4() public {
         uint256 _hedgeRatio = 100e6;
         //deposit
-        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) /
-            MAGIC_SCALE_1E4;
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
 
         _hedgeRatio = 115e6;
         upperTick = -204000;
@@ -349,14 +250,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         // return;
 
         skip(1);
-        _rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            1
-        );
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
     }
 
     function _rebalance(
@@ -370,14 +264,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         uint _beforeAssets = vault.totalAssets();
 
         //rebalance
-        vault.rebalance(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            _hedgeRatio,
-            _minNewLiquidity
-        );
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _minNewLiquidity);
 
         // consoleUnderlyingAssets();
         consoleCurrentPosition();
@@ -389,22 +276,15 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         uint256 _ltv = vault.getLtvByRange(currentTick, stoplossUpperTick);
         uint256 _supply = aToken1.balanceOf(address(vault));
         uint256 _debt = debtToken0.balanceOf(address(vault));
-        uint256 _debtUsdc = OracleLibrary.getQuoteAtTick(
-            currentTick,
-            uint128(_debt),
-            address(token0),
-            address(token1)
-        );
+        uint256 _debtUsdc = OracleLibrary.getQuoteAtTick(currentTick, uint128(_debt), address(token0), address(token1));
         uint256 _computedLtv = (_debtUsdc * MAGIC_SCALE_1E8) / _supply;
         // console.log("computedLtv", _computedLtv);
         // console.log("ltv", _ltv);
         assertApproxEqRel(_computedLtv, _ltv, 1e16);
 
         //hedge ratio
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault
-            .getUnderlyingBalances();
-        uint256 _hedgeRatioComputed = (_debt * MAGIC_SCALE_1E8) /
-            _underlyingAssets.amount0Current;
+        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
+        uint256 _hedgeRatioComputed = (_debt * MAGIC_SCALE_1E8) / _underlyingAssets.liquidityAmount0;
         // console.log("hedgeRatioComputed", _hedgeRatioComputed);
         assertApproxEqRel(_hedgeRatioComputed, _hedgeRatio, 1e16);
 
@@ -440,12 +320,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         //no need to swap
         token0.transfer(address(vault), 10 ether);
         token1.transfer(address(vault), 10000 * 1e6);
-        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
-            lowerTick,
-            upperTick,
-            10 ether,
-            10000 * 1e6
-        );
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(lowerTick, upperTick, 10 ether, 10000 * 1e6);
         uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
         assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
     }
@@ -454,12 +329,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         //swap 0 to 1
         token0.transfer(address(vault), 10 ether);
         token1.transfer(address(vault), 5000 * 1e6);
-        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
-            lowerTick,
-            upperTick,
-            5 ether,
-            10000 * 1e6
-        );
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(lowerTick, upperTick, 5 ether, 10000 * 1e6);
         uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
         assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
     }
@@ -468,12 +338,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         //swap 1 to 0
         token0.transfer(address(vault), 3 ether);
         token1.transfer(address(vault), 20000 * 1e6);
-        uint128 _targetLiquidity = vault.addLiquidityInRebalance(
-            lowerTick,
-            upperTick,
-            5 ether,
-            10000 * 1e6
-        );
+        uint128 _targetLiquidity = vault.addLiquidityInRebalance(lowerTick, upperTick, 5 ether, 10000 * 1e6);
         uint128 _liquidity = vault.getLiquidity(lowerTick, upperTick);
         assertApproxEqRel(_liquidity, _targetLiquidity, 1e16);
     }
@@ -486,15 +351,14 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaBase {
         uint256 _ltv,
         uint256 _hedgeRatio
     ) private {
-        IOrangeAlphaVault.Positions memory _position = vault
-            .computeRebalancePosition(
-                _assets,
-                _currentTick,
-                _lowerTick,
-                _upperTick,
-                _ltv,
-                _hedgeRatio
-            );
+        IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
+            _assets,
+            _currentTick,
+            _lowerTick,
+            _upperTick,
+            _ltv,
+            _hedgeRatio
+        );
         console.log("++++++++ _consolecomputeRebalancePosition ++++++++");
         console.log(_position.debtAmount0, "debtAmount0");
         console.log(_position.collateralAmount1, "collateralAmount1");

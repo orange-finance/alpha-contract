@@ -27,19 +27,19 @@ interface IOrangeAlphaVault {
     }
 
     struct Positions {
-        uint256 debtAmount0;
-        uint256 collateralAmount1;
-        uint256 token0Balance;
-        uint256 token1Balance;
+        uint256 debtAmount0; //debt amount of token0 on Lending
+        uint256 collateralAmount1; //collateral amount of token1 on Lending
+        uint256 token0Balance; //balance of token0
+        uint256 token1Balance; //balance of token1
     }
 
     struct UnderlyingAssets {
-        uint256 amount0Current;
-        uint256 amount1Current;
-        uint256 accruedFees0;
-        uint256 accruedFees1;
-        uint256 amount0Balance;
-        uint256 amount1Balance;
+        uint256 liquidityAmount0; //liquidity amount of token0 on Uniswap
+        uint256 liquidityAmount1; //liquidity amount of token1 on Uniswap
+        uint256 accruedFees0; //fees of token0 on Uniswap
+        uint256 accruedFees1; //fees of token1 on Uniswap
+        uint256 token0Balance; //balance of token0
+        uint256 token1Balance; //balance of token1
     }
 
     /* ========== EVENTS ========== */

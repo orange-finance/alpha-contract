@@ -27,11 +27,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
-    function setAaveTokens(address _debtToken0, address _aToken1) external {
-        debtToken0 = IERC20(_debtToken0);
-        aToken1 = IERC20(_aToken1);
-    }
-
     function setTicks(int24 _lowerTick, int24 _upperTick) external {
         _validateTicks(_lowerTick, _upperTick);
         lowerTick = _lowerTick;

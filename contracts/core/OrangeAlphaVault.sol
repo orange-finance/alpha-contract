@@ -33,8 +33,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
-    uint16 constant AAVE_REFERRAL = 0; //for aave
-    uint256 constant AAVE_INTEREST = 2; //for aave
+    uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
+    uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
 
     /* ========== STORAGES ========== */
     bool public hasPosition;
@@ -117,13 +117,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         uint256 amount0Debt = debtToken0.balanceOf(address(this));
         uint256 amount1Supply = aToken1.balanceOf(address(this));
 
-        uint256 amount0Current = _underlyingAssets.amount0Current +
+        uint256 amount0Balance = _underlyingAssets.liquidityAmount0 +
             _underlyingAssets.accruedFees0 +
-            _underlyingAssets.amount0Balance;
-        uint256 amount1Current = _underlyingAssets.amount1Current +
+            _underlyingAssets.token0Balance;
+        uint256 amount1Balance = _underlyingAssets.liquidityAmount1 +
             _underlyingAssets.accruedFees1 +
-            _underlyingAssets.amount1Balance;
-        return _alignTotalAsset(_ticks, amount0Current, amount1Current, amount0Debt, amount1Supply);
+            _underlyingAssets.token1Balance;
+        return _alignTotalAsset(_ticks, amount0Balance, amount1Balance, amount0Debt, amount1Supply);
     }
 
     /**
@@ -133,22 +133,22 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
      */
     function _alignTotalAsset(
         Ticks memory _ticks,
-        uint256 amount0Current,
-        uint256 amount1Current,
+        uint256 amount0Balance,
+        uint256 amount1Balance,
         uint256 amount0Debt,
         uint256 amount1Supply
     ) internal view returns (uint256 totalAlignedAssets) {
-        if (amount0Current < amount0Debt) {
-            uint256 amount0deducted = amount0Debt - amount0Current;
+        if (amount0Balance < amount0Debt) {
+            uint256 amount0deducted = amount0Debt - amount0Balance;
             amount0deducted = OracleLibrary.getQuoteAtTick(
                 _ticks.currentTick,
                 uint128(amount0deducted),
                 address(token0),
                 address(token1)
             );
-            totalAlignedAssets = amount1Current + amount1Supply - amount0deducted;
+            totalAlignedAssets = amount1Balance + amount1Supply - amount0deducted;
         } else {
-            uint256 amount0Added = amount0Current - amount0Debt;
+            uint256 amount0Added = amount0Balance - amount0Debt;
             if (amount0Added > 0) {
                 amount0Added = OracleLibrary.getQuoteAtTick(
                     _ticks.currentTick,
@@ -157,7 +157,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                     address(token1)
                 );
             }
-            totalAlignedAssets = amount1Current + amount1Supply + amount0Added;
+            totalAlignedAssets = amount1Balance + amount1Supply + amount0Added;
         }
     }
 
@@ -184,7 +184,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         // compute current holdings from liquidity
         if (liquidity > 0) {
-            (underlyingAssets.amount0Current, underlyingAssets.amount1Current) = LiquidityAmounts
+            (underlyingAssets.liquidityAmount0, underlyingAssets.liquidityAmount1) = LiquidityAmounts
                 .getAmountsForLiquidity(
                     _ticks.currentTick.getSqrtRatioAtTick(),
                     _ticks.lowerTick.getSqrtRatioAtTick(),
@@ -200,8 +200,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _computeFeesEarned(false, feeGrowthInside1Last, liquidity, _ticks) +
             uint256(tokensOwed1);
 
-        underlyingAssets.amount0Balance = token0.balanceOf(address(this));
-        underlyingAssets.amount1Balance = token1.balanceOf(address(this));
+        underlyingAssets.token0Balance = token0.balanceOf(address(this));
+        underlyingAssets.token1Balance = token1.balanceOf(address(this));
     }
 
     ///@dev called by deposit and redeem
@@ -349,8 +349,14 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
         // Execute hedge
-        aave.safeSupply(address(token1), _additionalPosition.collateralAmount1, address(this), AAVE_REFERRAL);
-        aave.safeBorrow(address(token0), _additionalPosition.debtAmount0, AAVE_INTEREST, AAVE_REFERRAL, address(this));
+        aave.safeSupply(address(token1), _additionalPosition.collateralAmount1, address(this), AAVE_REFERRAL_NONE);
+        aave.safeBorrow(
+            address(token0),
+            _additionalPosition.debtAmount0,
+            AAVE_VARIABLE_INTEREST,
+            AAVE_REFERRAL_NONE,
+            address(this)
+        );
 
         // _depositedBalances are deposited balances by sender and will add to pool as liquidity
         Balances memory _depositedBalances = Balances(
@@ -522,7 +528,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
 
         // 4. Repay ETH
-        aave.safeRepay(address(token0), _redeemPosition.debtAmount0, AAVE_INTEREST, address(this));
+        aave.safeRepay(address(token0), _redeemPosition.debtAmount0, AAVE_VARIABLE_INTEREST, address(this));
         _redeemableBalances.balance0 -= _redeemPosition.debtAmount0;
 
         // 5. Withdraw USDC as collateral
@@ -604,7 +610,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
 
         // 4. Repay ETH
-        aave.safeRepay(address(token0), _repayingDebt, AAVE_INTEREST, address(this));
+        aave.safeRepay(address(token0), _repayingDebt, AAVE_VARIABLE_INTEREST, address(this));
 
         // 5. Withdraw USDC as collateral
         uint256 _withdrawingCollateral = aToken1.balanceOf(address(this));
@@ -726,11 +732,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                         _ticks.currentTick
                     );
                 }
-                aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
+                aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
 
                 // borrow
                 uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable
-                aave.safeBorrow(address(token0), _borrow, AAVE_INTEREST, AAVE_REFERRAL, address(this));
+                aave.safeBorrow(address(token0), _borrow, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
             } else {
                 if (_currentPosition.debtAmount0 > _targetPosition.debtAmount0) {
                     console2.log("case2 repay");
@@ -745,13 +751,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                             _ticks.currentTick
                         );
                     }
-                    aave.safeRepay(address(token0), _repay, AAVE_INTEREST, address(this));
+                    aave.safeRepay(address(token0), _repay, AAVE_VARIABLE_INTEREST, address(this));
 
                     if (_currentPosition.collateralAmount1 < _targetPosition.collateralAmount1) {
                         console2.log("case2_1 repay and supply");
                         // case2_1 repay and supply
                         uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1; //uncheckable
-                        aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL);
+                        aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
                     } else {
                         console2.log("case2_2 repay and withdraw");
                         // case2_2 repay and withdraw
@@ -765,7 +771,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable. //possibly, equal
                     if (_borrow > 0) {
-                        aave.safeBorrow(address(token0), _borrow, AAVE_INTEREST, AAVE_REFERRAL, address(this));
+                        aave.safeBorrow(
+                            address(token0),
+                            _borrow,
+                            AAVE_VARIABLE_INTEREST,
+                            AAVE_REFERRAL_NONE,
+                            address(this)
+                        );
                     }
                     // withdraw should be the only option here.
                     uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //should be uncheckable. //possibly, equal
