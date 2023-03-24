@@ -1,27 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
-import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IOrangeAlphaPeriphery, IOrangeAlphaVault, IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaPeriphery.sol";
 
 // import "forge-std/console2.sol";
 
-contract OrangeAlphaPeriphery {
+contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     using SafeERC20 for IERC20;
 
     /* ========== ERRORS ========== */
     string constant ERROR_MERKLE_ALLOWLISTED = "MERKLE_ALLOWLISTED";
     string constant ERROR_CAPOVER = "CAPOVER";
     string constant ERROR_LOCKUP = "LOCKUP";
-
-    /* ========== STRUCTS ========== */
-    struct DepositType {
-        uint256 assets;
-        uint40 timestamp;
-    }
 
     /* ========== STORAGES ========== */
     mapping(address => DepositType) public deposits;

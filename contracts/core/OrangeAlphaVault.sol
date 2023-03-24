@@ -126,11 +126,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         return _alignTotalAsset(_ticks, amount0Balance, amount1Balance, amount0Debt, amount1Supply);
     }
 
-    /**
-     * @notice Compute total asset price as USDC
-     * @dev Underlying Assets - debt + supply
-     * called by _totalAssets
-     */
+    /// @notice Compute total asset price as USDC
+    /// @dev Underlying Assets - debt + supply called by _totalAssets
     function _alignTotalAsset(
         Ticks memory _ticks,
         uint256 amount0Balance,
@@ -166,11 +163,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         return _getUnderlyingBalances(_getTicksByStorage());
     }
 
-    /**
-     * @notice Get the amount of underlying assets
-     * The assets includes added liquidity, fees and left amount in this vault
-     * @dev similar to Arrakis'
-     */
+    /// @notice Get the amount of underlying assets
+    /// The assets includes added liquidity, fees and left amount in this vault
+    /// @dev similar to Arrakis'
     function _getUnderlyingBalances(
         Ticks memory _ticks
     ) internal view returns (UnderlyingAssets memory underlyingAssets) {
@@ -204,21 +199,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         underlyingAssets.token1Balance = token1.balanceOf(address(this));
     }
 
-    ///@dev called by deposit and redeem
-    function _computeTargetPositionByShares(
-        uint256 _debtAmount0,
-        uint256 _collateralAmount1,
-        uint256 _token0Balance,
-        uint256 _token1Balance,
-        uint256 _shares,
-        uint256 _totalSupply
-    ) internal pure returns (Positions memory _position) {
-        _position.debtAmount0 = _debtAmount0.mulDiv(_shares, _totalSupply);
-        _position.collateralAmount1 = _collateralAmount1.mulDiv(_shares, _totalSupply);
-        _position.token0Balance = _token0Balance.mulDiv(_shares, _totalSupply);
-        _position.token1Balance = _token1Balance.mulDiv(_shares, _totalSupply);
-    }
-
     /// @inheritdoc IOrangeAlphaVault
     function getRebalancedLiquidity(
         int24 _newLowerTick,
@@ -249,7 +229,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         );
     }
 
-    /// @notice Compute collateral and borrow amount
+    /// @notice Compute the amount of collateral/debt to Aave and token0/token1 to Uniswap
     function _computeRebalancePosition(
         uint256 _assets,
         int24 _currentTick,
@@ -310,6 +290,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
+
     /// @inheritdoc IOrangeAlphaVault
     function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external onlyPeriphery returns (uint256) {
         //validation check
@@ -375,6 +356,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         return _shares;
     }
 
+    ///@notice Add liquidity to pool by share ratio
     ///@dev called by deposit
     function _depositLiquidityByShares(
         Balances memory _depositedBalances,
@@ -549,6 +531,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         return _redeemableBalances.balance1;
     }
 
+    ///@notice remove liquidity by share ratio and collect all fees
     ///@dev called by redeem
     function _redeemLiqidityByShares(
         uint256 _shares,
@@ -692,7 +675,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     /// @notice execute hedge by changing collateral or debt amount
-    /// @dev colled by rebalance
+    /// @dev called by rebalance
     function _executeHedgeRebalance(
         Positions memory _currentPosition,
         Positions memory _targetPosition,
@@ -711,7 +694,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
         unchecked {
             if (
-                //1. supply and borrow
                 _currentPosition.collateralAmount1 < _targetPosition.collateralAmount1 &&
                 _currentPosition.debtAmount0 < _targetPosition.debtAmount0
             ) {
@@ -773,6 +755,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
     }
 
+    /// @notice Add liquidity to Uniswap after swapping surplus amount if necessary
     /// @dev called by rebalance
     function _addLiquidityInRebalance(
         int24 _lowerTick,
@@ -830,6 +813,22 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    ///@notice Compute target position by shares
+    ///@dev called by deposit and redeem
+    function _computeTargetPositionByShares(
+        uint256 _debtAmount0,
+        uint256 _collateralAmount1,
+        uint256 _token0Balance,
+        uint256 _token1Balance,
+        uint256 _shares,
+        uint256 _totalSupply
+    ) internal pure returns (Positions memory _position) {
+        _position.debtAmount0 = _debtAmount0.mulDiv(_shares, _totalSupply);
+        _position.collateralAmount1 = _collateralAmount1.mulDiv(_shares, _totalSupply);
+        _position.token0Balance = _token0Balance.mulDiv(_shares, _totalSupply);
+        _position.token1Balance = _token1Balance.mulDiv(_shares, _totalSupply);
+    }
+
     ///@notice Compute one of fee amount
     ///@dev similar to Arrakis'
     function _computeFeesEarned(
@@ -898,8 +897,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         return Ticks(_tick, lowerTick, upperTick);
     }
 
+    ///@notice Check slippage by tick
     function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
-        //check slippage by tick
         if (
             _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
             _currentTick < _inputTick - int24(params.tickSlippageBPS())
@@ -909,6 +908,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
+
+    ///@notice Remove liquidity from Uniswap and collect fees
     function _burnAndCollectFees(
         int24 _lowerTick,
         int24 _upperTick,
@@ -921,6 +922,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         pool.collect(address(this), _lowerTick, _upperTick, type(uint128).max, type(uint128).max);
     }
 
+    ///@notice Swap exact amount out
     function _swapAmountOut(
         bool _zeroForOne,
         uint128 _minAmountOut,
@@ -952,6 +954,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
     }
 
+    ///@notice Swap exact amount in
     function _swap(
         bool _zeroForOne,
         uint256 _swapAmount,

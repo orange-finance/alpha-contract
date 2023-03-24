@@ -19,7 +19,6 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     uint256 public minDepositAmount;
     uint16 public slippageBPS;
     uint24 public tickSlippageBPS;
-    uint16 public minAmountOutBPS;
     uint32 public twapSlippageInterval;
     uint32 public maxLtv;
     uint40 public lockupPeriod;
@@ -115,14 +114,26 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         strategists[_strategist] = _is;
     }
 
+    /**
+     * @notice Set parameters of allowlist
+     * @param _allowlistEnabled true or false
+     */
     function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
         allowlistEnabled = _allowlistEnabled;
     }
 
+    /**
+     * @notice Set parameters of merkle root
+     * @param _merkleRoot Merkle root
+     */
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
         merkleRoot = _merkleRoot;
     }
 
+    /**
+     * @notice Set parameters of gelato
+     * @param _gelatoAdmin Gelato admin
+     */
     function setGelato(address _gelatoAdmin) external onlyOwner {
         _setGelato(_gelatoAdmin);
     }
@@ -131,6 +142,10 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         gelatoExecutor = GelatoOps.getDedicatedMsgSender(_gelatoAdmin);
     }
 
+    /**
+     * @notice Set parameters of periphery
+     * @param _periphery Periphery
+     */
     function setPeriphery(address _periphery) external onlyOwner {
         periphery = _periphery;
     }

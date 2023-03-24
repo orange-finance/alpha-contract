@@ -50,21 +50,20 @@ interface IOrangeAlphaVault {
 
     /* ========== VIEW FUNCTIONS ========== */
 
+    /// @notice Get true if having the position of Uniswap
     function hasPosition() external view returns (bool);
 
+    /// @notice Get the stoploss range
     function stoplossLowerTick() external view returns (int24);
 
+    /// @notice Get the stoploss range
     function stoplossUpperTick() external view returns (int24);
 
+    /// @notice Get the pool address
     function pool() external view returns (IUniswapV3Pool pool);
 
+    /// @notice Get the token1 address
     function token1() external view returns (IERC20 token1);
-
-    /**
-     * @notice get total assets
-     * @return totalManagedAssets
-     */
-    function totalAssets() external view returns (uint256 totalManagedAssets);
 
     /**
      * @notice convert assets to shares(shares is the amount of vault token)
@@ -79,6 +78,12 @@ interface IOrangeAlphaVault {
      * @return assets
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @notice get total assets
+     * @return totalManagedAssets
+     */
+    function totalAssets() external view returns (uint256 totalManagedAssets);
 
     /**
      * @notice get underlying assets
@@ -129,11 +134,6 @@ interface IOrangeAlphaVault {
     ) external returns (uint256 assets);
 
     /**
-     * @notice emit action event
-     */
-    function emitAction() external;
-
-    /**
      * @notice Remove all positions only when current price is out of range
      * @param inputTick Input tick for slippage checking
      */
@@ -156,4 +156,9 @@ interface IOrangeAlphaVault {
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external;
+
+    /**
+     * @notice emit action event
+     */
+    function emitAction() external;
 }
