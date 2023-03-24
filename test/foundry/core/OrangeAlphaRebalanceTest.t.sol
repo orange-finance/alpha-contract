@@ -364,7 +364,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
         int24 _upperTick,
         uint256 _ltv,
         uint256 _hedgeRatio
-    ) private {
+    ) private view {
         IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
             _assets,
             _currentTick,

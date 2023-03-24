@@ -367,7 +367,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     // rebalance,_executeHedgeRebalance,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
 
     function test_eventAction_Success() public {
-        IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
         vm.expectEmit(false, false, false, false);
         emit Action(0, address(this), 0, 0);
         vault.emitAction();
@@ -468,7 +467,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
-        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
         (uint256 burn0_, uint256 burn1_) = vault.burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick);
         assertEq(_underlyingAssets.liquidityAmount0, burn0_);
@@ -480,7 +478,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
-        // (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
         consoleUnderlyingAssets();
         (uint256 burn0_, uint256 burn1_) = vault.burnAndCollectFees(lowerTick, upperTick);
