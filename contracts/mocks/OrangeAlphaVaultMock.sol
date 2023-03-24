@@ -2,8 +2,7 @@
 pragma solidity 0.8.16;
 
 import {OrangeAlphaVault} from "../core/OrangeAlphaVault.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {FullMath} from "../vendor/uniswap/LiquidityAmounts.sol";
+import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 

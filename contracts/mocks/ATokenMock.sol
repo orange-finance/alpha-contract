@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IAaveV3Pool} from "../interfaces/IAaveV3Pool.sol";
-import {IAToken} from "../interfaces/IAToken.sol";
+import {IAToken} from "./IAToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 //forked and minimize from https://github.com/gelatodigital/ops/blob/f6c45c81971c36e414afc31276481c47e202bdbf/contracts/integrations/OpsReady.sol
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.16;
 
 interface IOpsProxyFactory {
     function getProxyOf(address account) external view returns (address, bool);

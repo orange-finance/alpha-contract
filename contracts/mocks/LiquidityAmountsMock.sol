@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0;
 
-import {LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
-import {TickMath} from "../vendor/uniswap/TickMath.sol";
+import {LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "../libs/uniswap/TickMath.sol";
 
 contract LiquidityAmountsMock {
     using TickMath for int24;

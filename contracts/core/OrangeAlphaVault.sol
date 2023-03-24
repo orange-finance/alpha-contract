@@ -16,9 +16,9 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeAavePool, IAaveV3Pool} from "../libs/SafeAavePool.sol";
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {TickMath} from "../vendor/uniswap/TickMath.sol";
-import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
-import {OracleLibrary} from "../vendor/uniswap/OracleLibrary.sol";
+import {TickMath} from "../libs/uniswap/TickMath.sol";
+import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
 import "forge-std/console2.sol";
 import {Ints} from "../mocks/Ints.sol";

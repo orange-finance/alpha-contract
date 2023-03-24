@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-// https://github.com/aave/aave-v3-core/blob/master/contracts/interfaces/IVariableDebtToken.sol
+// Forked from https://github.com/aave/aave-v3-core/blob/master/contracts/interfaces/IVariableDebtToken.sol
 
 /**
  * @title IVariableDebtToken

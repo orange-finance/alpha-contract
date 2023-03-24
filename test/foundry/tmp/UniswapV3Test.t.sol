@@ -8,15 +8,11 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
-import "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import "../../../contracts/vendor/uniswap/TickMath.sol";
+import "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import "../../../contracts/libs/uniswap/OracleLibrary.sol";
+import "../../../contracts/libs/uniswap/TickMath.sol";
 
-contract UniswapV3Test is
-    BaseTest,
-    IUniswapV3MintCallback,
-    IUniswapV3SwapCallback
-{
+contract UniswapV3Test is BaseTest, IUniswapV3MintCallback, IUniswapV3SwapCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using Ints for int24;
@@ -51,11 +47,7 @@ contract UniswapV3Test is
     }
 
     function test_setTick() public view {
-        Ticks memory ticks = Ticks({
-            currentTick: 0,
-            lowerTick: -lowerTick,
-            upperTick: -upperTick
-        });
+        Ticks memory ticks = Ticks({currentTick: 0, lowerTick: -lowerTick, upperTick: -upperTick});
         setCurrentTick(ticks);
         console2.log(ticks.currentTick.toString(), "tick");
     }
@@ -106,9 +98,7 @@ contract UniswapV3Test is
         //mint
         pool.mint(address(this), lowerTick, upperTick, liquidity, "");
         //assertion
-        bytes32 positionID = keccak256(
-            abi.encodePacked(address(this), lowerTick, upperTick)
-        );
+        bytes32 positionID = keccak256(abi.encodePacked(address(this), lowerTick, upperTick));
         (uint128 liquidity_, , , , ) = pool.positions(positionID);
         assertEq(liquidity_, liquidity);
         console2.log(liquidity_, "liquidity_");
@@ -131,13 +121,12 @@ contract UniswapV3Test is
         );
         uint128 liquidity = liquidity0 < liquidity1 ? liquidity0 : liquidity1;
 
-        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
         console2.log(amount0_, "amount0");
         console2.log(amount1_, "amount1");
     }
@@ -158,57 +147,32 @@ contract UniswapV3Test is
         );
         console2.log(liquidity, "liquidity");
 
-        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
         console2.log(amount0_, "amount0_");
         console2.log(amount1_, "amount1_");
 
-        uint256 quoteAmount = OracleLibrary.getQuoteAtTick(
-            tick,
-            uint128(amount0_),
-            address(weth),
-            address(usdc)
-        );
+        uint256 quoteAmount = OracleLibrary.getQuoteAtTick(tick, uint128(amount0_), address(weth), address(usdc));
         console2.log("quoteAmount", quoteAmount);
 
-        uint256 _targetLiquidity = FullMath.mulDiv(
-            amount1,
-            liquidity,
-            quoteAmount + amount1_
-        );
+        uint256 _targetLiquidity = FullMath.mulDiv(amount1, liquidity, quoteAmount + amount1_);
         console2.log(_targetLiquidity, "_targetLiquidity");
-        (uint256 targetAmount0, uint256 targetAmount1) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                uint128(_targetLiquidity)
-            );
+        (uint256 targetAmount0, uint256 targetAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            uint128(_targetLiquidity)
+        );
         console2.log(targetAmount0, "targetAmount0");
         console2.log(targetAmount1, "targetAmount1");
 
-        pool.mint(
-            address(this),
-            lowerTick,
-            upperTick,
-            uint128(_targetLiquidity),
-            ""
-        );
-        assertApproxEqAbs(
-            weth.balanceOf(address(this)),
-            10000 ether - targetAmount0,
-            1
-        );
-        assertApproxEqAbs(
-            usdc.balanceOf(address(this)),
-            10_000_000 * 1e6 - targetAmount1,
-            1
-        );
+        pool.mint(address(this), lowerTick, upperTick, uint128(_targetLiquidity), "");
+        assertApproxEqAbs(weth.balanceOf(address(this)), 10000 ether - targetAmount0, 1);
+        assertApproxEqAbs(usdc.balanceOf(address(this)), 10_000_000 * 1e6 - targetAmount1, 1);
     }
 
     function test_burnAndCollect_success() public {
@@ -226,28 +190,12 @@ contract UniswapV3Test is
         pool.mint(address(this), lowerTick, upperTick, liquidity, "");
         //burn half
         pool.burn(lowerTick, upperTick, liquidity / 2);
-        pool.collect(
-            address(this),
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-        bytes32 positionID = keccak256(
-            abi.encodePacked(address(this), lowerTick, upperTick)
-        );
+        pool.collect(address(this), lowerTick, upperTick, type(uint128).max, type(uint128).max);
+        bytes32 positionID = keccak256(abi.encodePacked(address(this), lowerTick, upperTick));
         (uint128 liquidity_, , , , ) = pool.positions(positionID);
         assertEq(liquidity_, liquidity / 2);
-        assertApproxEqRel(
-            weth.balanceOf(address(this)),
-            10_000 ether - (1 ether / 2),
-            1e15
-        );
-        assertApproxEqRel(
-            usdc.balanceOf(address(this)),
-            10_000_000 * 1e6 - ((2000 * 1e6) / 2),
-            1e15
-        );
+        assertApproxEqRel(weth.balanceOf(address(this)), 10_000 ether - (1 ether / 2), 1e15);
+        assertApproxEqRel(usdc.balanceOf(address(this)), 10_000_000 * 1e6 - ((2000 * 1e6) / 2), 1e15);
         console2.log("weth", weth.balanceOf(address(this)));
         console2.log("usdc", usdc.balanceOf(address(this)));
 
@@ -255,13 +203,7 @@ contract UniswapV3Test is
         pool.burn(lowerTick, upperTick, liquidity_);
         (uint128 liquidity__, , , , ) = pool.positions(positionID);
         assertEq(liquidity__, 0);
-        pool.collect(
-            address(this),
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
+        pool.collect(address(this), lowerTick, upperTick, type(uint128).max, type(uint128).max);
         assertApproxEqAbs(weth.balanceOf(address(this)), 10_000 ether, 2);
         assertApproxEqAbs(usdc.balanceOf(address(this)), 10_000_000 * 1e6, 2);
         console2.log("weth", weth.balanceOf(address(this)));
@@ -310,10 +252,7 @@ contract UniswapV3Test is
         console2.log(uint256(amount0Delta), uint256(amount1Delta));
         console2.log("weth", weth.balanceOf(address(this)));
         console2.log("usdc", usdc.balanceOf(address(this)));
-        assertEq(
-            usdc.balanceOf(address(this)),
-            10_000_000 * 1e6 - uint256(swapAmount)
-        );
+        assertEq(usdc.balanceOf(address(this)), 10_000_000 * 1e6 - uint256(swapAmount));
     }
 
     /// @notice Uniswap V3 callback fn, called back on pool.mint
@@ -339,9 +278,7 @@ contract UniswapV3Test is
         console2.log("uniswapV3SwapCallback");
         // console2.log(uint256(amount0Delta), uint256(amount1Delta));
         require(msg.sender == address(pool), "callback caller");
-        if (amount0Delta > 0)
-            weth.safeTransfer(msg.sender, uint256(amount0Delta));
-        else if (amount1Delta > 0)
-            usdc.safeTransfer(msg.sender, uint256(amount1Delta));
+        if (amount0Delta > 0) weth.safeTransfer(msg.sender, uint256(amount0Delta));
+        else if (amount1Delta > 0) usdc.safeTransfer(msg.sender, uint256(amount1Delta));
     }
 }

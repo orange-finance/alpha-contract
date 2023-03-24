@@ -3,12 +3,6 @@ pragma solidity 0.8.16;
 
 import "./OrangeAlphaTestBase.sol";
 
-import {Errors} from "../../../contracts/libs/Errors.sol";
-import {TickMath} from "../../../contracts/vendor/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-
 contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
     using SafeERC20 for IERC20;
     using TickMath for int24;

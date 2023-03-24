@@ -5,9 +5,9 @@ import "../utils/BaseTest.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import "../../../contracts/vendor/uniswap/TickMath.sol";
+import "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import "../../../contracts/libs/uniswap/OracleLibrary.sol";
+import "../../../contracts/libs/uniswap/TickMath.sol";
 
 contract LiquidityAmountsTest is BaseTest {
     using TickMath for int24;
@@ -51,15 +51,14 @@ contract LiquidityAmountsTest is BaseTest {
         );
         // console2.log(liquidity, "liquidity");
 
-        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
-        // console2.log(amount0_, "amount0_");
-        // console2.log(amount1_, "amount1_");
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
+        console2.log(amount0_, "amount0_");
+        console2.log(amount1_, "amount1_");
 
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
             lowerTick.getSqrtRatioAtTick(),
@@ -96,37 +95,26 @@ contract LiquidityAmountsTest is BaseTest {
         );
         console2.log(liquidity, "liquidity");
 
-        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
         console2.log(amount0_, "amount0_");
         console2.log(amount1_, "amount1_");
 
-        uint256 quoteAmount = OracleLibrary.getQuoteAtTick(
-            tick,
-            uint128(amount0_),
-            address(weth),
-            address(usdc)
-        );
+        uint256 quoteAmount = OracleLibrary.getQuoteAtTick(tick, uint128(amount0_), address(weth), address(usdc));
         console2.log("quoteAmount", quoteAmount);
 
-        uint256 _targetLiquidity = FullMath.mulDiv(
-            amount1,
-            liquidity,
-            quoteAmount + amount1_
-        );
+        uint256 _targetLiquidity = FullMath.mulDiv(amount1, liquidity, quoteAmount + amount1_);
         console2.log(_targetLiquidity, "_targetLiquidity");
-        (uint256 targetAmount0, uint256 targetAmount1) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                uint128(_targetLiquidity)
-            );
+        (uint256 targetAmount0, uint256 targetAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            uint128(_targetLiquidity)
+        );
         console2.log(targetAmount0, "targetAmount0");
         console2.log(targetAmount1, "targetAmount1");
     }
@@ -166,13 +154,12 @@ contract LiquidityAmountsTest is BaseTest {
         console2.log(liquidity_, "liquidity_");
         assertApproxEqRel(liquidity, liquidity_, 1e15);
 
-        (uint256 amount0__, uint256 amount1__) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
+        (uint256 amount0__, uint256 amount1__) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
         console2.log(amount0__, "amount0__");
         console2.log(amount1__, "amount1__");
 

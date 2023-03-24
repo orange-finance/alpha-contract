@@ -5,9 +5,9 @@ import "../utils/BaseTest.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import "../../../contracts/vendor/uniswap/TickMath.sol";
+import "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import "../../../contracts/libs/uniswap/OracleLibrary.sol";
+import "../../../contracts/libs/uniswap/TickMath.sol";
 
 contract UniswapV3LiquidityTest is BaseTest {
     using TickMath for int24;
@@ -32,13 +32,12 @@ contract UniswapV3LiquidityTest is BaseTest {
         );
         console2.log(liquidity, "liquidity");
 
-        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts
-            .getAmountsForLiquidity(
-                tick0.getSqrtRatioAtTick(),
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                liquidity
-            );
+        (uint256 amount0_, uint256 amount1_) = LiquidityAmounts.getAmountsForLiquidity(
+            tick0.getSqrtRatioAtTick(),
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
+        );
         console2.log(amount0_, "amount0_");
         console2.log(amount1_, "amount1_");
 

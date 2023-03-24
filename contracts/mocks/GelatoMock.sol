@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {TickMath} from "../vendor/uniswap/TickMath.sol";
-import {IResolver} from "../vendor/gelato/IResolver.sol";
+import {TickMath} from "../libs/uniswap/TickMath.sol";
+import {IResolver} from "../interfaces/IResolver.sol";
 import {GelatoOps} from "../libs/GelatoOps.sol";
 
 contract GelatoMock is IResolver {

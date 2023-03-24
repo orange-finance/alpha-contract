@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
-import {IResolver} from "../vendor/gelato/IResolver.sol";
+import {IResolver} from "../interfaces/IResolver.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 
 // import "forge-std/console2.sol";

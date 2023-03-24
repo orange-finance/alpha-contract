@@ -7,8 +7,8 @@ import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import {TickMath} from "../vendor/uniswap/TickMath.sol";
-import {FullMath, LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "../libs/uniswap/TickMath.sol";
+import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
 contract UniswapV3PoolAccessorMock is IUniswapV3MintCallback, IUniswapV3SwapCallback {
     using SafeERC20 for IERC20;

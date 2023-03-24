@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 
-import "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import "../../../contracts/vendor/uniswap/TickMath.sol";
+import "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import "../../../contracts/libs/uniswap/OracleLibrary.sol";
+import "../../../contracts/libs/uniswap/TickMath.sol";
 
 contract DeltaTmpTest is BaseTest, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
@@ -73,24 +73,9 @@ contract DeltaTmpTest is BaseTest, IUniswapV3MintCallback {
         console2.log(tick.toString(), "tick");
         // 204714
 
-        uint256 price = OracleLibrary.getQuoteAtTick(
-            tick,
-            1 ether,
-            address(weth),
-            address(usdc)
-        );
-        uint256 priceLower = OracleLibrary.getQuoteAtTick(
-            _lowerTick,
-            1 ether,
-            address(weth),
-            address(usdc)
-        );
-        uint256 priceUpper = OracleLibrary.getQuoteAtTick(
-            _upperTick,
-            1 ether,
-            address(weth),
-            address(usdc)
-        );
+        uint256 price = OracleLibrary.getQuoteAtTick(tick, 1 ether, address(weth), address(usdc));
+        uint256 priceLower = OracleLibrary.getQuoteAtTick(_lowerTick, 1 ether, address(weth), address(usdc));
+        uint256 priceUpper = OracleLibrary.getQuoteAtTick(_upperTick, 1 ether, address(weth), address(usdc));
         console2.log(price, "price");
         console2.log(priceLower, "priceLower");
         console2.log(priceUpper, "priceUpper");

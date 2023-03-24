@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IWETH.sol";
 
 import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
-import {IPriceOracleGetter} from "../../../contracts/interfaces/IPriceOracleGetter.sol";
+import {IPriceOracleGetter} from "./IPriceOracleGetter.sol";
 import {DataTypes} from "../../../contracts/vendor/aave/DataTypes.sol";
 
 contract AaveV3Test is BaseTest {
@@ -69,8 +69,7 @@ contract AaveV3Test is BaseTest {
         uint256 _debtBalance = vDebtWeth.balanceOf(address(this));
         uint256 _collateralBalance = ausdc.balanceOf(address(this));
         //align decimals weth to usdc
-        uint256 _ltv = (((token0Price * _debtBalance) / 1e12) * 1e8) /
-            (token1Price * _collateralBalance);
+        uint256 _ltv = (((token0Price * _debtBalance) / 1e12) * 1e8) / (token1Price * _collateralBalance);
         console2.log(_ltv, "_ltv");
     }
 
@@ -79,14 +78,9 @@ contract AaveV3Test is BaseTest {
         skip(1);
         aave.borrow(tokenAddr.wethAddr, 2 ether, 2, 0, address(this));
 
-        (
-            uint256 totalCollateralBase,
-            uint256 totalDebtBase,
-            ,
-            ,
-            uint256 ltv,
-
-        ) = aave.getUserAccountData(address(this));
+        (uint256 totalCollateralBase, uint256 totalDebtBase, , , uint256 ltv, ) = aave.getUserAccountData(
+            address(this)
+        );
         console2.log(ltv, "ltv");
         // this ltv gets only 8000. does it get max ltv?
 
@@ -95,29 +89,13 @@ contract AaveV3Test is BaseTest {
     }
 
     function testAtokenAddress() public {
-        DataTypes.ReserveData memory reserveDataUsdc = aave.getReserveData(
-            address(usdc)
-        );
-        DataTypes.ReserveData memory reserveDataWeth = aave.getReserveData(
-            address(weth)
-        );
+        DataTypes.ReserveData memory reserveDataUsdc = aave.getReserveData(address(usdc));
+        DataTypes.ReserveData memory reserveDataWeth = aave.getReserveData(address(weth));
         assertEq(reserveDataUsdc.aTokenAddress, aaveAddr.ausdcAddr);
-        assertEq(
-            reserveDataUsdc.variableDebtTokenAddress,
-            aaveAddr.vDebtUsdcAddr
-        );
-        assertEq(
-            reserveDataUsdc.stableDebtTokenAddress,
-            aaveAddr.sDebtUsdcAddr
-        );
+        assertEq(reserveDataUsdc.variableDebtTokenAddress, aaveAddr.vDebtUsdcAddr);
+        assertEq(reserveDataUsdc.stableDebtTokenAddress, aaveAddr.sDebtUsdcAddr);
         assertEq(reserveDataWeth.aTokenAddress, aaveAddr.awethAddr);
-        assertEq(
-            reserveDataWeth.variableDebtTokenAddress,
-            aaveAddr.vDebtWethAddr
-        );
-        assertEq(
-            reserveDataWeth.stableDebtTokenAddress,
-            aaveAddr.sDebtWethAddr
-        );
+        assertEq(reserveDataWeth.variableDebtTokenAddress, aaveAddr.vDebtWethAddr);
+        assertEq(reserveDataWeth.stableDebtTokenAddress, aaveAddr.sDebtWethAddr);
     }
 }
