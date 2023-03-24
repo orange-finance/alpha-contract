@@ -486,10 +486,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_swapAmountOut_Revert() public {
-        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
+        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
         vault.swapAmountOut(true, 10000 * 1e6, currentTick);
 
-        vm.expectRevert(bytes(Errors.LACK_OF_TOKEN));
+        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
         vault.swapAmountOut(false, 10 ether, currentTick);
     }
 

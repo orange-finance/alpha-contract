@@ -5,9 +5,8 @@ import "../utils/BaseTest.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Errors} from "../../../contracts/libs/Errors.sol";
 import {IOrangeAlphaVault} from "../../../contracts/interfaces/IOrangeAlphaVault.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
 import {OrangeAlphaPeriphery} from "../../../contracts/core/OrangeAlphaPeriphery.sol";
@@ -69,15 +68,15 @@ contract OrangeAlphaPeripheryTest is BaseTest {
     /* ========== FUNCTIONS ========== */
     function test_deposit_Revert1() public {
         //deposit cap over
-        vm.expectRevert("CAPOVER");
+        vm.expectRevert(bytes(Errors.CAPOVER));
         periphery.deposit(1_100_000 * 1e6, 1_100_000 * 1e6, new bytes32[](0));
         // total deposit cap over
         vm.prank(alice);
         periphery.deposit(500_000 * 1e6, 500_000 * 1e6, new bytes32[](0));
-        vm.expectRevert("CAPOVER");
+        vm.expectRevert(bytes(Errors.CAPOVER));
         periphery.deposit(600_000 * 1e6, 600_000 * 1e6, new bytes32[](0));
         //deposit cap over twice
-        vm.expectRevert("CAPOVER");
+        vm.expectRevert(bytes(Errors.CAPOVER));
         vm.prank(alice);
         periphery.deposit(600_000 * 1e6, 600_000 * 1e6, new bytes32[](0));
     }
@@ -91,7 +90,7 @@ contract OrangeAlphaPeripheryTest is BaseTest {
     function test_redeem_Revert1() public {
         //lockup
         periphery.deposit(800_000 * 1e6, 800_000 * 1e6, new bytes32[](0));
-        vm.expectRevert("LOCKUP");
+        vm.expectRevert(bytes(Errors.LOCKUP));
         periphery.redeem(800_000 * 1e6, 0);
     }
 

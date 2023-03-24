@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import {Ownable} from "../libs/Ownable.sol";
 import {GelatoOps} from "../libs/GelatoOps.sol";
+import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 
 // import "forge-std/console2.sol";
@@ -11,7 +12,6 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
-    string constant PARAM = "P";
 
     /* ========== PARAMETERS ========== */
     uint256 public depositCap;
@@ -51,7 +51,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      */
     function setDepositCap(uint256 _depositCap, uint256 _totalDepositCap) external onlyOwner {
         if (_depositCap > _totalDepositCap) {
-            revert(PARAM);
+            revert(Errors.INVALID_PARAM);
         }
         depositCap = _depositCap;
         totalDepositCap = _totalDepositCap;
@@ -72,7 +72,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      */
     function setSlippage(uint16 _slippageBPS, uint24 _tickSlippageBPS) external onlyOwner {
         if (_slippageBPS > MAGIC_SCALE_1E4) {
-            revert(PARAM);
+            revert(Errors.INVALID_PARAM);
         }
         slippageBPS = _slippageBPS;
         tickSlippageBPS = _tickSlippageBPS;
@@ -92,7 +92,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
      */
     function setMaxLtv(uint32 _maxLtv) external onlyOwner {
         if (_maxLtv > MAGIC_SCALE_1E8) {
-            revert(PARAM);
+            revert(Errors.INVALID_PARAM);
         }
         maxLtv = _maxLtv;
     }

@@ -44,13 +44,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     int24 public stoplossUpperTick;
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3Pool public immutable pool;
-    IERC20 public immutable token0; //weth
-    IERC20 public immutable token1; //usdc
-    IAaveV3Pool public immutable aave;
-    IERC20 immutable debtToken0; //weth
-    IERC20 immutable aToken1; //usdc
-    IOrangeAlphaParameters public immutable params;
+    IUniswapV3Pool public pool;
+    IERC20 public token0; //weth
+    IERC20 public token1; //usdc
+    IAaveV3Pool public aave;
+    IERC20 debtToken0; //weth
+    IERC20 aToken1; //usdc
+    IOrangeAlphaParameters public params;
 
     /* ========== MODIFIER ========== */
     modifier onlyPeriphery() {
@@ -933,7 +933,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
             _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
             if (_amountIn > token0.balanceOf(address(this))) {
-                revert(Errors.LACK_OF_TOKEN);
+                revert(Errors.LACK_OF_SWAP_TOKEN);
             }
             (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount1Delta)) {
@@ -945,7 +945,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             // avoid amountIn of USDC under $1 because of the precision loss
             _amountIn = (_amountIn < 1e6) ? 1e6 : _amountIn;
             if (_amountIn > token1.balanceOf(address(this))) {
-                revert(Errors.LACK_OF_TOKEN);
+                revert(Errors.LACK_OF_SWAP_TOKEN);
             }
             (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount0Delta)) {

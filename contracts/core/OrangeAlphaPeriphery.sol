@@ -4,16 +4,12 @@ pragma solidity 0.8.16;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IOrangeAlphaPeriphery, IOrangeAlphaVault, IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaPeriphery.sol";
+import {Errors} from "../libs/Errors.sol";
 
 // import "forge-std/console2.sol";
 
 contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     using SafeERC20 for IERC20;
-
-    /* ========== ERRORS ========== */
-    string constant ERROR_MERKLE_ALLOWLISTED = "MERKLE_ALLOWLISTED";
-    string constant ERROR_CAPOVER = "CAPOVER";
-    string constant ERROR_LOCKUP = "LOCKUP";
 
     /* ========== STORAGES ========== */
     mapping(address => DepositType) public deposits;
@@ -37,13 +33,13 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
 
         //validation of deposit caps
         if (deposits[msg.sender].assets + _maxAssets > params.depositCap()) {
-            revert(ERROR_CAPOVER);
+            revert(Errors.CAPOVER);
         }
         deposits[msg.sender].assets += _maxAssets;
         deposits[msg.sender].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
         if (_totalDeposits + _maxAssets > params.totalDepositCap()) {
-            revert(ERROR_CAPOVER);
+            revert(Errors.CAPOVER);
         }
         totalDeposits = _totalDeposits + _maxAssets;
 
@@ -54,7 +50,7 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
 
     function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256) {
         if (block.timestamp < deposits[msg.sender].timestamp + params.lockupPeriod()) {
-            revert(ERROR_LOCKUP);
+            revert(Errors.LOCKUP);
         }
         uint256 _assets = vault.redeem(_shares, msg.sender, msg.sender, _minAssets);
 
@@ -81,7 +77,7 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view virtual {
         if (params.allowlistEnabled()) {
             if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
-                revert(ERROR_MERKLE_ALLOWLISTED);
+                revert(Errors.MERKLE_ALLOWLISTED);
             }
         }
     }
