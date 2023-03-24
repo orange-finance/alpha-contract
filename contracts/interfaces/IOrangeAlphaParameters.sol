@@ -24,7 +24,7 @@ interface IOrangeAlphaParameters {
 
     function merkleRoot() external view returns (bytes32);
 
-    function gelato() external view returns (address);
+    function gelatoExecutor() external view returns (address);
 
     function periphery() external view returns (address);
 }

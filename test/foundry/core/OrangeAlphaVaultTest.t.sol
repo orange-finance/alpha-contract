@@ -316,7 +316,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Success0ByGelato() public {
-        vm.prank(params.gelato());
+        vm.prank(params.gelatoExecutor());
         vault.stoploss(1);
     }
 

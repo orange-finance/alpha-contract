@@ -26,7 +26,7 @@ contract OrangeAlphaParametersTest is BaseTest {
         assertEq(params.lockupPeriod(), 7 days);
         assertEq(params.strategists(address(this)), true);
         assertEq(params.allowlistEnabled(), true);
-        assertEq(params.gelato(), GelatoOps.getDedicatedMsgSender(address(this)));
+        assertEq(params.gelatoExecutor(), GelatoOps.getDedicatedMsgSender(address(this)));
     }
 
     function test_onlyOwner() public {
@@ -86,7 +86,7 @@ contract OrangeAlphaParametersTest is BaseTest {
         assertEq(params.merkleRoot(), 0x0);
 
         params.setGelato(alice);
-        assertEq(params.gelato(), GelatoOps.getDedicatedMsgSender(alice));
+        assertEq(params.gelatoExecutor(), GelatoOps.getDedicatedMsgSender(alice));
 
         params.setPeriphery(address(this));
         assertEq(params.periphery(), address(this));

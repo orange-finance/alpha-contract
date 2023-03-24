@@ -27,7 +27,7 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     mapping(address => bool) public strategists;
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
-    address public gelato;
+    address public gelatoExecutor;
     address public periphery;
 
     /* ========== CONSTRUCTOR ========== */
@@ -124,12 +124,12 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
         merkleRoot = _merkleRoot;
     }
 
-    function setGelato(address _gelato) external onlyOwner {
-        _setGelato(_gelato);
+    function setGelato(address _gelatoAdmin) external onlyOwner {
+        _setGelato(_gelatoAdmin);
     }
 
-    function _setGelato(address _gelato) internal {
-        gelato = GelatoOps.getDedicatedMsgSender(_gelato);
+    function _setGelato(address _gelatoAdmin) internal {
+        gelatoExecutor = GelatoOps.getDedicatedMsgSender(_gelatoAdmin);
     }
 
     function setPeriphery(address _periphery) external onlyOwner {
