@@ -6,7 +6,6 @@ import {GelatoOps} from "../libs/GelatoOps.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 
 // import "forge-std/console2.sol";
-// import {Ints} from "../mocks/Ints.sol";
 
 contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     /* ========== CONSTANTS ========== */

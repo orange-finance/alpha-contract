@@ -8,7 +8,6 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 // import "forge-std/console2.sol";
-// import {Ints} from "../mocks/Ints.sol";
 
 contract OrangeAlphaPeriphery {
     using SafeERC20 for IERC20;

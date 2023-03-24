@@ -7,7 +7,6 @@ import {IResolver} from "../interfaces/IResolver.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 
 // import "forge-std/console2.sol";
-// import {Ints} from "../mocks/Ints.sol";
 
 contract OrangeAlphaResolver is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;

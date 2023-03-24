@@ -20,8 +20,8 @@ import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-import "forge-std/console2.sol";
-import {Ints} from "../mocks/Ints.sol";
+// import "forge-std/console2.sol";
+// import {Ints} from "../mocks/Ints.sol";
 
 contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswapV3SwapCallback, ERC20 {
     using SafeERC20 for IERC20;
@@ -247,7 +247,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _position.token0Balance,
             _position.token1Balance
         );
-        // console2.log(liquidity_, "liquidity_");
     }
 
     /// @notice Compute collateral and borrow amount
@@ -268,24 +267,19 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _upperTick.getSqrtRatioAtTick(),
             1e18 //any amount
         );
-        // console2.log(_amount0, "_amount0");
-        // console2.log(_amount1, "_amount1");
         uint256 _amount0ValueInToken1 = OracleLibrary.getQuoteAtTick(
             _currentTick,
             uint128(_amount0),
             address(token0),
             address(token1)
         );
-        // console2.log(_amount0ValueInToken1, "_amount0ValueInToken1");
 
         //compute collateral/asset ratio
         uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
-        // console2.log(_x, "_x");
         uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
             _ltv +
             MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
             MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
-        // console2.log(_collateralRatioReciprocal, "_collateralRatioReciprocal");
 
         //Collateral
         position_.collateralAmount1 = _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
@@ -364,19 +358,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         );
 
         // Add liquidity
-        console2.log(_depositedBalances.balance0, "before _depositedBalances.balance0");
-        console2.log(_depositedBalances.balance1, "before _depositedBalances.balance1");
         _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
-        console2.log(_depositedBalances.balance0, "after _depositedBalances.balance0");
-        console2.log(_depositedBalances.balance1, "after _depositedBalances.balance1");
 
         // Transfer surplus amount to receiver
         if (_depositedBalances.balance0 > 0) {
-            console2.log(_depositedBalances.balance0, "_balances.balance0");
             token0.safeTransfer(_receiver, _depositedBalances.balance0);
         }
         if (_depositedBalances.balance1 > 0) {
-            console2.log(_depositedBalances.balance1, "_balances.balance1");
             token1.safeTransfer(_receiver, _depositedBalances.balance1);
         }
 
@@ -423,8 +411,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _additionalLiquidity,
                 ""
             );
-            console2.log(_token0Balance, "_token0Balance");
-            console2.log(_token1Balance, "_token1Balance");
             _depositedBalances.balance0 -= _token0Balance;
             _depositedBalances.balance1 -= _token1Balance;
         }
@@ -442,13 +428,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         uint256 _surplusAmount0;
         uint256 _surplusAmount1;
         if (_balances.balance0 > _targetAmount0) {
-            console2.log(_balances.balance0, "_balances.balance0");
             unchecked {
                 _surplusAmount0 = _balances.balance0 - _targetAmount0;
             }
         }
         if (_balances.balance1 > _targetAmount1) {
-            console2.log(_balances.balance1, "_balances.balance1");
             unchecked {
                 _surplusAmount1 = _balances.balance1 - _targetAmount1;
             }
@@ -456,10 +440,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         if (_surplusAmount0 > 0 && _surplusAmount1 > 0) {
             //no need to swap
-            console2.log("surplus no need to swap");
         } else if (_surplusAmount0 > 0) {
             //swap amount0 to amount1
-            console2.log("surplus swap amount0 to amount1");
             (int256 _amount0Delta, int256 _amount1Delta) = _swap(
                 true,
                 _surplusAmount0,
@@ -470,7 +452,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _balances.balance1 = uint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
         } else if (_surplusAmount1 > 0) {
             //swap amount1 to amount0
-            console2.log("surplus swap amount1 to amount0");
             (int256 _amount0Delta, int256 _amount1Delta) = _swap(
                 false,
                 _surplusAmount1,
@@ -480,7 +461,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _balances.balance0 = uint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
             _balances.balance1 = uint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
         } else {
-            console2.log("surplus SURPLUS_ZERO");
             revert(Errors.SURPLUS_ZERO);
         }
     }
@@ -595,33 +575,26 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Ticks memory _ticks = _getTicksByStorage();
         _checkTickSlippage(_ticks.currentTick, _inputTick);
 
-        console2.log("stoploss 0");
         // 1. Remove liquidity
         // 2. Collect fees
         (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
         if (liquidity > 0) {
             _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
         }
-        console2.log("stoploss 1");
 
         // 3. Swap from USDC to ETH (if necessary)
         uint256 _repayingDebt = debtToken0.balanceOf(address(this));
         uint256 _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 < _repayingDebt) {
-            console2.log("stoploss 2");
             _swapAmountOut(
                 false, //token1 to token0
                 uint128(_repayingDebt - _balanceToken0),
                 _ticks.currentTick
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            console2.log("stoploss 3");
         }
 
         // 4. Repay ETH
-        console2.log("stoploss 4");
-        console2.log(token0.balanceOf(address(this)));
-        console2.log(_repayingDebt);
         aave.safeRepay(address(token0), _repayingDebt, AAVE_VARIABLE_INTEREST, address(this));
 
         // 5. Withdraw USDC as collateral
@@ -629,7 +602,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         aave.safeWithdraw(address(token1), _withdrawingCollateral, address(this));
 
         // swap ETH to USDC
-        console2.log("stoploss 5");
         _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 > 0) {
             _swap(
@@ -743,7 +715,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _currentPosition.collateralAmount1 < _targetPosition.collateralAmount1 &&
                 _currentPosition.debtAmount0 < _targetPosition.debtAmount0
             ) {
-                console2.log("case1 supply and borrow");
                 // case1 supply and borrow
                 uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1; //uncheckable
 
@@ -762,7 +733,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 aave.safeBorrow(address(token0), _borrow, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
             } else {
                 if (_currentPosition.debtAmount0 > _targetPosition.debtAmount0) {
-                    console2.log("case2 repay");
                     // case2 repay
                     uint256 _repay = _currentPosition.debtAmount0 - _targetPosition.debtAmount0; //uncheckable
 
@@ -777,18 +747,15 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                     aave.safeRepay(address(token0), _repay, AAVE_VARIABLE_INTEREST, address(this));
 
                     if (_currentPosition.collateralAmount1 < _targetPosition.collateralAmount1) {
-                        console2.log("case2_1 repay and supply");
                         // case2_1 repay and supply
                         uint256 _supply = _targetPosition.collateralAmount1 - _currentPosition.collateralAmount1; //uncheckable
                         aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
                     } else {
-                        console2.log("case2_2 repay and withdraw");
                         // case2_2 repay and withdraw
                         uint256 _withdraw = _currentPosition.collateralAmount1 - _targetPosition.collateralAmount1; //uncheckable. //possibly, equal
                         aave.safeWithdraw(address(token1), _withdraw, address(this));
                     }
                 } else {
-                    console2.log("case3 borrow and withdraw");
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount0 - _currentPosition.debtAmount0; //uncheckable. //possibly, equal
                     aave.safeBorrow(
@@ -823,7 +790,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         } else {
             unchecked {
                 if (_balance0 > _targetAmount0) {
-                    console2.log("_addLiquidityInRebalance case1");
                     (_sqrtRatioX96, , , , , , ) = pool.slot0();
                     _swap(
                         true,
@@ -831,7 +797,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                         _sqrtRatioX96
                     );
                 } else if (_balance1 > _targetAmount1) {
-                    console2.log("_addLiquidityInRebalance case2");
                     (_sqrtRatioX96, , , , , , ) = pool.slot0();
                     _swap(
                         false,
@@ -966,12 +931,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
             _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
             if (_amountIn > token0.balanceOf(address(this))) {
-                console2.log(_amountIn, token0.balanceOf(address(this)));
                 revert(Errors.LACK_OF_TOKEN);
             }
             (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount1Delta)) {
-                console2.log(_minAmountOut, uint256(-_amount1Delta));
                 revert(Errors.LACK_OF_AMOUNT_OUT);
             }
         } else {
@@ -980,12 +943,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
             // avoid amountIn of USDC under $1 because of the precision loss
             _amountIn = (_amountIn < 1e6) ? 1e6 : _amountIn;
             if (_amountIn > token1.balanceOf(address(this))) {
-                console2.log(_amountIn, token1.balanceOf(address(this)));
                 revert(Errors.LACK_OF_TOKEN);
             }
             (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
             if (_minAmountOut > uint256(-_amount0Delta)) {
-                console2.log(_minAmountOut, uint256(-_amount0Delta));
                 revert(Errors.LACK_OF_AMOUNT_OUT);
             }
         }
@@ -1023,19 +984,17 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
 
         if (amount0Owed > 0) {
-            // console2.log("uniswapV3MintCallback amount0");
-            if (amount0Owed > token0.balanceOf(address(this))) {
-                console2.log("uniswapV3MintCallback amount0 > balance");
-                console2.log(amount0Owed, token0.balanceOf(address(this)));
-            }
+            // if (amount0Owed > token0.balanceOf(address(this))) {
+            //     console2.log("uniswapV3MintCallback amount0 > balance");
+            //     console2.log(amount0Owed, token0.balanceOf(address(this)));
+            // }
             token0.safeTransfer(msg.sender, amount0Owed);
         }
         if (amount1Owed > 0) {
-            // console2.log("uniswapV3MintCallback amount1");
-            if (amount1Owed > token1.balanceOf(address(this))) {
-                console2.log("uniswapV3MintCallback amount1 > balance");
-                console2.log(amount1Owed, token1.balanceOf(address(this)));
-            }
+            // if (amount1Owed > token1.balanceOf(address(this))) {
+            //     console2.log("uniswapV3MintCallback amount1 > balance");
+            //     console2.log(amount1Owed, token1.balanceOf(address(this)));
+            // }
             token1.safeTransfer(msg.sender, amount1Owed);
         }
     }
