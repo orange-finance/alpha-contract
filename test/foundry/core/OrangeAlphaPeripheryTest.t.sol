@@ -39,16 +39,10 @@ contract OrangeAlphaPeripheryTest is BaseTest {
         //deploy vault
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
-        vault = new OrangeAlphaVaultMockForPeriphery(
-            address(token1),
-            address(pool)
-        );
+        vault = new OrangeAlphaVaultMockForPeriphery(address(token1), address(pool));
 
         //deploy periphery
-        periphery = new OrangeAlphaPeripheryMock(
-            address(vault),
-            address(params)
-        );
+        periphery = new OrangeAlphaPeripheryMock(address(vault), address(params));
 
         //set parameters
         params.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
@@ -122,15 +116,9 @@ contract OrangeAlphaPeripheryTest is BaseTest {
 }
 
 contract OrangeAlphaPeripheryMock is OrangeAlphaPeriphery {
-    constructor(
-        address _vault,
-        address _params
-    ) OrangeAlphaPeriphery(_vault, _params) {}
+    constructor(address _vault, address _params) OrangeAlphaPeriphery(_vault, _params) {}
 
-    function _isAllowlisted(
-        address,
-        bytes32[] calldata
-    ) internal view override {
+    function _validateSenderAllowlisted(address, bytes32[] calldata) internal view override {
         //merkle proof is tested in hardhat tests by typescripts
     }
 }
@@ -144,21 +132,12 @@ contract OrangeAlphaVaultMockForPeriphery {
         pool = IUniswapV3Pool(_pool);
     }
 
-    function deposit(
-        uint256 _shares,
-        address,
-        uint256 _maxAssets
-    ) external returns (uint256) {
+    function deposit(uint256 _shares, address, uint256 _maxAssets) external returns (uint256) {
         token1.transferFrom(msg.sender, address(this), _maxAssets);
         return _shares;
     }
 
-    function redeem(
-        uint256,
-        address,
-        address owner,
-        uint256 minAssets
-    ) external returns (uint256) {
+    function redeem(uint256, address, address owner, uint256 minAssets) external returns (uint256) {
         token1.transfer(owner, minAssets);
         return minAssets;
     }

@@ -42,7 +42,7 @@ contract OrangeAlphaPeriphery {
     /* ========== EXTERNAL FUNCTIONS ========== */
     function deposit(uint256 _shares, uint256 _maxAssets, bytes32[] calldata merkleProof) external returns (uint256) {
         //validation of merkle proof
-        _isAllowlisted(msg.sender, merkleProof);
+        _validateSenderAllowlisted(msg.sender, merkleProof);
 
         //validation of deposit caps
         if (deposits[msg.sender].assets + _maxAssets > params.depositCap()) {
@@ -87,7 +87,7 @@ contract OrangeAlphaPeriphery {
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
-    function _isAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view virtual {
+    function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view virtual {
         if (params.allowlistEnabled()) {
             if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
                 revert(ERROR_MERKLE_ALLOWLISTED);
