@@ -368,7 +368,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     function test_eventAction_Success() public {
         vm.expectEmit(false, false, false, false);
-        emit Action(0, address(this), 0, 0);
+        emit Action(IOrangeAlphaVault.ActionType.MANUAL, address(this), 0, 0);
         vault.emitAction();
     }
 
