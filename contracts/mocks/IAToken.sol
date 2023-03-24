@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-// https://github.com/aave/aave-v3-core/blob/master/contracts/interfaces/IAToken.sol
+// Forked from https://github.com/aave/aave-v3-core/blob/master/contracts/interfaces/IAToken.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -27,12 +27,7 @@ interface IAToken is IERC20 {
      * @param index The next liquidity index of the reserve
      * @return `true` if the the previous balance of the user was 0
      */
-    function mint(
-        address caller,
-        address onBehalfOf,
-        uint256 amount,
-        uint256 index
-    ) external returns (bool);
+    function mint(address caller, address onBehalfOf, uint256 amount, uint256 index) external returns (bool);
 
     /**
      * @notice Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
@@ -43,12 +38,7 @@ interface IAToken is IERC20 {
      * @param amount The amount being burned
      * @param index The next liquidity index of the reserve
      **/
-    function burn(
-        address from,
-        address receiverOfUnderlying,
-        uint256 amount,
-        uint256 index
-    ) external;
+    function burn(address from, address receiverOfUnderlying, uint256 amount, uint256 index) external;
 
     /**
      * @notice Mints aTokens to the reserve treasury
@@ -63,11 +53,7 @@ interface IAToken is IERC20 {
      * @param to The recipient
      * @param value The amount of tokens getting transferred
      **/
-    function transferOnLiquidation(
-        address from,
-        address to,
-        uint256 value
-    ) external;
+    function transferOnLiquidation(address from, address to, uint256 value) external;
 
     /**
      * @notice Transfers the underlying asset to `target`.
@@ -141,9 +127,5 @@ interface IAToken is IERC20 {
      * @param to The address of the recipient
      * @param amount The amount of token to transfer
      */
-    function rescueTokens(
-        address token,
-        address to,
-        uint256 amount
-    ) external;
+    function rescueTokens(address token, address to, uint256 amount) external;
 }

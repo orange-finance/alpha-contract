@@ -63,16 +63,9 @@ contract AaveV3PoolMock is IAaveV3Pool, Ownable {
             _vDebtName
         );
         // supposed to be unused
-        sDebtTokens[_underlyingAsset] = new ERC20Mock(
-            _sDebtName,
-            _sDebtName,
-            _decimal
-        );
+        sDebtTokens[_underlyingAsset] = new ERC20Mock(_sDebtName, _sDebtName, _decimal);
 
-        normalizedIncomesRate[_underlyingAsset] = NormalizedRate(
-            _normalizedIncomeRate,
-            uint40(block.timestamp)
-        );
+        normalizedIncomesRate[_underlyingAsset] = NormalizedRate(_normalizedIncomeRate, uint40(block.timestamp));
         normalizedVariableDebtsRate[_underlyingAsset] = NormalizedRate(
             _normalizedVariableDebtRate,
             uint40(block.timestamp)
@@ -87,44 +80,23 @@ contract AaveV3PoolMock is IAaveV3Pool, Ownable {
     /**
      * Ownable functions
      */
-    function setNormalizedIncome(address _asset, uint256 _income)
-        external
-        onlyOwner
-    {
-        normalizedIncomesRate[_asset] = NormalizedRate(
-            _income,
-            uint40(block.timestamp)
-        );
+    function setNormalizedIncome(address _asset, uint256 _income) external onlyOwner {
+        normalizedIncomesRate[_asset] = NormalizedRate(_income, uint40(block.timestamp));
     }
 
-    function setNormalizedVariableDebt(address _asset, uint256 _debt)
-        external
-        onlyOwner
-    {
-        normalizedVariableDebtsRate[_asset] = NormalizedRate(
-            _debt,
-            uint40(block.timestamp)
-        );
+    function setNormalizedVariableDebt(address _asset, uint256 _debt) external onlyOwner {
+        normalizedVariableDebtsRate[_asset] = NormalizedRate(_debt, uint40(block.timestamp));
     }
 
     /**
      * Inherit functions
      */
-    function supply(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16
-    ) external {
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16) external {
         IERC20(asset).safeTransferFrom(onBehalfOf, address(this), amount);
         aTokens[asset].mint(address(0), onBehalfOf, amount, 0);
     }
 
-    function withdraw(
-        address asset,
-        uint256 amount,
-        address to
-    ) external returns (uint256) {
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256) {
         IERC20(asset).safeTransfer(to, amount);
         aTokens[asset].burn(msg.sender, address(0), amount, 0);
 
@@ -160,40 +132,25 @@ contract AaveV3PoolMock is IAaveV3Pool, Ownable {
         return amount;
     }
 
-    function repayWithATokens(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode
-    ) external returns (uint256) {}
+    function repayWithATokens(address asset, uint256 amount, uint256 interestRateMode) external returns (uint256) {}
 
     ///@notice unused
-    function deposit(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external {}
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external {}
 
-    function getReserveNormalizedIncome(address asset)
-        external
-        view
-        returns (uint256)
-    {
+    function getReserveNormalizedIncome(address asset) external view returns (uint256) {
         NormalizedRate memory rate = normalizedIncomesRate[asset];
         return 1e27 + (rate._rate * (block.timestamp - rate._startTimestamp));
     }
 
-    function getReserveNormalizedVariableDebt(address asset)
-        external
-        view
-        returns (uint256)
-    {
+    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256) {
         NormalizedRate memory rate = normalizedVariableDebtsRate[asset];
         return 1e27 + (rate._rate * (block.timestamp - rate._startTimestamp));
     }
 
     ///@notice unused
-    function getUserAccountData(address user)
+    function getUserAccountData(
+        address user
+    )
         external
         view
         returns (
@@ -206,11 +163,7 @@ contract AaveV3PoolMock is IAaveV3Pool, Ownable {
         )
     {}
 
-    function getReserveData(address asset)
-        external
-        view
-        returns (DataTypes.ReserveData memory reserveData_)
-    {
+    function getReserveData(address asset) external view returns (DataTypes.ReserveData memory reserveData_) {
         DataTypes.ReserveConfigurationMap memory configuration;
         reserveData_ = DataTypes.ReserveData(
             configuration,

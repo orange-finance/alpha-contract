@@ -2,49 +2,29 @@
 pragma solidity 0.8.16;
 
 import {OrangeAlphaVault} from "../core/OrangeAlphaVault.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {FullMath} from "../vendor/uniswap/LiquidityAmounts.sol";
+import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 
 contract OrangeAlphaVaultMock is OrangeAlphaVault {
     // uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
 
+    int24 public avgTick;
+
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
         string memory _symbol,
-        uint8 __decimal,
         address _pool,
         address _token0,
         address _token1,
         address _aave,
         address _debtToken0,
         address _aToken1,
-        int24 _lowerTick,
-        int24 _upperTick
-    )
-        OrangeAlphaVault(
-            _name,
-            _symbol,
-            __decimal,
-            _pool,
-            _token0,
-            _token1,
-            _aave,
-            _debtToken0,
-            _aToken1,
-            _lowerTick,
-            _upperTick
-        )
-    {}
+        address _params
+    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _aave, _debtToken0, _aToken1, _params) {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
-
-    function setAaveTokens(address _debtToken0, address _aToken1) external {
-        debtToken0 = IERC20(_debtToken0);
-        aToken1 = IERC20(_aToken1);
-    }
 
     function setTicks(int24 _lowerTick, int24 _upperTick) external {
         _validateTicks(_lowerTick, _upperTick);
@@ -52,72 +32,36 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         upperTick = _upperTick;
     }
 
-    function setStoplossed(bool _stoplossed) external {
-        stoplossed = _stoplossed;
+    function setAvgTick(int24 _avgTick) external {
+        avgTick = _avgTick;
     }
 
     function getAavePoolLtv() external view returns (uint256) {
-        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave
-            .getUserAccountData(address(this));
+        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave.getUserAccountData(address(this));
         if (totalCollateralBase == 0) return 0;
-        return
-            FullMath.mulDiv(
-                MAGIC_SCALE_1E8,
-                totalDebtBase,
-                totalCollateralBase
-            );
+        return FullMath.mulDiv(MAGIC_SCALE_1E8, totalDebtBase, totalCollateralBase);
     }
 
-    function setDeposits(address _user, uint256 _amount) external {
-        deposits[_user].assets = _amount;
-    }
-
-    function setTotalDeposits(uint256 _amount) external {
-        totalDeposits = _amount;
+    function getLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity_) {
+        (liquidity_, , , , ) = pool.positions(_getPositionID(_lowerTick, _upperTick));
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    function checkSlippage(uint160 _currentSqrtRatioX96, bool _zeroForOne)
-        external
-        view
-        returns (uint160 _swapThresholdPrice)
-    {
-        return _checkSlippage(_currentSqrtRatioX96, _zeroForOne);
-    }
-
-    function checkTickSlippage(int24 _inputTick, int24 _currentTick)
-        external
-        view
-    {
-        return _checkTickSlippage(_inputTick, _currentTick);
-    }
-
-    function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
-        return _quoteEthPriceByTick(_tick);
-    }
-
-    function computePercentageFromUpperRange(Ticks memory _ticks)
-        external
-        view
-        returns (uint256 parcentageFromUpper_)
-    {
-        return _computePercentageFromUpperRange(_ticks);
-    }
-
     function alignTotalAsset(
         uint256 amount0Current,
         uint256 amount1Current,
         uint256 amount0Debt,
         uint256 amount1Supply
     ) external view returns (uint256 totalAlignedAssets) {
-        return
-            _alignTotalAsset(
-                _getTicksByStorage(),
-                amount0Current,
-                amount1Current,
-                amount0Debt,
-                amount1Supply
-            );
+        return _alignTotalAsset(_getTicksByStorage(), amount0Current, amount1Current, amount0Debt, amount1Supply);
+    }
+
+    function getLtvByRange(int24 _currentTick, int24 _upperTick) external view returns (uint256) {
+        return _getLtvByRange(_currentTick, _upperTick);
+    }
+
+    function quoteEthPriceByTick(int24 _tick) external view returns (uint256) {
+        return _quoteEthPriceByTick(_tick);
     }
 
     function computeFeesEarned(
@@ -125,68 +69,97 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         uint256 feeGrowthInsideLast,
         uint128 liquidity
     ) external view returns (uint256 fee) {
+        return _computeFeesEarned(isZero, feeGrowthInsideLast, liquidity, _getTicksByStorage());
+    }
+
+    function getPositionID() external view returns (bytes32 positionID) {
+        Ticks memory _ticks = _getTicksByStorage();
+        return _getPositionID(_ticks.lowerTick, _ticks.upperTick);
+    }
+
+    function getTicksByStorage() external view returns (Ticks memory) {
+        return _getTicksByStorage();
+    }
+
+    function computeRebalancePosition(
+        uint256 _assets,
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint256 _ltv,
+        uint256 _hedgeRatio
+    ) external view returns (Positions memory position_) {
+        return _computeRebalancePosition(_assets, _currentTick, _lowerTick, _upperTick, _ltv, _hedgeRatio);
+    }
+
+    function computeTargetPositionByShares(
+        uint256 _debtAmount0,
+        uint256 _collateralAmount1,
+        uint256 _token0Balance,
+        uint256 _token1Balance,
+        uint256 _shares,
+        uint256 _totalSupply
+    ) external pure returns (Positions memory _position) {
         return
-            _computeFeesEarned(
-                isZero,
-                feeGrowthInsideLast,
-                liquidity,
-                _getTicksByStorage()
+            _computeTargetPositionByShares(
+                _debtAmount0,
+                _collateralAmount1,
+                _token0Balance,
+                _token1Balance,
+                _shares,
+                _totalSupply
             );
     }
 
-    function canStoploss() external view returns (bool) {
-        return _canStoploss(_getTicksByStorage());
+    function checkTickSlippage(int24 _currentTick, int24 _inputTick) external view {
+        return _checkTickSlippage(_currentTick, _inputTick);
     }
 
     /* ========== WRITE FUNCTIONS(EXTERNAL) ========== */
-
-    /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    function swapAndAddLiquidity(
-        uint256 _amount0,
-        uint256 _amount1,
-        Ticks memory _ticks
-    )
-        external
-        returns (
-            uint128 liquidity_,
-            uint256 amountDeposited0_,
-            uint256 amountDeposited1_
-        )
-    {
-        return _swapAndAddLiquidity(_amount0, _amount1, _ticks);
-    }
-
-    function burnShare(
+    function depositLiquidityByShares(
+        Balances memory _depositedBalances,
         uint256 _shares,
         uint256 _totalSupply,
         Ticks memory _ticks
-    )
-        external
-        returns (
-            uint256 burnAndFees0_,
-            uint256 burnAndFees1_,
-            uint128 liquidityBurned_
-        )
-    {
-        return _burnShare(_shares, _totalSupply, _ticks);
+    ) external {
+        return _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
     }
 
-    function burnAndCollectFees(
+    function swapSurplusAmountInDeposit(
+        Balances memory _balances,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1,
+        Ticks memory _ticks
+    ) external {
+        return _swapSurplusAmountInDeposit(_balances, _targetAmount0, _targetAmount1, _ticks);
+    }
+
+    function addLiquidityInRebalance(
         int24 _lowerTick,
         int24 _upperTick,
-        uint128 _liquidity
-    )
-        external
-        returns (
-            uint256 burn0_,
-            uint256 burn1_,
-            uint256 fee0_,
-            uint256 fee1_,
-            uint256 preBalance0_,
-            uint256 preBalance1_
-        )
-    {
+        uint256 _targetAmount0,
+        uint256 _targetAmount1
+    ) external returns (uint128 targetLiquidity_) {
+        return _addLiquidityInRebalance(_lowerTick, _upperTick, _targetAmount0, _targetAmount1);
+    }
+
+    /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
+    function burnAndCollectFees(int24 _lowerTick, int24 _upperTick) external returns (uint256 burn0_, uint256 burn1_) {
+        (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_lowerTick, _upperTick));
+
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+    }
+
+    function swap(
+        bool _zeroForOne,
+        uint256 _swapAmount,
+        uint256 _currentSqrtRatioX96
+    ) external returns (int256 _amount0Delta, int256 _amount1Delta) {
+        return _swap(_zeroForOne, _swapAmount, _currentSqrtRatioX96);
+    }
+
+    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
+        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {

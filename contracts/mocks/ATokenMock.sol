@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IAaveV3Pool} from "../interfaces/IAaveV3Pool.sol";
-import {IAToken} from "../interfaces/IAToken.sol";
+import {IAToken} from "./IAToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -56,11 +56,7 @@ contract ATokenMock is IAToken, ERC20 {
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
+    function _transfer(address from, address to, uint256 amount) internal override {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
 
@@ -101,10 +97,12 @@ contract ATokenMock is IAToken, ERC20 {
 
         UserState memory oldState = _userState[user];
         uint256 _income;
-        if(oldState.lastNormalizedIncomesRate == 0){
+        if (oldState.lastNormalizedIncomesRate == 0) {
             _income = 0;
-        }else{
-            _income = oldState.balance * (_newNormalizedIncome - oldState.lastNormalizedIncomesRate) / oldState.lastNormalizedIncomesRate;
+        } else {
+            _income =
+                (oldState.balance * (_newNormalizedIncome - oldState.lastNormalizedIncomesRate)) /
+                oldState.lastNormalizedIncomesRate;
         }
         return oldState.balance + _income;
     }
@@ -115,10 +113,12 @@ contract ATokenMock is IAToken, ERC20 {
 
         UserState memory oldTotalSupply = _totalSupply;
         uint256 _incomeTotalSupply;
-        if(oldTotalSupply.lastNormalizedIncomesRate == 0){
+        if (oldTotalSupply.lastNormalizedIncomesRate == 0) {
             _incomeTotalSupply = 0;
-        }else{
-            _incomeTotalSupply = oldTotalSupply.balance * (_newNormalizedIncome - oldTotalSupply.lastNormalizedIncomesRate) / oldTotalSupply.lastNormalizedIncomesRate;
+        } else {
+            _incomeTotalSupply =
+                (oldTotalSupply.balance * (_newNormalizedIncome - oldTotalSupply.lastNormalizedIncomesRate)) /
+                oldTotalSupply.lastNormalizedIncomesRate;
         }
         return oldTotalSupply.balance + _incomeTotalSupply;
     }
@@ -150,12 +150,7 @@ contract ATokenMock is IAToken, ERC20 {
     }
 
     /// @inheritdoc IAToken
-    function burn(
-        address from,
-        address,
-        uint256 amount,
-        uint256
-    ) external virtual override onlyPool {
+    function burn(address from, address, uint256 amount, uint256) external virtual override onlyPool {
         require(amount != 0, "mint zero amount");
         require(from != address(0), "ERC20: mint to the zero address");
         // console2.log(amount, "burn amount");
@@ -164,12 +159,12 @@ contract ATokenMock is IAToken, ERC20 {
         _updateBalance(from);
         // console2.log(_userState[from].balance, "burn before balance");
 
-        if(_totalSupply.balance < amount){
+        if (_totalSupply.balance < amount) {
             // console2.log(_totalSupply.balance, "totalSupply");
             // console2.log(amount, "amount");
             revert("ATokenMock: burn to exceeded totalSupply");
         }
-        if(_userState[from].balance < amount){
+        if (_userState[from].balance < amount) {
             // console2.log(_userState[from].balance, "balance");
             // console2.log(amount, "amount");
             revert("ATokenMock: burn to exceeded balance");
@@ -182,7 +177,6 @@ contract ATokenMock is IAToken, ERC20 {
         emit Transfer(from, address(0), amount);
     }
 
-
     /// @inheritdoc IAToken
     function transferUnderlyingTo(address target, uint256 amount) external virtual override onlyPool {
         IERC20(_underlyingAsset).safeTransfer(target, amount);
@@ -194,11 +188,7 @@ contract ATokenMock is IAToken, ERC20 {
     function mintToTreasury(uint256, uint256) external override onlyPool {}
 
     /// @inheritdoc IAToken
-    function transferOnLiquidation(
-        address,
-        address,
-        uint256
-    ) external override onlyPool {}
+    function transferOnLiquidation(address, address, uint256) external override onlyPool {}
 
     /// @inheritdoc IAToken
     function handleRepayment(address, uint256) external virtual override onlyPool {
@@ -206,11 +196,7 @@ contract ATokenMock is IAToken, ERC20 {
     }
 
     /// @inheritdoc IAToken
-    function rescueTokens(
-        address token,
-        address to,
-        uint256 amount
-    ) external {}
+    function rescueTokens(address token, address to, uint256 amount) external {}
 
     /// @inheritdoc IAToken
     function RESERVE_TREASURY_ADDRESS() external view override returns (address) {}
@@ -222,14 +208,5 @@ contract ATokenMock is IAToken, ERC20 {
     function nonces(address owner) external view returns (uint256) {}
 
     /// @inheritdoc IAToken
-    function permit(
-        address,
-        address,
-        uint256,
-        uint256,
-        uint8,
-        bytes32,
-        bytes32
-    ) external {}
-
+    function permit(address, address, uint256, uint256, uint8, bytes32, bytes32) external {}
 }

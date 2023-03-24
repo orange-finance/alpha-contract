@@ -6,9 +6,9 @@ import "../utils/BaseTest.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../../../contracts/vendor/uniswap/LiquidityAmounts.sol";
-import "../../../contracts/vendor/uniswap/OracleLibrary.sol";
-import "../../../contracts/vendor/uniswap/TickMath.sol";
+import "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import "../../../contracts/libs/uniswap/OracleLibrary.sol";
+import "../../../contracts/libs/uniswap/TickMath.sol";
 
 contract OracleLibraryTest is BaseTest {
     using stdStorage for StdStorage;
@@ -33,19 +33,14 @@ contract OracleLibraryTest is BaseTest {
         uint32[] memory secondsAgos = new uint32[](1);
         // console2.log(block.timestamp);
         secondsAgos[0] = uint32(0);
-        (
-            int56[] memory tickCumulatives,
-            uint160[] memory secondsPerLiquidityCumulativeX128s
-        ) = pool.observe(secondsAgos);
-        console2.log(
-            uint56(tickCumulatives[0]),
-            secondsPerLiquidityCumulativeX128s[0]
+        (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) = pool.observe(
+            secondsAgos
         );
+        console2.log(uint56(tickCumulatives[0]), secondsPerLiquidityCumulativeX128s[0]);
     }
 
     function testTick() public {
-        (int24 arithmeticMeanTick, uint128 harmonicMeanLiquidity) = pool
-            .consult(1);
+        (int24 arithmeticMeanTick, uint128 harmonicMeanLiquidity) = pool.consult(1);
         console2.log(uint24(arithmeticMeanTick), harmonicMeanLiquidity);
 
         address[] memory tokens = new address[](2);

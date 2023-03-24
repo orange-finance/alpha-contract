@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0;
 
-import {LiquidityAmounts} from "../vendor/uniswap/LiquidityAmounts.sol";
-import {TickMath} from "../vendor/uniswap/TickMath.sol";
+import {LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "../libs/uniswap/TickMath.sol";
 
 contract LiquidityAmountsMock {
     using TickMath for int24;
@@ -18,14 +18,7 @@ contract LiquidityAmountsMock {
         uint256 amount0,
         uint256 amount1
     ) external pure returns (uint128 liquidity) {
-        return
-            LiquidityAmounts.getLiquidityForAmounts(
-                sqrtRatioX96,
-                sqrtRatioAX96,
-                sqrtRatioBX96,
-                amount0,
-                amount1
-            );
+        return LiquidityAmounts.getLiquidityForAmounts(sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, amount0, amount1);
     }
 
     function getAmountsForLiquidity(
@@ -34,12 +27,6 @@ contract LiquidityAmountsMock {
         uint160 sqrtRatioBX96,
         uint128 liquidity
     ) external pure returns (uint256 amount0, uint256 amount1) {
-        return
-            LiquidityAmounts.getAmountsForLiquidity(
-                sqrtRatioX96,
-                sqrtRatioAX96,
-                sqrtRatioBX96,
-                liquidity
-            );
+        return LiquidityAmounts.getAmountsForLiquidity(sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, liquidity);
     }
 }
