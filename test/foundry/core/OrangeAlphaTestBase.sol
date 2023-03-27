@@ -68,7 +68,10 @@ contract OrangeAlphaTestBase is BaseTest {
             address(aToken1),
             address(params)
         );
+        _setUpParams();
+    }
 
+    function _setUpParams() internal virtual {
         //set parameters
         params.setPeriphery(address(this));
 
