@@ -158,4 +158,8 @@ contract OrangeAlphaTestBase is BaseTest {
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
         return OracleLibrary.getQuoteAtTick(_tick, 1 ether, address(token0), address(token1));
     }
+
+    function roundTick(int24 _tick) internal view returns (int24) {
+        return (_tick / pool.tickSpacing()) * pool.tickSpacing();
+    }
 }
