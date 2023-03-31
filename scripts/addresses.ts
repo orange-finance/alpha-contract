@@ -21,9 +21,21 @@ export const getAddresses = () => {
         AavePool: "0x0a4eDC8A76776468311F3f58a6B6cf4c3DC6e287",
         VDebtWeth: "0x0d63c72e6F356f42D1940352F6eDD4f983E54CaD",
         AUsdc: "0x71c5271dCda234A1acA574f490C87e087A108E71",
-        UniswapPool: "0x566C69144Cfa02d0406635844488dD5BCF7c52a0",
+        // UniswapPool: "0x566C69144Cfa02d0406635844488dD5BCF7c52a0", // 0.3%
+        UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapV3PoolAccessorMock: "0xF195B1Df7c20a4F266366dE4Fc3e95cD40d717bF",
         OrangeAlphaVault: "0x863EE7dBc5F96e1c91aB94914194c21cD7A2eEd6",
+      };
+    case "arb":
+      return {
+        Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
+        Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+        VDebtWeth: "0x0c84331e39d6658Cd6e6b9ba04736cC4c4734351",
+        AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
+        UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
+        OrangeAlphaVault: "0x9C092c2c591024f42b2ac6324c57C4De03C9a909",
       };
   }
 };
