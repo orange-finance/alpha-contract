@@ -250,6 +250,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.redeem(_shares, address(this), address(0), 100_900 * 1e6);
     }
 
+    function test_redeem_Revert3() public {
+        uint256 _shares = 10_000 * 1e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(1);
+        vm.expectRevert(bytes(Errors.INVALID_SHARES));
+        vault.redeem(_shares + 100, address(this), address(0), 9_900 * 1e6);
+    }
+
     function test_redeem_Success0NoPosition() public {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);

@@ -29,6 +29,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     using FullMath for uint256;
     using SafeAavePool for IAaveV3Pool;
     // using Ints for int24;
+    // using Ints for int256;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
@@ -457,6 +458,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         //validation
         if (_shares == 0) {
             revert(Errors.INVALID_AMOUNT);
+        }
+        if (balanceOf(_receiver) < _shares) {
+            revert(Errors.INVALID_SHARES);
         }
 
         uint256 _totalSupply = totalSupply();
@@ -1013,8 +1017,16 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         }
 
         if (amount0Delta > 0) {
+            // if (uint(amount0Delta) > token0.balanceOf(address(this))) {
+            //     console2.log("uniswapV3SwapCallback amount0Delta > balance");
+            //     console2.log(amount0Delta.toString(), token0.balanceOf(address(this)));
+            // }
             token0.safeTransfer(msg.sender, uint256(amount0Delta));
         } else if (amount1Delta > 0) {
+            // if (uint(amount1Delta) > token1.balanceOf(address(this))) {
+            //     console2.log("uniswapV3SwapCallback amount1Delta > balance");
+            //     console2.log(amount1Delta.toString(), token1.balanceOf(address(this)));
+            // }
             token1.safeTransfer(msg.sender, uint256(amount1Delta));
         }
     }
