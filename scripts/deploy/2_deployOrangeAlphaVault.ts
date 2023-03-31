@@ -8,32 +8,27 @@ const vaultMeta: ERC20metadata = {
   decimals: 6,
 };
 
-const lowerTick = -205620;
-const upperTick = -203820;
-const stoplossLowerTick = -206280;
-const stoplossUpperTick = -203160;
-
 async function deployOrangeAlphaVault(
   poolAddr: string,
   wethAddr: string,
   usdcAddr: string,
   aaveAddr: string,
   vDebtWethAddr: string,
-  aUsdcAddr: string
+  aUsdcAddr: string,
+  orangeAlphaParametersAddr: string
 ) {
   const vault = await Deploy(
     "OrangeAlphaVault",
     vaultMeta.name,
     vaultMeta.symbol,
-    vaultMeta.decimals,
     poolAddr,
     wethAddr,
     usdcAddr,
     aaveAddr,
     vDebtWethAddr,
-    aUsdcAddr
+    aUsdcAddr,
+    orangeAlphaParametersAddr
   );
-  // vault.setTicks(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick);
 }
 
 async function main() {
@@ -44,7 +39,8 @@ async function main() {
     a.Usdc,
     a.AavePool,
     a.VDebtWeth,
-    a.AUsdc
+    a.AUsdc,
+    a.OrangeAlphaParameters
   );
 }
 
