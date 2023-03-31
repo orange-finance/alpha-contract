@@ -35,7 +35,10 @@ export const getAddresses = () => {
         VDebtWeth: "0x0c84331e39d6658Cd6e6b9ba04736cC4c4734351",
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
-        OrangeAlphaVault: "0x9C092c2c591024f42b2ac6324c57C4De03C9a909",
+        OrangeAlphaParameters: "",
+        OrangeAlphaVault: "",
+        OrangeAlphaResolver: "",
+        OrangeAlphaPeriphery: "",
       };
   }
 };
