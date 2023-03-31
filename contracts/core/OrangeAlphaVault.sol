@@ -310,11 +310,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         Ticks memory _ticks = _getTicksByStorage();
 
         //compute additional positions by shares
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_ticks);
         Positions memory _additionalPosition = _computeTargetPositionByShares(
             debtToken0.balanceOf(address(this)),
             aToken1.balanceOf(address(this)),
-            token0.balanceOf(address(this)),
-            token1.balanceOf(address(this)),
+            _underlyingAssets.token0Balance + _underlyingAssets.accruedFees0, //including pending fees
+            _underlyingAssets.token1Balance + _underlyingAssets.accruedFees1, //including pending fees
             _shares,
             _totalSupply
         );
