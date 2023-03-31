@@ -1,12 +1,19 @@
 import { ethers } from "hardhat";
-import { Deploy, ERC20metadata } from "../common";
+import { Deploy, DeployLibraries, ERC20metadata } from "../common";
 import { getAddresses } from "../addresses";
 
 async function deployOrangeAlphaResolver(
-  orangeAlphaVaultAddr: string
+  orangeAlphaVaultAddr: string,
   orangeAlphaParametersAddr: string
 ) {
-  await Deploy("OrangeAlphaResolver",orangeAlphaVaultAddr, orangeAlphaParametersAddr);
+  const uniswapV3Twap = await Deploy("UniswapV3Twap");
+
+  await DeployLibraries(
+    "OrangeAlphaResolver",
+    { UniswapV3Twap: uniswapV3Twap.address },
+    orangeAlphaVaultAddr,
+    orangeAlphaParametersAddr
+  );
 }
 
 async function main() {

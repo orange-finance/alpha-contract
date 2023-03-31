@@ -1,9 +1,14 @@
 import { ethers } from "hardhat";
-import { Deploy, ERC20metadata } from "../common";
+import { Deploy, DeployLibraries } from "../common";
 import { getAddresses } from "../addresses";
 
 async function deployOrangeAlphaParameters() {
-  await Deploy("OrangeAlphaParameters");
+  // const gelatoOps = await Deploy("GelatoOps");
+  const a = getAddresses()!;
+
+  await DeployLibraries("OrangeAlphaParameters", {
+    GelatoOps: a.GelatoOps,
+  });
 }
 
 async function main() {

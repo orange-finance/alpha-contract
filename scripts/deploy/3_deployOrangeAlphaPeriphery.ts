@@ -3,10 +3,14 @@ import { Deploy, ERC20metadata } from "../common";
 import { getAddresses } from "../addresses";
 
 async function deployOrangeAlphaPeriphery(
-  orangeAlphaVaultAddr: string
+  orangeAlphaVaultAddr: string,
   orangeAlphaParametersAddr: string
 ) {
-  await Deploy("OrangeAlphaPeriphery",orangeAlphaVaultAddr, orangeAlphaParametersAddr);
+  await Deploy(
+    "OrangeAlphaPeriphery",
+    orangeAlphaVaultAddr,
+    orangeAlphaParametersAddr
+  );
 }
 
 async function main() {

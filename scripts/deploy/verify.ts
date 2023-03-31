@@ -13,18 +13,29 @@ const upperTick = -201800;
 
 const verify = async () => {
   const a = getAddresses()!;
+
+  await Verify(a.OrangeAlphaParameters, []);
+
   await Verify(a.OrangeAlphaVault, [
     vaultMeta.name,
     vaultMeta.symbol,
-    vaultMeta.decimals,
     a.UniswapPool,
     a.Weth,
     a.Usdc,
     a.AavePool,
     a.VDebtWeth,
     a.AUsdc,
-    lowerTick,
-    upperTick,
+    a.OrangeAlphaParameters,
+  ]);
+
+  await Verify(a.OrangeAlphaPeriphery, [
+    a.OrangeAlphaVault,
+    a.OrangeAlphaParameters,
+  ]);
+
+  await Verify(a.OrangeAlphaResolver, [
+    a.OrangeAlphaVault,
+    a.OrangeAlphaParameters,
   ]);
 };
 
