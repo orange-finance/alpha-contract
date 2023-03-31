@@ -3,10 +3,9 @@ import { Deploy, DeployLibraries } from "../common";
 import { getAddresses } from "../addresses";
 
 async function main() {
-  const a = getAddresses()!;
-  await DeployLibraries("OrangeAlphaParameters", {
-    GelatoOps: a.GelatoOps,
-  });
+  await Deploy("GelatoOps");
+  await Deploy("SafeAavePool");
+  await Deploy("UniswapV3Twap");
 }
 
 main().catch((error) => {

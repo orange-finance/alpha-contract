@@ -8,35 +8,13 @@ const vaultMeta: ERC20metadata = {
   decimals: 6,
 };
 
-async function deployOrangeAlphaVault(
-  poolAddr: string,
-  wethAddr: string,
-  usdcAddr: string,
-  aaveAddr: string,
-  vDebtWethAddr: string,
-  aUsdcAddr: string,
-  orangeAlphaParametersAddr: string
-) {
-  const safeAavePool = await Deploy("SafeAavePool");
-
-  await DeployLibraries(
-    "OrangeAlphaVault",
-    { SafeAavePool: safeAavePool.address },
-    vaultMeta.name,
-    vaultMeta.symbol,
-    poolAddr,
-    wethAddr,
-    usdcAddr,
-    aaveAddr,
-    vDebtWethAddr,
-    aUsdcAddr,
-    orangeAlphaParametersAddr
-  );
-}
-
 async function main() {
   const a = getAddresses()!;
-  await deployOrangeAlphaVault(
+  await DeployLibraries(
+    "OrangeAlphaVault",
+    { SafeAavePool: a.SafeAavePool },
+    vaultMeta.name,
+    vaultMeta.symbol,
     a.UniswapPool,
     a.Weth,
     a.Usdc,
