@@ -5,11 +5,14 @@ import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
+import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 
 contract OrangeAlphaResolver is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
+    using FullMath for uint256;
+    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== ERRORS ========== */
     string constant ERROR_CANNOT_STOPLOSS = "CANNOT_STOPLOSS";
@@ -36,7 +39,15 @@ contract OrangeAlphaResolver is IResolver {
                 _isOutOfRange(_currentTick, _stoplossLowerTick, _stoplossUpperTick) &&
                 _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
-                bytes memory execPayload = abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector, _twap);
+                uint256 _minFinalBalance = vault.totalAssets().mulDiv(
+                    MAGIC_SCALE_1E4 - params.slippageBPS(),
+                    MAGIC_SCALE_1E4
+                );
+                bytes memory execPayload = abi.encodeWithSelector(
+                    IOrangeAlphaVault.stoploss.selector,
+                    _twap,
+                    _minFinalBalance
+                );
                 return (true, execPayload);
             }
         }
