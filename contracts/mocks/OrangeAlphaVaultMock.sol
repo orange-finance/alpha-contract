@@ -18,11 +18,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _pool,
         address _token0,
         address _token1,
+        address _router,
         address _aave,
         address _debtToken0,
         address _aToken1,
         address _params
-    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _aave, _debtToken0, _aToken1, _params) {}
+    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _router, _aave, _debtToken0, _aToken1, _params) {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
@@ -158,8 +159,8 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _swap(_zeroForOne, _swapAmount, _currentSqrtRatioX96);
     }
 
-    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
-        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
+    function swapAmountOut(bool _zeroForOne, uint256 _amountOut) external returns (uint256 amountIn_) {
+        return _swapAmountOut(_zeroForOne, _amountOut);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {

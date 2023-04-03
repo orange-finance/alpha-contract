@@ -26,10 +26,10 @@ contract OrangeAlphaTestBase is BaseTest {
     AddressHelper.TokenAddr public tokenAddr;
     AddressHelper.AaveAddr public aaveAddr;
     AddressHelper.UniswapAddr public uniswapAddr;
-    ISwapRouter public router;
 
     OrangeAlphaVaultMock public vault;
     IUniswapV3Pool public pool;
+    ISwapRouter public router;
     IAaveV3Pool public aave;
     IERC20 public token0;
     IERC20 public token1;
@@ -49,10 +49,10 @@ contract OrangeAlphaTestBase is BaseTest {
         (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
 
         params = new OrangeAlphaParameters();
-        router = ISwapRouter(uniswapAddr.routerAddr); //for test
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
+        router = ISwapRouter(uniswapAddr.routerAddr);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
         aToken1 = IERC20(aaveAddr.ausdcAddr);
@@ -63,6 +63,7 @@ contract OrangeAlphaTestBase is BaseTest {
             address(pool),
             address(token0),
             address(token1),
+            address(router),
             address(aave),
             address(debtToken0),
             address(aToken1),

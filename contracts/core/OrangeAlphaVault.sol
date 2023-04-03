@@ -3,9 +3,10 @@ pragma solidity 0.8.16;
 
 //interafaces
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 
@@ -47,6 +48,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     IUniswapV3Pool public pool;
     IERC20 public token0; //weth
     IERC20 public token1; //usdc
+    ISwapRouter public router;
     IAaveV3Pool public aave;
     IERC20 debtToken0; //weth
     IERC20 aToken1; //usdc
@@ -65,6 +67,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         address _pool,
         address _token0,
         address _token1,
+        address _router,
         address _aave,
         address _debtToken0,
         address _aToken1,
@@ -76,6 +79,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         token1 = IERC20(_token1);
         token0.safeApprove(_pool, type(uint256).max);
         token1.safeApprove(_pool, type(uint256).max);
+
+        router = ISwapRouter(_router);
+        token0.safeApprove(_router, type(uint256).max);
+        token1.safeApprove(_router, type(uint256).max);
 
         aave = IAaveV3Pool(_aave);
         debtToken0 = IERC20(_debtToken0);
@@ -493,14 +500,14 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
         // 3. Swap from USDC to ETH (if necessary)
         if (_redeemableBalances.balance0 < _redeemPosition.debtAmount0) {
-            (int256 amount0Delta, int256 amount1Delta) = _swapAmountOut(
+            uint256 _amountOutToken0 = _redeemPosition.debtAmount0 - _redeemableBalances.balance0;
+            uint256 _amountInToken1 = _swapAmountOut(
                 false, //token1 to token0
-                uint128(_redeemPosition.debtAmount0 - _redeemableBalances.balance0),
-                _ticks.currentTick
+                _amountOutToken0
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _redeemableBalances.balance0 = uint256(SafeCast.toInt256(_redeemableBalances.balance0) - amount0Delta);
-            _redeemableBalances.balance1 = uint256(SafeCast.toInt256(_redeemableBalances.balance1) - amount1Delta);
+            _redeemableBalances.balance0 += _amountOutToken0;
+            _redeemableBalances.balance1 -= _amountInToken1;
         }
 
         // 4. Repay ETH
@@ -572,8 +579,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         if (_balanceToken0 < _repayingDebt) {
             _swapAmountOut(
                 false, //token1 to token0
-                uint128(_repayingDebt - _balanceToken0),
-                _ticks.currentTick
+                _repayingDebt - _balanceToken0
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
@@ -655,7 +661,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
         );
 
         // 4. execute hedge
-        _executeHedgeRebalance(_currentPosition, _targetPosition, _ticks);
+        _executeHedgeRebalance(_currentPosition, _targetPosition);
 
         // 5. Add liquidity
         uint128 _targetLiquidity = _addLiquidityInRebalance(
@@ -677,11 +683,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
 
     /// @notice execute hedge by changing collateral or debt amount
     /// @dev called by rebalance
-    function _executeHedgeRebalance(
-        Positions memory _currentPosition,
-        Positions memory _targetPosition,
-        Ticks memory _ticks
-    ) internal {
+    function _executeHedgeRebalance(Positions memory _currentPosition, Positions memory _targetPosition) internal {
         /**memo
          * what if current.collateral == target.collateral. both borrow or repay can come after.
          * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
@@ -705,8 +707,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                     // swap (if necessary)
                     _swapAmountOut(
                         true,
-                        uint128(_supply - _currentPosition.token1Balance), //uncheckable
-                        _ticks.currentTick
+                        _supply - _currentPosition.token1Balance //uncheckable
                     );
                 }
                 aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
@@ -723,8 +724,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                     if (_repay > _currentPosition.token0Balance) {
                         _swapAmountOut(
                             false,
-                            uint128(_repay - _currentPosition.token0Balance), //uncheckable
-                            _ticks.currentTick
+                            _repay - _currentPosition.token0Balance //uncheckable
                         );
                     }
                     aave.safeRepay(address(token0), _repay, AAVE_VARIABLE_INTEREST, address(this));
@@ -924,35 +924,31 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     ///@notice Swap exact amount out
-    function _swapAmountOut(
-        bool _zeroForOne,
-        uint128 _minAmountOut,
-        int24 _tick
-    ) internal returns (int256 _amount0Delta, int256 _amount1Delta) {
-        uint256 _amountIn;
-        if (_zeroForOne) {
-            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token1), address(token0));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
-            if (_amountIn > token0.balanceOf(address(this))) {
-                revert(Errors.LACK_OF_SWAP_TOKEN);
-            }
-            (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
-            if (_minAmountOut > uint256(-_amount1Delta)) {
-                revert(Errors.LACK_OF_AMOUNT_OUT);
-            }
-        } else {
-            _amountIn = OracleLibrary.getQuoteAtTick(_tick, _minAmountOut, address(token0), address(token1));
-            _amountIn = _amountIn.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4);
-            // avoid amountIn of USDC under $1 because of the precision loss
-            _amountIn = (_amountIn < 1e6) ? 1e6 : _amountIn;
-            if (_amountIn > token1.balanceOf(address(this))) {
-                revert(Errors.LACK_OF_SWAP_TOKEN);
-            }
-            (_amount0Delta, _amount1Delta) = _swap(_zeroForOne, _amountIn, _tick.getSqrtRatioAtTick());
-            if (_minAmountOut > uint256(-_amount0Delta)) {
-                revert(Errors.LACK_OF_AMOUNT_OUT);
-            }
-        }
+    function _swapAmountOut(bool _zeroForOne, uint256 _amountOut) internal returns (uint256 amountIn_) {
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _zeroForOne
+            ? (
+                address(token0),
+                address(token1),
+                (_sqrtRatioX96 * (MAGIC_SCALE_1E4 - params.slippageBPS())) / MAGIC_SCALE_1E4
+            )
+            : (
+                address(token1),
+                address(token0),
+                (_sqrtRatioX96 * (MAGIC_SCALE_1E4 + params.slippageBPS())) / MAGIC_SCALE_1E4
+            );
+
+        ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: pool.fee(),
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountOut: _amountOut,
+            amountInMaximum: type(uint256).max,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96
+        });
+        amountIn_ = router.exactOutputSingle(_params);
     }
 
     ///@notice Swap exact amount in

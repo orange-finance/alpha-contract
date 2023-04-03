@@ -14,9 +14,7 @@ library Errors {
     string public constant LESS_AMOUNT = "109";
     string public constant LESS_LIQUIDITY = "110";
     string public constant HIGH_SLIPPAGE = "111";
-    string public constant LACK_OF_SWAP_TOKEN = "112";
-    string public constant LACK_OF_AMOUNT_OUT = "113";
-    string public constant EQUAL_COLLATERAL_OR_DEBT = "114";
+    string public constant EQUAL_COLLATERAL_OR_DEBT = "112";
     //OrangeAlphaPeriphery
     string public constant MERKLE_ALLOWLISTED = "201";
     string public constant CAPOVER = "202";

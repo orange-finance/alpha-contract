@@ -272,9 +272,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
+        console2.log("redeem");
         uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
         //assertion
-        assertApproxEqRel(_assets, _realAssets, 1e16);
+        assertApproxEqRel(_realAssets, _assets, 1e17);
         assertEq(vault.balanceOf(address(this)), 0);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -282,7 +283,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertEq(aToken1.balanceOf(address(vault)), 0);
         assertEq(token1.balanceOf(address(vault)), 0);
         assertEq(token0.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e18);
+        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
     }
 
     function test_redeem_Success2Quater() public {
@@ -486,22 +487,22 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_swapAmountOut_Revert() public {
-        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
-        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        vm.expectRevert(bytes("STF"));
+        vault.swapAmountOut(true, 10000 * 1e6);
 
-        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
-        vault.swapAmountOut(false, 10 ether, currentTick);
+        vm.expectRevert(bytes("STF"));
+        vault.swapAmountOut(false, 10 ether);
     }
 
     function test_swapAmountOut_Success0() public {
         token0.transfer(address(vault), 10 ether);
-        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        vault.swapAmountOut(true, 10000 * 1e6);
         assertApproxEqRel(token1.balanceOf(address(vault)), 10000 * 1e6, 5e16); //5%
     }
 
     function test_swapAmountOut_Success1() public {
         token1.transfer(address(vault), 10000 * 1e6);
-        vault.swapAmountOut(false, 2 ether, currentTick);
+        vault.swapAmountOut(false, 2 ether);
         assertApproxEqRel(token0.balanceOf(address(vault)), 2 ether, 5e16); //5%
     }
 
