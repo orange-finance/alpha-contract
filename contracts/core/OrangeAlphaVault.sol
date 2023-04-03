@@ -438,8 +438,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _ticks.currentTick.getSqrtRatioAtTick()
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _balances.balance0 = uint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
-            _balances.balance1 = uint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
+            _balances.balance0 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
+            _balances.balance1 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
         } else if (_surplusAmount1 > 0) {
             //swap amount1 to amount0
             (int256 _amount0Delta, int256 _amount1Delta) = _swap(
@@ -448,8 +448,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _ticks.currentTick.getSqrtRatioAtTick()
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _balances.balance0 = uint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
-            _balances.balance1 = uint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
+            _balances.balance0 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
+            _balances.balance1 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
         } else {
             revert(Errors.SURPLUS_ZERO);
         }
@@ -526,7 +526,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _ticks.currentTick.getSqrtRatioAtTick()
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _redeemableBalances.balance1 = uint256(SafeCast.toInt256(_redeemableBalances.balance1) - amount1Delta);
+            _redeemableBalances.balance1 = SafeCast.toUint256(
+                SafeCast.toInt256(_redeemableBalances.balance1) - amount1Delta
+            );
         }
 
         // 7. Transfer USDC from Vault to Pool
