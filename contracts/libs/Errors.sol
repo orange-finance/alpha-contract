@@ -15,6 +15,7 @@ library Errors {
     string public constant LESS_LIQUIDITY = "110";
     string public constant HIGH_SLIPPAGE = "111";
     string public constant EQUAL_COLLATERAL_OR_DEBT = "112";
+    string public constant LESS_FINAL_BALANCE = "113";
     //OrangeAlphaPeriphery
     string public constant MERKLE_ALLOWLISTED = "201";
     string public constant CAPOVER = "202";

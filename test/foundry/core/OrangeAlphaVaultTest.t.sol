@@ -313,16 +313,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
-        vault.stoploss(1);
+        vault.stoploss(1, 0);
     }
 
     function test_stoploss_Success0ByGelato() public {
         vm.prank(params.gelatoExecutor());
-        vault.stoploss(1);
+        vault.stoploss(1, 0);
     }
 
     function test_stoploss_Success1() public {
-        vault.stoploss(_ticks.currentTick);
+        vault.stoploss(_ticks.currentTick, 0);
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
         assertEq(__ticks.currentTick.getSqrtRatioAtTick(), _ticks.currentTick.getSqrtRatioAtTick());
         assertEq(__ticks.currentTick, _ticks.currentTick);
@@ -335,7 +335,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, vault.totalAssets());
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -352,10 +352,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
         skip(1);
         (, _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);

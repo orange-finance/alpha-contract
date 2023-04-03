@@ -556,7 +556,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss(int24 _inputTick) external {
+    function stoploss(int24 _inputTick, uint256 _minFinalBalance) external {
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
@@ -600,6 +600,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, IUniswap
                 _ticks.currentTick.getSqrtRatioAtTick()
             );
             (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
+        }
+
+        // check balance of token1
+        if (token1.balanceOf(address(this)) < _minFinalBalance) {
+            revert(Errors.LESS_FINAL_BALANCE);
         }
 
         _emitAction(ActionType.STOPLOSS, _ticks);
