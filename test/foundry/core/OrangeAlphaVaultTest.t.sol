@@ -250,6 +250,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.redeem(_shares, address(this), address(0), 100_900 * 1e6);
     }
 
+    function test_flashRedeem_Revert3NoPosition() public {
+        uint256 _shares = 10_000 * 1e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(8 days);
+
+        uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
+        vm.expectRevert(bytes(Errors.NO_NEED_FLASH));
+        vault.flashRedeem(_shares, address(this), address(0), _assets);
+    }
+
     function test_redeem_Success0NoPosition() public {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
@@ -265,6 +275,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Success1Max() public {
+        _test_redeem_Success1Max(false);
+    }
+
+    function test_flashRedeem_Success1Max() public {
+        _test_redeem_Success1Max(true);
+    }
+
+    function _test_redeem_Success1Max(bool _isFlash) internal {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
@@ -272,8 +290,9 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
-        console2.log("redeem");
-        uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
+        uint256 _realAssets = (_isFlash)
+            ? vault.flashRedeem(_shares, address(this), address(0), _assets)
+            : vault.redeem(_shares, address(this), address(0), _assets);
         //assertion
         assertApproxEqRel(_realAssets, _assets, 1e17);
         assertEq(vault.balanceOf(address(this)), 0);
@@ -287,6 +306,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Success2Quater() public {
+        _test_redeem_Success2Quater(false);
+    }
+
+    function test_flashRedeem_Success2Quater() public {
+        _test_redeem_Success2Quater(true);
+    }
+
+    function _test_redeem_Success2Quater(bool _isFlash) public {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(8 days);
@@ -300,7 +327,9 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
         //execute
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
-        vault.redeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4);
+        (_isFlash)
+            ? vault.flashRedeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4)
+            : vault.redeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4);
         // assertion
         assertApproxEqRel(vault.balanceOf(address(this)), _shares / 4, 1e16);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
