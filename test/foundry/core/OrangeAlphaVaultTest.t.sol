@@ -394,6 +394,32 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
     }
 
+    function test_flashStoploss_RevertWithoutPosition() public {
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
+        vault.deposit(_shares, address(this), 10_000 * 1e6);
+        skip(1);
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vm.expectRevert(bytes(Errors.NO_NEED_FLASH));
+        vault.flashStoploss(_tick, 0);
+    }
+
+    function test_flashStoploss_Success() public {
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(1);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.flashStoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        //assertion
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertEq(_liquidity, 0);
+        assertEq(debtToken0.balanceOf(address(vault)), 0);
+        assertEq(aToken1.balanceOf(address(vault)), 0);
+        assertEq(token0.balanceOf(address(vault)), 0);
+        assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
+    }
+
     // rebalance,_executeHedgeRebalance,_addLiquidityInRebalance are in OrangeAlphaRebalanceTest.t.sol
 
     function test_eventAction_Success() public {

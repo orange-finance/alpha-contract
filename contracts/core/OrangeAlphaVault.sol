@@ -608,6 +608,15 @@ contract OrangeAlphaVault is
 
     /// @inheritdoc IOrangeAlphaVault
     function stoploss(int24 _inputTick, uint256 _minFinalBalance) external {
+        _stoploss(_inputTick, _minFinalBalance, false);
+    }
+
+    /// @inheritdoc IOrangeAlphaVault
+    function flashStoploss(int24 _inputTick, uint256 _minFinalBalance) external {
+        _stoploss(_inputTick, _minFinalBalance, true);
+    }
+
+    function _stoploss(int24 _inputTick, uint256 _minFinalBalance, bool _isFlash) internal {
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
@@ -624,25 +633,42 @@ contract OrangeAlphaVault is
             _burnAndCollectFees(_ticks.lowerTick, _ticks.upperTick, liquidity);
         }
 
-        // 3. Swap from USDC to ETH (if necessary)
         uint256 _repayingDebt = debtToken0.balanceOf(address(this));
         uint256 _balanceToken0 = token0.balanceOf(address(this));
-        if (_balanceToken0 < _repayingDebt) {
-            _swapAmountOut(
-                false, //token1 to token0
-                _repayingDebt - _balanceToken0
+        uint256 _withdrawingCollateral = aToken1.balanceOf(address(this));
+        if (!_isFlash) {
+            // Swap from USDC to ETH (if necessary)
+            if (_balanceToken0 < _repayingDebt) {
+                _swapAmountOut(
+                    false, //token1 to token0
+                    _repayingDebt - _balanceToken0
+                );
+                (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
+            }
+
+            // Repay ETH
+            aave.safeRepay(address(token0), _repayingDebt, AAVE_VARIABLE_INTEREST, address(this));
+
+            // Withdraw USDC as collateral
+            aave.safeWithdraw(address(token1), _withdrawingCollateral, address(this));
+        } else {
+            // Flashloan to borrow Repay ETH
+            if (_repayingDebt <= _balanceToken0) {
+                revert(Errors.NO_NEED_FLASH);
+            }
+            uint256 _flashBorrowToken0 = _repayingDebt - _balanceToken0;
+
+            // execute flashloan (repay ETH and withdraw USDC in callback function `executeOperation`)
+            aave.flashLoanSimple(
+                address(this),
+                address(token0),
+                _flashBorrowToken0,
+                abi.encode(_repayingDebt, _withdrawingCollateral),
+                AAVE_REFERRAL_NONE
             );
-            (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
 
-        // 4. Repay ETH
-        aave.safeRepay(address(token0), _repayingDebt, AAVE_VARIABLE_INTEREST, address(this));
-
-        // 5. Withdraw USDC as collateral
-        uint256 _withdrawingCollateral = aToken1.balanceOf(address(this));
-        aave.safeWithdraw(address(token1), _withdrawingCollateral, address(this));
-
-        // swap ETH to USDC
+        // swap remaining all ETH to USDC
         _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 > 0) {
             _swap(
@@ -650,7 +676,6 @@ contract OrangeAlphaVault is
                 _balanceToken0,
                 _ticks.currentTick.getSqrtRatioAtTick()
             );
-            (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         }
 
         // check balance of token1
@@ -658,6 +683,7 @@ contract OrangeAlphaVault is
             revert(Errors.LESS_FINAL_BALANCE);
         }
 
+        (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         _emitAction(ActionType.STOPLOSS, _ticks);
         hasPosition = false;
     }
@@ -1072,7 +1098,7 @@ contract OrangeAlphaVault is
         }
     }
 
-    /* ========== FLASHLOAN FUNCTIONS ========== */
+    /* ========== FLASHLOAN CALLBACK ========== */
     /// @notice _params are _repayAmountToken0, _withdrawAmountToken1
     function executeOperation(
         address _asset,

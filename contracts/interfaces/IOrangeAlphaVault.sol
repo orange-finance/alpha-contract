@@ -156,6 +156,13 @@ interface IOrangeAlphaVault {
     function stoploss(int24 inputTick, uint256 _minFinalBalance) external;
 
     /**
+     * @notice Remove all positions using flashLoan
+     * @param inputTick Input tick for slippage checking
+     * @param _minFinalBalance minimum final balance
+     */
+    function flashStoploss(int24 inputTick, uint256 _minFinalBalance) external;
+
+    /**
      * @notice Change the range of underlying UniswapV3 position
      * @param _newLowerTick The new lower bound of the position's range
      * @param _newUpperTick The new upper bound of the position's range
