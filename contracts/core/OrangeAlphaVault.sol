@@ -360,7 +360,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         // Mint to receiver
         _mint(_receiver, _shares);
 
-        _emitAction(ActionType.DEPOSIT, _ticks);
+        _emitAction(ActionType.DEPOSIT);
         return _shares;
     }
 
@@ -557,7 +557,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         }
         token1.safeTransfer(_receiver, returnAssets_);
 
-        _emitAction(ActionType.REDEEM, _ticks);
+        _emitAction(ActionType.REDEEM);
     }
 
     ///@notice remove liquidity by share ratio and collect all fees
@@ -648,7 +648,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             revert(Errors.LESS_FINAL_BALANCE);
         }
 
-        _emitAction(ActionType.STOPLOSS, _ticks);
+        _emitAction(ActionType.STOPLOSS);
         hasPosition = false;
     }
 
@@ -720,7 +720,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             revert(Errors.LESS_LIQUIDITY);
         }
 
-        _emitAction(ActionType.REBALANCE, _ticks);
+        _emitAction(ActionType.REBALANCE);
 
         if (_targetLiquidity > 0) {
             hasPosition = true;
@@ -842,11 +842,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
     /// @inheritdoc IOrangeAlphaVault
     function emitAction() external {
-        _emitAction(ActionType.MANUAL, _getTicksByStorage());
+        _emitAction(ActionType.MANUAL);
     }
 
-    function _emitAction(ActionType _actionType, Ticks memory _ticks) internal {
-        emit Action(_actionType, msg.sender, _totalAssets(_ticks), totalSupply());
+    function _emitAction(ActionType _actionType) internal {
+        emit Action(_actionType, msg.sender, _totalAssets(_getTicksByStorage()), totalSupply());
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
