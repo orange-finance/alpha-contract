@@ -561,42 +561,22 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token0.balanceOf(address(vault)), 2 ether, 5e16); //5%
     }
 
-    function test_swap_Success1() public {
+    function test_swapAmountIn_Success0() public {
         token0.transfer(address(vault), 10 ether);
-        (uint256 _currentSqrtRatioX96, , , , , , ) = pool.slot0();
-        uint _estimateAmount1 = OracleLibrary.getQuoteAtTick(
-            _ticks.currentTick,
-            10 ether,
-            address(token0),
-            address(token1)
-        );
-        vault.swap(true, 10 ether, _currentSqrtRatioX96);
-        //assertion
+        vault.swapAmountIn(true, 10 ether);
         assertEq(token0.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token1.balanceOf(address(vault)), _estimateAmount1, 1e16);
     }
 
-    function test_swap_Success2() public {
+    function test_swapAmountIn_Success1() public {
         token1.transfer(address(vault), 10000 * 1e6);
-        (uint256 _currentSqrtRatioX96, , , , , , ) = pool.slot0();
-        uint _estimateAmount0 = OracleLibrary.getQuoteAtTick(
-            _ticks.currentTick,
-            10000 * 1e6,
-            address(token1),
-            address(token0)
-        );
-        vault.swap(false, 10000 * 1e6, _currentSqrtRatioX96);
-        //assertion
+        vault.swapAmountIn(false, 10000 * 1e6);
         assertEq(token1.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token0.balanceOf(address(vault)), _estimateAmount0, 1e16);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
     function test_uniswapV3Callback_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_CALLBACK_CALLER));
         vault.uniswapV3MintCallback(0, 0, "");
-        vm.expectRevert(bytes(Errors.ONLY_CALLBACK_CALLER));
-        vault.uniswapV3SwapCallback(0, 0, "");
     }
 
     function test_uniswapV3MintCallback_Success() public {
@@ -609,27 +589,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         deal(address(token1), address(vault), 10_000 * 1e6);
         vm.prank(address(pool));
         vault.uniswapV3MintCallback(1 ether, 1_000 * 1e6, "");
-        assertEq(token0.balanceOf(address(vault)), 9 ether);
-        assertEq(token1.balanceOf(address(vault)), 9_000 * 1e6);
-    }
-
-    function testuniswapV3SwapCallback_Success1() public {
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(0, 0, "");
-        assertEq(token0.balanceOf(address(vault)), 0);
-        assertEq(token1.balanceOf(address(vault)), 0);
-
-        deal(address(token0), address(vault), 10 ether);
-        deal(address(token1), address(vault), 10_000 * 1e6);
-
-        //amount0
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(1 ether, 0, "");
-        assertEq(token0.balanceOf(address(vault)), 9 ether);
-        assertEq(token1.balanceOf(address(vault)), 10_000 * 1e6);
-        //amount1
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(0, 1_000 * 1e6, "");
         assertEq(token0.balanceOf(address(vault)), 9 ether);
         assertEq(token1.balanceOf(address(vault)), 9_000 * 1e6);
     }

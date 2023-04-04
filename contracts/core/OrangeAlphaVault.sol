@@ -6,7 +6,6 @@ import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
-import {IUniswapV3SwapCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IAaveFlashLoanSimpleReceiver} from "../interfaces/IAaveFlashLoanSimpleReceiver.sol";
@@ -25,13 +24,7 @@ import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 // import "forge-std/console2.sol";
 // import {Ints} from "../mocks/Ints.sol";
 
-contract OrangeAlphaVault is
-    IOrangeAlphaVault,
-    IUniswapV3MintCallback,
-    IUniswapV3SwapCallback,
-    ERC20,
-    IAaveFlashLoanSimpleReceiver
-{
+contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, IAaveFlashLoanSimpleReceiver {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -393,14 +386,10 @@ contract OrangeAlphaVault is
                 );
 
             // 5. swap surplus amount0 or amount1
-            _swapSurplusAmountInDeposit(
-                _depositedBalances,
-                _additionalLiquidityAmount0,
-                _additionalLiquidityAmount1,
-                _ticks
-            );
+            _swapSurplusAmountInDeposit(_depositedBalances, _additionalLiquidityAmount0, _additionalLiquidityAmount1);
 
             // 6. add liquidity
+            (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
             (uint256 _token0Balance, uint256 _token1Balance) = pool.mint(
                 address(this),
                 _ticks.lowerTick,
@@ -418,8 +407,7 @@ contract OrangeAlphaVault is
     function _swapSurplusAmountInDeposit(
         Balances memory _balances,
         uint256 _targetAmount0,
-        uint256 _targetAmount1,
-        Ticks memory _ticks
+        uint256 _targetAmount1
     ) internal {
         //calculate surplus amount0 and amount1
         uint256 _surplusAmount0;
@@ -439,24 +427,14 @@ contract OrangeAlphaVault is
             //no need to swap
         } else if (_surplusAmount0 > 0) {
             //swap amount0 to amount1
-            (int256 _amount0Delta, int256 _amount1Delta) = _swap(
-                true,
-                _surplusAmount0,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-            (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _balances.balance0 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
-            _balances.balance1 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
+            uint256 _amountOut1 = _swapAmountIn(true, _surplusAmount0);
+            _balances.balance0 -= _surplusAmount0;
+            _balances.balance1 += _amountOut1;
         } else if (_surplusAmount1 > 0) {
             //swap amount1 to amount0
-            (int256 _amount0Delta, int256 _amount1Delta) = _swap(
-                false,
-                _surplusAmount1,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
-            (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
-            _balances.balance0 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance0) - _amount0Delta);
-            _balances.balance1 = SafeCast.toUint256(SafeCast.toInt256(_balances.balance1) - _amount1Delta);
+            uint256 _amountOut0 = _swapAmountIn(false, _surplusAmount1);
+            _balances.balance0 += _amountOut0;
+            _balances.balance1 -= _surplusAmount1;
         } else {
             revert(Errors.SURPLUS_ZERO);
         }
@@ -546,15 +524,8 @@ contract OrangeAlphaVault is
 
             // Swap from ETH to USDC (if necessary)
             if (_redeemableBalances.balance0 > 0) {
-                (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-                (, int256 amount1Delta) = _swap(
-                    true, //token0 to token1
-                    _redeemableBalances.balance0,
-                    _sqrtRatioX96
-                );
-                _redeemableBalances.balance1 = SafeCast.toUint256(
-                    SafeCast.toInt256(_redeemableBalances.balance1) - amount1Delta
-                );
+                uint256 _amountOut1 = _swapAmountIn(true, _redeemableBalances.balance0);
+                _redeemableBalances.balance1 += _amountOut1;
             }
 
             returnAssets_ = _redeemableBalances.balance1;
@@ -586,7 +557,6 @@ contract OrangeAlphaVault is
         }
         token1.safeTransfer(_receiver, returnAssets_);
 
-        _ticks = _getTicksByStorage();
         _emitAction(ActionType.REDEEM, _ticks);
     }
 
@@ -643,7 +613,6 @@ contract OrangeAlphaVault is
                     false, //token1 to token0
                     _repayingDebt - _balanceToken0
                 );
-                (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
             }
 
             // Repay ETH
@@ -671,11 +640,7 @@ contract OrangeAlphaVault is
         // swap remaining all ETH to USDC
         _balanceToken0 = token0.balanceOf(address(this));
         if (_balanceToken0 > 0) {
-            _swap(
-                true, //token0 to token1
-                _balanceToken0,
-                _ticks.currentTick.getSqrtRatioAtTick()
-            );
+            _swapAmountIn(true, _balanceToken0);
         }
 
         // check balance of token1
@@ -683,7 +648,6 @@ contract OrangeAlphaVault is
             revert(Errors.LESS_FINAL_BALANCE);
         }
 
-        (, _ticks.currentTick, , , , , ) = pool.slot0(); //retrieve tick again
         _emitAction(ActionType.STOPLOSS, _ticks);
         hasPosition = false;
     }
@@ -856,19 +820,9 @@ contract OrangeAlphaVault is
         } else {
             unchecked {
                 if (_balance0 > _targetAmount0) {
-                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                    _swap(
-                        true,
-                        uint128(_balance0 - _targetAmount0), //uncheckable
-                        _sqrtRatioX96
-                    );
+                    _swapAmountIn(true, _balance0 - _targetAmount0);
                 } else if (_balance1 > _targetAmount1) {
-                    (_sqrtRatioX96, , , , , , ) = pool.slot0();
-                    _swap(
-                        false,
-                        uint128(_balance1 - _targetAmount1), //uncheckable
-                        _sqrtRatioX96
-                    );
+                    _swapAmountIn(false, _balance1 - _targetAmount1);
                 }
             }
         }
@@ -1007,19 +961,7 @@ contract OrangeAlphaVault is
 
     ///@notice Swap exact amount out
     function _swapAmountOut(bool _zeroForOne, uint256 _amountOut) internal returns (uint256 amountIn_) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _zeroForOne
-            ? (
-                address(token0),
-                address(token1),
-                (_sqrtRatioX96 * (MAGIC_SCALE_1E4 - params.slippageBPS())) / MAGIC_SCALE_1E4
-            )
-            : (
-                address(token1),
-                address(token0),
-                (_sqrtRatioX96 * (MAGIC_SCALE_1E4 + params.slippageBPS())) / MAGIC_SCALE_1E4
-            );
-
+        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
         ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
@@ -1034,23 +976,37 @@ contract OrangeAlphaVault is
     }
 
     ///@notice Swap exact amount in
-    function _swap(
-        bool _zeroForOne,
-        uint256 _swapAmount,
-        uint256 _currentSqrtRatioX96
-    ) internal returns (int256, int256) {
-        uint160 _swapThresholdPrice;
-        if (_zeroForOne) {
-            _swapThresholdPrice = uint160(
-                _currentSqrtRatioX96.mulDiv(MAGIC_SCALE_1E4 - params.slippageBPS(), MAGIC_SCALE_1E4)
-            );
-        } else {
-            _swapThresholdPrice = uint160(
-                _currentSqrtRatioX96.mulDiv(MAGIC_SCALE_1E4 + params.slippageBPS(), MAGIC_SCALE_1E4)
-            );
-        }
+    function _swapAmountIn(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
+        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
+        ISwapRouter.ExactInputSingleParams memory _params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: pool.fee(),
+            recipient: address(this),
+            deadline: block.timestamp,
+            amountIn: _amountIn,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96
+        });
+        amountOut_ = router.exactInputSingle(_params);
+    }
 
-        return pool.swap(address(this), _zeroForOne, SafeCast.toInt256(_swapAmount), _swapThresholdPrice, "");
+    ///@notice get slippage and parameters in _swapAmountOut and _swapAmountIn
+    /// return parameters (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96)
+    function _getSlippageOnSwapRouter(bool _zeroForOne) internal view returns (address, address, uint160) {
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        return
+            (_zeroForOne)
+                ? (
+                    address(token0),
+                    address(token1),
+                    (_sqrtRatioX96 * (MAGIC_SCALE_1E4 - params.slippageBPS())) / MAGIC_SCALE_1E4
+                )
+                : (
+                    address(token1),
+                    address(token0),
+                    (_sqrtRatioX96 * (MAGIC_SCALE_1E4 + params.slippageBPS())) / MAGIC_SCALE_1E4
+                );
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
@@ -1078,23 +1034,6 @@ contract OrangeAlphaVault is
             //     console2.log(amount1Owed, token1.balanceOf(address(this)));
             // }
             token1.safeTransfer(msg.sender, amount1Owed);
-        }
-    }
-
-    /// @notice Uniswap v3 callback fn, called back on pool.swap
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata /*data*/
-    ) external override {
-        if (msg.sender != address(pool)) {
-            revert(Errors.ONLY_CALLBACK_CALLER);
-        }
-
-        if (amount0Delta > 0) {
-            token0.safeTransfer(msg.sender, uint256(amount0Delta));
-        } else if (amount1Delta > 0) {
-            token1.safeTransfer(msg.sender, uint256(amount1Delta));
         }
     }
 

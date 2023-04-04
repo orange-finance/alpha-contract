@@ -197,7 +197,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
 
         //transfer token0 and token1 to vault
         vm.expectRevert(bytes(Errors.SURPLUS_ZERO));
-        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1);
     }
 
     function test_swapSurplusAmountInDeposit_Success1NoSwap() public {
@@ -222,7 +222,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1);
         //assertion
         assertEq(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0);
         assertEq(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1);
@@ -253,7 +253,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1);
         //assertion
         assertEq(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0 - 1e14);
         assertGt(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1);
@@ -284,7 +284,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         //transfer token0 and token1 to vault
         token0.transfer(address(vault), _balance.balance0);
         token1.transfer(address(vault), _balance.balance1);
-        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1, _ticks);
+        vault.swapSurplusAmountInDeposit(_balance, _targetAmount0, _targetAmount1);
         //assertion
         assertGt(token0.balanceOf(address(vault)), _beforeBalance0 + _balance.balance0);
         assertEq(token1.balanceOf(address(vault)), _beforeBalance1 + _balance.balance1 - 10);
