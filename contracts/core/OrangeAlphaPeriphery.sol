@@ -49,10 +49,20 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     }
 
     function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256) {
+        return _redeem(_shares, _minAssets, false);
+    }
+
+    function flashRedeem(uint256 _shares, uint256 _minAssets) external returns (uint256) {
+        return _redeem(_shares, _minAssets, true);
+    }
+
+    function _redeem(uint256 _shares, uint256 _minAssets, bool _isFlash) internal returns (uint256) {
         if (block.timestamp < deposits[msg.sender].timestamp + params.lockupPeriod()) {
             revert(Errors.LOCKUP);
         }
-        uint256 _assets = vault.redeem(_shares, msg.sender, msg.sender, _minAssets);
+        uint256 _assets = (_isFlash)
+            ? vault.flashRedeem(_shares, msg.sender, msg.sender, _minAssets)
+            : vault.redeem(_shares, msg.sender, msg.sender, _minAssets);
 
         //subtract depositsCap
         uint256 _deposited = deposits[msg.sender].assets;

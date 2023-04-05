@@ -100,10 +100,7 @@ contract OrangeAlphaResolverTest is BaseTest {
         assertEq(canExec, false);
     }
 
-    function _swap(
-        bool _zeroForOne,
-        uint256 _amountIn
-    ) internal returns (uint256 amountOut_) {
+    function _swap(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
         ISwapRouter.ExactInputSingleParams memory inputParams;
         if (_zeroForOne) {
             inputParams = ISwapRouter.ExactInputSingleParams({
@@ -142,15 +139,16 @@ contract OrangeAlphaVaultMockForResolver {
         pool = IUniswapV3Pool(_pool);
     }
 
-    function setStoplossTicks(
-        int24 _stoplossLowerTick,
-        int24 _stoplossUpperTick
-    ) external {
+    function setStoplossTicks(int24 _stoplossLowerTick, int24 _stoplossUpperTick) external {
         stoplossLowerTick = _stoplossLowerTick;
         stoplossUpperTick = _stoplossUpperTick;
     }
 
     function setHasPosition(bool _hasPosition) external {
         hasPosition = _hasPosition;
+    }
+
+    function totalAssets() external pure returns (uint256) {
+        return 100000;
     }
 }

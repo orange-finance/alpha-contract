@@ -14,10 +14,12 @@ library Errors {
     string public constant LESS_AMOUNT = "109";
     string public constant LESS_LIQUIDITY = "110";
     string public constant HIGH_SLIPPAGE = "111";
-    string public constant LACK_OF_SWAP_TOKEN = "112";
-    string public constant LACK_OF_AMOUNT_OUT = "113";
-    string public constant EQUAL_COLLATERAL_OR_DEBT = "114";
-    string public constant INVALID_SHARES = "115";
+    string public constant EQUAL_COLLATERAL_OR_DEBT = "112";
+    string public constant LESS_FINAL_BALANCE = "113";
+    string public constant NO_NEED_FLASH = "114";
+    string public constant ONLY_AAVE_POOL = "115";
+    string public constant FLASH_LOAN_LACK_OF_BALANCE = "116";
+
     //OrangeAlphaPeriphery
     string public constant MERKLE_ALLOWLISTED = "201";
     string public constant CAPOVER = "202";

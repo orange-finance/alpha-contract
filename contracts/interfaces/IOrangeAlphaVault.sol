@@ -134,10 +134,33 @@ interface IOrangeAlphaVault {
     ) external returns (uint256 assets);
 
     /**
+     * @notice redeem using flashloan
+     * @param shares amount of vault token
+     * @param receiver receiver address
+     * @param owner owner address
+     * @param minAssets minimum amount of returned assets
+     * @return assets
+     */
+    function flashRedeem(
+        uint256 shares,
+        address receiver,
+        address owner,
+        uint256 minAssets
+    ) external returns (uint256 assets);
+
+    /**
      * @notice Remove all positions only when current price is out of range
      * @param inputTick Input tick for slippage checking
+     * @param _minFinalBalance minimum final balance
      */
-    function stoploss(int24 inputTick) external;
+    function stoploss(int24 inputTick, uint256 _minFinalBalance) external;
+
+    /**
+     * @notice Remove all positions using flashLoan
+     * @param inputTick Input tick for slippage checking
+     * @param _minFinalBalance minimum final balance
+     */
+    function flashStoploss(int24 inputTick, uint256 _minFinalBalance) external;
 
     /**
      * @notice Change the range of underlying UniswapV3 position

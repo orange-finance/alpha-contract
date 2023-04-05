@@ -18,11 +18,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         address _pool,
         address _token0,
         address _token1,
+        address _router,
         address _aave,
         address _debtToken0,
         address _aToken1,
         address _params
-    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _aave, _debtToken0, _aToken1, _params) {}
+    ) OrangeAlphaVault(_name, _symbol, _pool, _token0, _token1, _router, _aave, _debtToken0, _aToken1, _params) {}
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
@@ -128,10 +129,9 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
     function swapSurplusAmountInDeposit(
         Balances memory _balances,
         uint256 _targetAmount0,
-        uint256 _targetAmount1,
-        Ticks memory _ticks
+        uint256 _targetAmount1
     ) external {
-        return _swapSurplusAmountInDeposit(_balances, _targetAmount0, _targetAmount1, _ticks);
+        return _swapSurplusAmountInDeposit(_balances, _targetAmount0, _targetAmount1);
     }
 
     function addLiquidityInRebalance(
@@ -150,16 +150,12 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
     }
 
-    function swap(
-        bool _zeroForOne,
-        uint256 _swapAmount,
-        uint256 _currentSqrtRatioX96
-    ) external returns (int256 _amount0Delta, int256 _amount1Delta) {
-        return _swap(_zeroForOne, _swapAmount, _currentSqrtRatioX96);
+    function swapAmountOut(bool _zeroForOne, uint256 _amountOut) external returns (uint256 amountIn_) {
+        return _swapAmountOut(_zeroForOne, _amountOut);
     }
 
-    function swapAmountOut(bool _zeroForOne, uint128 _minAmountOut, int24 _tick) external {
-        _swapAmountOut(_zeroForOne, _minAmountOut, _tick);
+    function swapAmountIn(bool _zeroForOne, uint256 _amountIn) external returns (uint256 amountOut_) {
+        return _swapAmountIn(_zeroForOne, _amountIn);
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
