@@ -10,10 +10,8 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IAaveFlashLoanSimpleReceiver} from "../interfaces/IAaveFlashLoanSimpleReceiver.sol";
 
-//extend
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 //libraries
+import {ERC20} from "../libs/ERC20.sol";
 import {SafeAavePool, IAaveV3Pool} from "../libs/SafeAavePool.sol";
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -72,7 +70,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         address _debtToken0,
         address _aToken1,
         address _params
-    ) ERC20(_name, _symbol) {
+    ) ERC20(_name, _symbol, 6) {
         // setting adresses and approving
         pool = IUniswapV3Pool(_pool);
         token0 = IERC20(_token0);
@@ -94,27 +92,22 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     }
 
     /* ========== VIEW FUNCTIONS ========== */
-    // @inheritdoc ERC20
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-
     /// @inheritdoc IOrangeAlphaVault
     /// @dev share is propotion of liquidity. Caluculate hedge position and liquidity position except for hedge position.
     function convertToShares(uint256 _assets) external view returns (uint256 shares_) {
-        uint256 _supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 _supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
         return _supply == 0 ? _assets : _supply.mulDiv(_assets, _totalAssets(_getTicksByStorage()));
     }
 
     /// @inheritdoc IOrangeAlphaVault
     function convertToAssets(uint256 _shares) external view returns (uint256) {
-        uint256 _supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        uint256 _supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
         return _supply == 0 ? _shares : _shares.mulDiv(_totalAssets(_getTicksByStorage()), _supply);
     }
 
     /// @inheritdoc IOrangeAlphaVault
     function totalAssets() external view returns (uint256) {
-        if (totalSupply() == 0) return 0;
+        if (totalSupply == 0) return 0;
         return _totalAssets(_getTicksByStorage());
     }
 
@@ -304,7 +297,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
 
         // initial deposit
-        uint256 _totalSupply = totalSupply();
+        uint256 _totalSupply = totalSupply;
         if (_totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
@@ -471,7 +464,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             revert(Errors.INVALID_AMOUNT);
         }
 
-        uint256 _totalSupply = totalSupply();
+        uint256 _totalSupply = totalSupply;
         Ticks memory _ticks = _getTicksByStorage();
 
         //burn
@@ -591,7 +584,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
 
-        if (totalSupply() == 0) return;
+        if (totalSupply == 0) return;
 
         Ticks memory _ticks = _getTicksByStorage();
         _checkTickSlippage(_ticks.currentTick, _inputTick);
@@ -683,7 +676,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         stoplossLowerTick = _newStoplossLowerTick;
         stoplossUpperTick = _newStoplossUpperTick;
 
-        if (totalSupply() == 0) {
+        if (totalSupply == 0) {
             return;
         }
 
@@ -846,7 +839,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     }
 
     function _emitAction(ActionType _actionType) internal {
-        emit Action(_actionType, msg.sender, _totalAssets(_getTicksByStorage()), totalSupply());
+        emit Action(_actionType, msg.sender, _totalAssets(_getTicksByStorage()), totalSupply);
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
