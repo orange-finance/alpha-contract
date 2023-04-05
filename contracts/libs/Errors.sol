@@ -19,6 +19,7 @@ library Errors {
     string public constant NO_NEED_FLASH = "114";
     string public constant ONLY_AAVE_POOL = "115";
     string public constant FLASH_LOAN_LACK_OF_BALANCE = "116";
+    string public constant INVALID_SHARES = "117";
 
     //OrangeAlphaPeriphery
     string public constant MERKLE_ALLOWLISTED = "201";
