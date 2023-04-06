@@ -255,28 +255,33 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             address(token1)
         );
 
-        //compute collateral/asset ratio
-        uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
-        uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
-            _ltv +
-            MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
-            MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
+        if (_hedgeRatio == 0) {
+            position_.token1Balance = _assets.mulDiv(_amount1, (_amount0ValueInToken1 + _amount1));
+            position_.token0Balance = position_.token1Balance.mulDiv(_amount0, _amount1);
+        } else {
+            //compute collateral/asset ratio
+            uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
+            uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
+                _ltv +
+                MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
+                MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
 
-        //Collateral
-        position_.collateralAmount1 = _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
+            //Collateral
+            position_.collateralAmount1 = _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
 
-        uint256 _borrowUsdc = position_.collateralAmount1.mulDiv(_ltv, MAGIC_SCALE_1E8);
-        //borrowing usdc amount to weth
-        position_.debtAmount0 = OracleLibrary.getQuoteAtTick(
-            _currentTick,
-            uint128(_borrowUsdc),
-            address(token1),
-            address(token0)
-        );
+            uint256 _borrowUsdc = position_.collateralAmount1.mulDiv(_ltv, MAGIC_SCALE_1E8);
+            //borrowing usdc amount to weth
+            position_.debtAmount0 = OracleLibrary.getQuoteAtTick(
+                _currentTick,
+                uint128(_borrowUsdc),
+                address(token1),
+                address(token0)
+            );
 
-        // amount added on Uniswap
-        position_.token0Balance = position_.debtAmount0.mulDiv(MAGIC_SCALE_1E8, _hedgeRatio);
-        position_.token1Balance = position_.token0Balance.mulDiv(_amount1, _amount0);
+            // amount added on Uniswap
+            position_.token0Balance = position_.debtAmount0.mulDiv(MAGIC_SCALE_1E8, _hedgeRatio);
+            position_.token1Balance = position_.token0Balance.mulDiv(_amount1, _amount0);
+        }
     }
 
     ///@notice Get LTV by current and range prices
@@ -736,6 +741,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _currentPosition.collateralAmount1 == _targetPosition.collateralAmount1 ||
             _currentPosition.debtAmount0 == _targetPosition.debtAmount0
         ) {
+            // if originally collateral is 0, through this function
+            if (_currentPosition.collateralAmount1 == 0) return;
             revert(Errors.EQUAL_COLLATERAL_OR_DEBT);
         }
         unchecked {
