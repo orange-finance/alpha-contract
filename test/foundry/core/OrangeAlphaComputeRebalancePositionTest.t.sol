@@ -42,6 +42,38 @@ contract OrangeAlphaComputeRebalancePositionTest is OrangeAlphaTestBase {
         _testComputeRebalancePosition(96_719 * 1e6, _tick, -198296, -197013, 72_948_000, 46_220_000);
     }
 
+    function test_computeRebalancePosition_SuccessHedgeRatioZero() public {
+        uint _ltv = 80e6;
+
+        IOrangeAlphaVault.Positions memory _position = vault.computeRebalancePosition(
+            10_000 * 1e6,
+            currentTick,
+            lowerTick,
+            upperTick,
+            _ltv,
+            0
+        );
+        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
+        console.log(_position.debtAmount0, "debtAmount0");
+        console.log(_position.collateralAmount1, "collateralAmount1");
+        console.log(_position.token0Balance, "token0Balance");
+        console.log(_position.token1Balance, "token1Balance");
+        console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
+
+        //assertion
+        assertEq(_position.debtAmount0, 0);
+        assertEq(_position.collateralAmount1, 0);
+        //total amount
+        uint _addedUsdc = OracleLibrary.getQuoteAtTick(
+            currentTick,
+            uint128(_position.token0Balance),
+            address(token0),
+            address(token1)
+        );
+        uint _total = _position.token1Balance + _addedUsdc;
+        assertApproxEqRel(_total, 10_000 * 1e6, 1e16);
+    }
+
     function test_computeRebalancePosition_SuccessHedgeRatio() public {
         uint _ltv = 80e6;
         _testComputeRebalancePosition(10_000 * 1e6, currentTick, lowerTick, upperTick, _ltv, 100e6);

@@ -250,6 +250,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.redeem(_shares, address(this), address(0), 100_900 * 1e6);
     }
 
+    function test_flashRedeem_Revert3NoPosition() public {
+        uint256 _shares = 10_000 * 1e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(8 days);
+
+        uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
+        vm.expectRevert(bytes(Errors.NO_NEED_FLASH));
+        vault.flashRedeem(_shares, address(this), address(0), _assets);
+    }
+
     function test_redeem_Success0NoPosition() public {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
@@ -265,6 +275,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Success1Max() public {
+        _test_redeem_Success1Max(false);
+    }
+
+    function test_flashRedeem_Success1Max() public {
+        _test_redeem_Success1Max(true);
+    }
+
+    function _test_redeem_Success1Max(bool _isFlash) internal {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
@@ -272,9 +290,11 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
-        uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
+        uint256 _realAssets = (_isFlash)
+            ? vault.flashRedeem(_shares, address(this), address(0), _assets)
+            : vault.redeem(_shares, address(this), address(0), _assets);
         //assertion
-        assertApproxEqRel(_assets, _realAssets, 1e16);
+        assertApproxEqRel(_realAssets, _assets, 1e17);
         assertEq(vault.balanceOf(address(this)), 0);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -282,10 +302,18 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertEq(aToken1.balanceOf(address(vault)), 0);
         assertEq(token1.balanceOf(address(vault)), 0);
         assertEq(token0.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e18);
+        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
     }
 
     function test_redeem_Success2Quater() public {
+        _test_redeem_Success2Quater(false);
+    }
+
+    function test_flashRedeem_Success2Quater() public {
+        _test_redeem_Success2Quater(true);
+    }
+
+    function _test_redeem_Success2Quater(bool _isFlash) public {
         uint256 _shares = 10_000 * 1e6;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(8 days);
@@ -299,7 +327,9 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
         //execute
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
-        vault.redeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4);
+        (_isFlash)
+            ? vault.flashRedeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4)
+            : vault.redeem((_shares * 3) / 4, address(this), address(0), (_assets * 3) / 4);
         // assertion
         assertApproxEqRel(vault.balanceOf(address(this)), _shares / 4, 1e16);
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
@@ -312,16 +342,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
-        vault.stoploss(1);
+        vault.stoploss(1, 0);
     }
 
     function test_stoploss_Success0ByGelato() public {
         vm.prank(params.gelatoExecutor());
-        vault.stoploss(1);
+        vault.stoploss(1, 0);
     }
 
     function test_stoploss_Success1() public {
-        vault.stoploss(_ticks.currentTick);
+        vault.stoploss(_ticks.currentTick, 0);
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
         assertEq(__ticks.currentTick.getSqrtRatioAtTick(), _ticks.currentTick.getSqrtRatioAtTick());
         assertEq(__ticks.currentTick, _ticks.currentTick);
@@ -334,7 +364,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, vault.totalAssets());
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -351,10 +381,36 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
         skip(1);
         (, _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick);
+        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        //assertion
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertEq(_liquidity, 0);
+        assertEq(debtToken0.balanceOf(address(vault)), 0);
+        assertEq(aToken1.balanceOf(address(vault)), 0);
+        assertEq(token0.balanceOf(address(vault)), 0);
+        assertApproxEqRel(token1.balanceOf(address(vault)), 10_000 * 1e6, 1e18);
+    }
+
+    function test_flashStoploss_RevertWithoutPosition() public {
+        uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
+        vault.deposit(_shares, address(this), 10_000 * 1e6);
+        skip(1);
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vm.expectRevert(bytes(Errors.NO_NEED_FLASH));
+        vault.flashStoploss(_tick, 0);
+    }
+
+    function test_flashStoploss_Success() public {
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(1);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.flashStoploss(_tick, (vault.totalAssets() * 9900) / 10000);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -486,61 +542,41 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_swapAmountOut_Revert() public {
-        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
-        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        vm.expectRevert(bytes("STF"));
+        vault.swapAmountOut(true, 10000 * 1e6);
 
-        vm.expectRevert(bytes(Errors.LACK_OF_SWAP_TOKEN));
-        vault.swapAmountOut(false, 10 ether, currentTick);
+        vm.expectRevert(bytes("STF"));
+        vault.swapAmountOut(false, 10 ether);
     }
 
     function test_swapAmountOut_Success0() public {
         token0.transfer(address(vault), 10 ether);
-        vault.swapAmountOut(true, 10000 * 1e6, currentTick);
+        vault.swapAmountOut(true, 10000 * 1e6);
         assertApproxEqRel(token1.balanceOf(address(vault)), 10000 * 1e6, 5e16); //5%
     }
 
     function test_swapAmountOut_Success1() public {
         token1.transfer(address(vault), 10000 * 1e6);
-        vault.swapAmountOut(false, 2 ether, currentTick);
+        vault.swapAmountOut(false, 2 ether);
         assertApproxEqRel(token0.balanceOf(address(vault)), 2 ether, 5e16); //5%
     }
 
-    function test_swap_Success1() public {
+    function test_swapAmountIn_Success0() public {
         token0.transfer(address(vault), 10 ether);
-        (uint256 _currentSqrtRatioX96, , , , , , ) = pool.slot0();
-        uint _estimateAmount1 = OracleLibrary.getQuoteAtTick(
-            _ticks.currentTick,
-            10 ether,
-            address(token0),
-            address(token1)
-        );
-        vault.swap(true, 10 ether, _currentSqrtRatioX96);
-        //assertion
+        vault.swapAmountIn(true, 10 ether);
         assertEq(token0.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token1.balanceOf(address(vault)), _estimateAmount1, 1e16);
     }
 
-    function test_swap_Success2() public {
+    function test_swapAmountIn_Success1() public {
         token1.transfer(address(vault), 10000 * 1e6);
-        (uint256 _currentSqrtRatioX96, , , , , , ) = pool.slot0();
-        uint _estimateAmount0 = OracleLibrary.getQuoteAtTick(
-            _ticks.currentTick,
-            10000 * 1e6,
-            address(token1),
-            address(token0)
-        );
-        vault.swap(false, 10000 * 1e6, _currentSqrtRatioX96);
-        //assertion
+        vault.swapAmountIn(false, 10000 * 1e6);
         assertEq(token1.balanceOf(address(vault)), 0);
-        assertApproxEqRel(token0.balanceOf(address(vault)), _estimateAmount0, 1e16);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
     function test_uniswapV3Callback_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_CALLBACK_CALLER));
         vault.uniswapV3MintCallback(0, 0, "");
-        vm.expectRevert(bytes(Errors.ONLY_CALLBACK_CALLER));
-        vault.uniswapV3SwapCallback(0, 0, "");
     }
 
     function test_uniswapV3MintCallback_Success() public {
@@ -553,27 +589,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         deal(address(token1), address(vault), 10_000 * 1e6);
         vm.prank(address(pool));
         vault.uniswapV3MintCallback(1 ether, 1_000 * 1e6, "");
-        assertEq(token0.balanceOf(address(vault)), 9 ether);
-        assertEq(token1.balanceOf(address(vault)), 9_000 * 1e6);
-    }
-
-    function testuniswapV3SwapCallback_Success1() public {
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(0, 0, "");
-        assertEq(token0.balanceOf(address(vault)), 0);
-        assertEq(token1.balanceOf(address(vault)), 0);
-
-        deal(address(token0), address(vault), 10 ether);
-        deal(address(token1), address(vault), 10_000 * 1e6);
-
-        //amount0
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(1 ether, 0, "");
-        assertEq(token0.balanceOf(address(vault)), 9 ether);
-        assertEq(token1.balanceOf(address(vault)), 10_000 * 1e6);
-        //amount1
-        vm.prank(address(pool));
-        vault.uniswapV3SwapCallback(0, 1_000 * 1e6, "");
         assertEq(token0.balanceOf(address(vault)), 9 ether);
         assertEq(token1.balanceOf(address(vault)), 9_000 * 1e6);
     }

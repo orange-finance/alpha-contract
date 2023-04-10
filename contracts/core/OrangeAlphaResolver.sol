@@ -5,14 +5,18 @@ import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
+import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 
 contract OrangeAlphaResolver is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
+    using FullMath for uint256;
+    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== ERRORS ========== */
     string constant ERROR_CANNOT_STOPLOSS = "CANNOT_STOPLOSS";
+    string constant ONLY_GELATO = "ONLY_GELATO";
 
     /* ========== PARAMETERS ========== */
     IOrangeAlphaVault public vault;
@@ -25,7 +29,11 @@ contract OrangeAlphaResolver is IResolver {
     }
 
     // @inheritdoc IResolver
-    function checker() external view override returns (bool, bytes memory) {
+    function checker() external override returns (bool, bytes memory) {
+        if (params.gelatoExecutor() != msg.sender) {
+            return (false, bytes(ONLY_GELATO));
+        }
+
         if (vault.hasPosition()) {
             IUniswapV3Pool _pool = vault.pool();
             (, int24 _currentTick, , , , , ) = _pool.slot0();
@@ -36,7 +44,12 @@ contract OrangeAlphaResolver is IResolver {
                 _isOutOfRange(_currentTick, _stoplossLowerTick, _stoplossUpperTick) &&
                 _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
-                bytes memory execPayload = abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector, _twap);
+                uint256 _minFinalBalance = vault.stoploss(_twap, 0);
+                bytes memory execPayload = abi.encodeWithSelector(
+                    IOrangeAlphaVault.stoploss.selector,
+                    _twap,
+                    _minFinalBalance
+                );
                 return (true, execPayload);
             }
         }

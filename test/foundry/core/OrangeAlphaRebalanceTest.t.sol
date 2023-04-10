@@ -92,6 +92,34 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
         assertEq(vault.hasPosition(), false);
     }
 
+    function test_rebalance_SuccessHedgeRatioZero() public {
+        uint _ltv = 80e6;
+        uint256 _hedgeRatio = 0;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(1);
+
+        int24 _newLowerTick = -207540;
+        int24 _newUpperTick = -205680;
+        uint128 _liquidity = vault.getRebalancedLiquidity(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        );
+        vault.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio,
+            (_liquidity * 9900) / MAGIC_SCALE_1E4
+        );
+
+        (uint128 _newLiquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
+    }
+
     function test_rebalance_Success1() public {
         uint256 _hedgeRatio = 100e6;
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;

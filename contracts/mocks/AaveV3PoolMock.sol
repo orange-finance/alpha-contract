@@ -183,4 +183,12 @@ contract AaveV3PoolMock is IAaveV3Pool, Ownable {
             0
         );
     }
+
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external {}
 }
