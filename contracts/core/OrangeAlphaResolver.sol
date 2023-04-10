@@ -16,6 +16,7 @@ contract OrangeAlphaResolver is IResolver {
 
     /* ========== ERRORS ========== */
     string constant ERROR_CANNOT_STOPLOSS = "CANNOT_STOPLOSS";
+    string constant ONLY_GELATO = "ONLY_GELATO";
 
     /* ========== PARAMETERS ========== */
     IOrangeAlphaVault public vault;
@@ -28,7 +29,11 @@ contract OrangeAlphaResolver is IResolver {
     }
 
     // @inheritdoc IResolver
-    function checker() external view override returns (bool, bytes memory) {
+    function checker() external override returns (bool, bytes memory) {
+        if (params.gelatoExecutor() != msg.sender) {
+            return (false, bytes(ONLY_GELATO));
+        }
+
         if (vault.hasPosition()) {
             IUniswapV3Pool _pool = vault.pool();
             (, int24 _currentTick, , , , , ) = _pool.slot0();
@@ -39,10 +44,7 @@ contract OrangeAlphaResolver is IResolver {
                 _isOutOfRange(_currentTick, _stoplossLowerTick, _stoplossUpperTick) &&
                 _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
-                uint256 _minFinalBalance = vault.totalAssets().mulDiv(
-                    MAGIC_SCALE_1E4 - params.slippageBPS(),
-                    MAGIC_SCALE_1E4
-                );
+                uint256 _minFinalBalance = vault.stoploss(_twap, 0);
                 bytes memory execPayload = abi.encodeWithSelector(
                     IOrangeAlphaVault.stoploss.selector,
                     _twap,

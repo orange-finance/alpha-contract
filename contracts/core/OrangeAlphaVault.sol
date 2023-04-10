@@ -575,21 +575,25 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss(int24 _inputTick, uint256 _minFinalBalance) external {
-        _stoploss(_inputTick, _minFinalBalance, false);
+    function stoploss(int24 _inputTick, uint256 _minFinalBalance) external returns (uint256) {
+        return _stoploss(_inputTick, _minFinalBalance, false);
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function flashStoploss(int24 _inputTick, uint256 _minFinalBalance) external {
-        _stoploss(_inputTick, _minFinalBalance, true);
+    function flashStoploss(int24 _inputTick, uint256 _minFinalBalance) external returns (uint256) {
+        return _stoploss(_inputTick, _minFinalBalance, true);
     }
 
-    function _stoploss(int24 _inputTick, uint256 _minFinalBalance, bool _isFlash) internal {
+    function _stoploss(
+        int24 _inputTick,
+        uint256 _minFinalBalance,
+        bool _isFlash
+    ) internal returns (uint256 finalBalance_) {
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
 
-        if (totalSupply == 0) return;
+        if (totalSupply == 0) return 0;
 
         Ticks memory _ticks = _getTicksByStorage();
         _checkTickSlippage(_ticks.currentTick, _inputTick);
@@ -642,7 +646,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         }
 
         // check balance of token1
-        if (token1.balanceOf(address(this)) < _minFinalBalance) {
+        finalBalance_ = token1.balanceOf(address(this));
+        if (finalBalance_ < _minFinalBalance) {
             revert(Errors.LESS_FINAL_BALANCE);
         }
 

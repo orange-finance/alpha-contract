@@ -152,15 +152,17 @@ interface IOrangeAlphaVault {
      * @notice Remove all positions only when current price is out of range
      * @param inputTick Input tick for slippage checking
      * @param _minFinalBalance minimum final balance
+     * @return finalBalance_ balance of USDC after removing all positions
      */
-    function stoploss(int24 inputTick, uint256 _minFinalBalance) external;
+    function stoploss(int24 inputTick, uint256 _minFinalBalance) external returns (uint256 finalBalance_);
 
     /**
      * @notice Remove all positions using flashLoan
      * @param inputTick Input tick for slippage checking
      * @param _minFinalBalance minimum final balance
+     * @return finalBalance_ balance of USDC after removing all positions
      */
-    function flashStoploss(int24 inputTick, uint256 _minFinalBalance) external;
+    function flashStoploss(int24 inputTick, uint256 _minFinalBalance) external returns (uint256 finalBalance_);
 
     /**
      * @notice Change the range of underlying UniswapV3 position
