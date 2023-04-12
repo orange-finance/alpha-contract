@@ -18,6 +18,7 @@ async function main() {
     a.UniswapPool,
     a.Weth,
     a.Usdc,
+    a.UniswapRouter,
     a.AavePool,
     a.VDebtWeth,
     a.AUsdc,

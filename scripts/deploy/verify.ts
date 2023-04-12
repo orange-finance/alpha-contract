@@ -8,13 +8,10 @@ const vaultMeta: ERC20metadata = {
   decimals: 6,
 };
 
-const lowerTick = -202400;
-const upperTick = -201800;
-
 const verify = async () => {
   const a = getAddresses()!;
 
-  await Verify(a.OrangeAlphaParameters, []);
+  // await Verify(a.OrangeAlphaParameters, []);
 
   await Verify(a.OrangeAlphaVault, [
     vaultMeta.name,
@@ -22,6 +19,7 @@ const verify = async () => {
     a.UniswapPool,
     a.Weth,
     a.Usdc,
+    a.UniswapRouter,
     a.AavePool,
     a.VDebtWeth,
     a.AUsdc,
@@ -33,10 +31,10 @@ const verify = async () => {
     a.OrangeAlphaParameters,
   ]);
 
-  await Verify(a.OrangeAlphaResolver, [
-    a.OrangeAlphaVault,
-    a.OrangeAlphaParameters,
-  ]);
+  // await Verify(a.OrangeAlphaResolver, [
+  //   a.OrangeAlphaVault,
+  //   a.OrangeAlphaParameters,
+  // ]);
 };
 
 const main = async () => {
