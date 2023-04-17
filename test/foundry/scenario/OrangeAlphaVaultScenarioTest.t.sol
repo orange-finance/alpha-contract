@@ -252,7 +252,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
     }
 
     //Flash testing
-    //Deposit, Rebalance, RisingPrice(OutOfRange), FlashStoploss, Rebalance and FlashRedeem
+    //Deposit, Rebalance, RisingPrice(OutOfRange), stoploss, Rebalance and FlashRedeem
     function test_scenario8(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
         _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
         _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
@@ -272,26 +272,26 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.flashStoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
 
         _rebalance(_tick);
 
         console2.log("flash redeem 11");
         uint _minAsset1 = (vault.convertToAssets(_share1) * 9900) / MAGIC_SCALE_1E4;
         vm.prank(address(11));
-        periphery.flashRedeem(_share1, _minAsset1);
+        periphery.redeem(_share1, _minAsset1);
         skip(1);
 
         console2.log("flash redeem 12");
         uint _minAsset2 = (vault.convertToAssets(_share2) * 9900) / MAGIC_SCALE_1E4;
         vm.prank(address(12));
-        periphery.flashRedeem(_share2, _minAsset2);
+        periphery.redeem(_share2, _minAsset2);
         skip(1);
 
         console2.log("flash redeem 13");
         uint _minAsset3 = (vault.convertToAssets(_share3) * 9900) / MAGIC_SCALE_1E4;
         vm.prank(address(13));
-        periphery.flashRedeem(_share3, _minAsset3);
+        periphery.redeem(_share3, _minAsset3);
         skip(1);
 
         assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
