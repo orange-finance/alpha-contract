@@ -35,11 +35,16 @@ export const DeployLibraries = async (
   return contract;
 };
 
-export const Verify = async (address: string, args: any[]) => {
+export const VerifyLibraries = async (
+  address: string,
+  libraries?: Libraries,
+  args: any[]
+) => {
   try {
     await env.run("verify:verify", {
       address: address,
       constructorArguments: args,
+      libraries: libraries,
     });
   } catch (e: any) {
     if (e.message === "Missing or invalid ApiKey") {
@@ -52,4 +57,8 @@ export const Verify = async (address: string, args: any[]) => {
     }
     throw e;
   }
+};
+
+export const Verify = async (address: string, args: any[]) => {
+  await VerifyLibraries(address, undefined, args);
 };
