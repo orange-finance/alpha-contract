@@ -7,9 +7,6 @@ import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRoute
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
-// import {IAaveFlashLoanSimpleReceiver} from "../interfaces/IAaveFlashLoanSimpleReceiver.sol";
-// import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
-// import {IFlashLoanRecipient} from "@balancer-labs/v2-interfaces/contracts/vault/IFlashLoanRecipient.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -548,7 +545,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _makeFlashLoan(
                 token0,
                 _flashBorrowToken0,
-                abi.encode(_redeemPosition.debtAmount0, _redeemPosition.collateralAmount1)
+                abi.encode(address(this), _redeemPosition.debtAmount0, _redeemPosition.collateralAmount1)
             );
 
             returnAssets_ = token1.balanceOf(address(this)) - _unRedeemableBalance1;
@@ -635,7 +632,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             uint256 _flashBorrowToken0 = _repayingDebt - _balanceToken0;
 
             // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
-            _makeFlashLoan(token0, _flashBorrowToken0, abi.encode(_repayingDebt, _withdrawingCollateral));
+            _makeFlashLoan(
+                token0,
+                _flashBorrowToken0,
+                abi.encode(address(this), _repayingDebt, _withdrawingCollateral)
+            );
         }
 
         // swap remaining all ETH to USDC
@@ -1076,19 +1077,23 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     //     );
 
     //     if (IERC20(_asset).balanceOf(address(this)) < _repayFlashloanAmountToken0)
-    //         revert(Errors.FLASH_LOAN_LACK_OF_BALANCE);
+    //         revert(Errors.FLASHLOAN_LACK_OF_BALANCE);
     //     return true;
     // }
 
     function receiveFlashLoan(
         IERC20[] memory tokens,
         uint256[] memory amounts,
-        uint256[] memory feeAmounts,
+        uint256[] memory,
         bytes memory userData
     ) external {
         if (msg.sender != vault) revert(Errors.ONLY_BALANCER_VAULT);
 
-        (uint256 _repayAmountToken0, uint256 _withdrawAmountToken1) = abi.decode(userData, (uint256, uint256));
+        (address _executor, uint256 _repayAmountToken0, uint256 _withdrawAmountToken1) = abi.decode(
+            userData,
+            (address, uint256, uint256)
+        );
+        if (_executor != address(this)) revert(Errors.FLASHLOAN_WRONG_EXECUTOR);
 
         // Repay ETH
         aave.safeRepay(address(token0), _repayAmountToken0, AAVE_VARIABLE_INTEREST, address(this));
@@ -1102,7 +1107,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             amounts[0]
         );
 
-        if (IERC20(tokens[0]).balanceOf(address(this)) < amounts[0]) revert(Errors.FLASH_LOAN_LACK_OF_BALANCE);
+        if (IERC20(tokens[0]).balanceOf(address(this)) < amounts[0]) revert(Errors.FLASHLOAN_LACK_OF_BALANCE);
         IERC20(tokens[0]).safeTransfer(vault, amounts[0]);
     }
 }
