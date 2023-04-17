@@ -6,9 +6,13 @@ import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
-import {IAaveFlashLoanSimpleReceiver} from "../interfaces/IAaveFlashLoanSimpleReceiver.sol";
+// import {IAaveFlashLoanSimpleReceiver} from "../interfaces/IAaveFlashLoanSimpleReceiver.sol";
+// import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
+// import {IFlashLoanRecipient} from "@balancer-labs/v2-interfaces/contracts/vault/IFlashLoanRecipient.sol";
+import {IVault} from "../interfaces/IVault.sol";
+import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //libraries
 import {ERC20} from "../libs/ERC20.sol";
@@ -22,7 +26,7 @@ import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 // import "forge-std/console2.sol";
 // import {Ints} from "../mocks/Ints.sol";
 
-contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, IAaveFlashLoanSimpleReceiver {
+contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, IFlashLoanRecipient {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -34,6 +38,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
     uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
     uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
+    address constant vault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
     /* ========== STORAGES ========== */
     bool public hasPosition;
@@ -87,6 +92,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         aToken1 = IERC20(_aToken1);
         token0.safeApprove(_aave, type(uint256).max);
         token1.safeApprove(_aave, type(uint256).max);
+
+        token0.safeApprove(vault, type(uint256).max);
 
         params = IOrangeAlphaParameters(_params);
     }
@@ -537,13 +544,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             // memorize balance of token1 to be remained in vault
             uint256 _unRedeemableBalance1 = token1.balanceOf(address(this)) - _redeemableBalances.balance1;
 
-            // execute flashloan (repay ETH and withdraw USDC in callback function `executeOperation`)
-            aave.flashLoanSimple(
-                address(this),
-                address(token0),
+            // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
+            _makeFlashLoan(
+                token0,
                 _flashBorrowToken0,
-                abi.encode(_redeemPosition.debtAmount0, _redeemPosition.collateralAmount1),
-                AAVE_REFERRAL_NONE
+                abi.encode(_redeemPosition.debtAmount0, _redeemPosition.collateralAmount1)
             );
 
             returnAssets_ = token1.balanceOf(address(this)) - _unRedeemableBalance1;
@@ -629,14 +634,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             }
             uint256 _flashBorrowToken0 = _repayingDebt - _balanceToken0;
 
-            // execute flashloan (repay ETH and withdraw USDC in callback function `executeOperation`)
-            aave.flashLoanSimple(
-                address(this),
-                address(token0),
-                _flashBorrowToken0,
-                abi.encode(_repayingDebt, _withdrawingCollateral),
-                AAVE_REFERRAL_NONE
-            );
+            // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
+            _makeFlashLoan(token0, _flashBorrowToken0, abi.encode(_repayingDebt, _withdrawingCollateral));
         }
 
         // swap remaining all ETH to USDC
@@ -1014,6 +1013,14 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 );
     }
 
+    function _makeFlashLoan(IERC20 _token, uint256 _amount, bytes memory _userData) internal {
+        IERC20[] memory _tokensFlashloan = new IERC20[](1);
+        _tokensFlashloan[0] = _token;
+        uint256[] memory _amountsFlashloan = new uint256[](1);
+        _amountsFlashloan[0] = _amount;
+        IVault(vault).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
+    }
+
     /* ========== CALLBACK FUNCTIONS ========== */
 
     /// @notice Uniswap V3 callback fn, called back on pool.mint
@@ -1044,16 +1051,44 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
     /* ========== FLASHLOAN CALLBACK ========== */
     /// @notice _params are _repayAmountToken0, _withdrawAmountToken1
-    function executeOperation(
-        address _asset,
-        uint256 _amount,
-        uint256 _premium,
-        address,
-        bytes calldata _params
-    ) external override returns (bool) {
-        if (msg.sender != address(aave)) revert(Errors.ONLY_AAVE_POOL);
+    // function executeOperation(
+    //     address _asset,
+    //     uint256 _amount,
+    //     uint256 _premium,
+    //     address,
+    //     bytes calldata _params
+    // ) external override returns (bool) {
+    //     if (msg.sender != address(aave)) revert(Errors.ONLY_BALANCER_VAULT);
 
-        (uint256 _repayAmountToken0, uint256 _withdrawAmountToken1) = abi.decode(_params, (uint256, uint256));
+    //     (uint256 _repayAmountToken0, uint256 _withdrawAmountToken1) = abi.decode(_params, (uint256, uint256));
+
+    //     // Repay ETH
+    //     aave.safeRepay(address(token0), _repayAmountToken0, AAVE_VARIABLE_INTEREST, address(this));
+
+    //     // Withdraw USDC as collateral
+    //     aave.safeWithdraw(address(token1), _withdrawAmountToken1, address(this));
+
+    //     // swap USDC to ETH to repay flashloan
+    //     uint256 _repayFlashloanAmountToken0 = _amount + _premium;
+    //     _swapAmountOut(
+    //         false, //token1 to token0
+    //         _repayFlashloanAmountToken0
+    //     );
+
+    //     if (IERC20(_asset).balanceOf(address(this)) < _repayFlashloanAmountToken0)
+    //         revert(Errors.FLASH_LOAN_LACK_OF_BALANCE);
+    //     return true;
+    // }
+
+    function receiveFlashLoan(
+        IERC20[] memory tokens,
+        uint256[] memory amounts,
+        uint256[] memory feeAmounts,
+        bytes memory userData
+    ) external {
+        if (msg.sender != vault) revert(Errors.ONLY_BALANCER_VAULT);
+
+        (uint256 _repayAmountToken0, uint256 _withdrawAmountToken1) = abi.decode(userData, (uint256, uint256));
 
         // Repay ETH
         aave.safeRepay(address(token0), _repayAmountToken0, AAVE_VARIABLE_INTEREST, address(this));
@@ -1062,14 +1097,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         aave.safeWithdraw(address(token1), _withdrawAmountToken1, address(this));
 
         // swap USDC to ETH to repay flashloan
-        uint256 _repayFlashloanAmountToken0 = _amount + _premium;
         _swapAmountOut(
             false, //token1 to token0
-            _repayFlashloanAmountToken0
+            amounts[0]
         );
 
-        if (IERC20(_asset).balanceOf(address(this)) < _repayFlashloanAmountToken0)
-            revert(Errors.FLASH_LOAN_LACK_OF_BALANCE);
-        return true;
+        if (IERC20(tokens[0]).balanceOf(address(this)) < amounts[0]) revert(Errors.FLASH_LOAN_LACK_OF_BALANCE);
+        IERC20(tokens[0]).safeTransfer(vault, amounts[0]);
     }
 }
