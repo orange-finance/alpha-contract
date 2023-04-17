@@ -42,4 +42,13 @@ contract BalancerFlashloanTest is BaseTest {
 
         balancer.makeFlashLoan(tokens, amounts, "");
     }
+
+    function test_makeFlashLoanUsdcZero() public {
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = usdc;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 0;
+
+        balancer.makeFlashLoan(tokens, amounts, "");
+    }
 }
