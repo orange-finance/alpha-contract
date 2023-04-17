@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { Deploy } from "../common";
 import { getAddresses } from "../addresses";
-import { OrangeAlphaVault } from "../../typechain-types/index";
+import { OrangeAlphaParameters } from "../../typechain-types/index";
 const { MerkleTree } = require("merkletreejs");
 const keccak256 = require("keccak256");
 
@@ -44,10 +44,10 @@ async function main() {
 
   //set merkle root
   const vault = (await ethers.getContractAt(
-    "OrangeAlphaVault",
-    a.OrangeAlphaVault
-  )) as OrangeAlphaVault;
-  const tx = await vault.setMerkleRoot(true, root);
+    "OrangeAlphaParameters",
+    a.OrangeAlphaParameters
+  )) as OrangeAlphaParameters;
+  const tx = await vault.setMerkleRoot(root);
   console.log(tx);
 
   //console leaves
