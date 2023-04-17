@@ -40,8 +40,8 @@ export const getAddresses = () => {
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
         UniswapV3Twap: "0x9E58899B29361085Dc60EA4596650572f96F1Fc2",
         OrangeAlphaParameters: "0x1D5C6AF5a5490175831Fa9877E7eeD9fc08D493B",
-        OrangeAlphaVault: "0xFfBD40391Dfa80bF00e83faDaCa8b772eD9A2d47",
-        OrangeAlphaPeriphery: "0x1D356b191dBA9b8724C3662F9dFaAb44F4a6F80E",
+        OrangeAlphaVault: "0xc8CDF6BffFe2B059dF11374cD9FE92a5288D212d",
+        OrangeAlphaPeriphery: "0x8A5FFE856A9a42d88ea23e1d93c7fC3bAE6d831b",
         OrangeAlphaResolver: "",
       };
   }
