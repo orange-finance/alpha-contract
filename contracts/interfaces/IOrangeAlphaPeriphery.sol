@@ -42,12 +42,4 @@ interface IOrangeAlphaPeriphery {
      * @return Amount of USDC redeemed
      */
     function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256);
-
-    /*
-     * @notice Redeem USDC from the vault with flash loan
-     * @param _shares Amount of shares to redeem
-     * @param _minAssets Minimum amount of USDC to redeem
-     * @return Amount of USDC redeemed
-     */
-    function flashRedeem(uint256 _shares, uint256 _minAssets) external returns (uint256);
 }

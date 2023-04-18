@@ -126,14 +126,6 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         return _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
     }
 
-    function swapSurplusAmountInDeposit(
-        Balances memory _balances,
-        uint256 _targetAmount0,
-        uint256 _targetAmount1
-    ) external {
-        return _swapSurplusAmountInDeposit(_balances, _targetAmount0, _targetAmount1);
-    }
-
     function addLiquidityInRebalance(
         int24 _lowerTick,
         int24 _upperTick,
