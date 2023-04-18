@@ -966,7 +966,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             (uint8 _type, uint128 _additionalLiquidity) = abi.decode(_userData, (uint8, uint128));
 
             //add liquidity
-            pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
+            if (_additionalLiquidity > 0) {
+                pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
+            }
         }
 
         //repay flashloan
