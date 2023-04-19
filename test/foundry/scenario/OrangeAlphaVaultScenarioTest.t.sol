@@ -163,7 +163,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
 
         _rebalance(_tick);
 
@@ -198,7 +198,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
 
         _rebalance(_tick);
 
@@ -229,7 +229,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
 
         _rebalance(_tick);
 
@@ -240,7 +240,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
 
         _rebalance(_tick);
 
@@ -272,7 +272,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
 
         _rebalance(_tick);
 
