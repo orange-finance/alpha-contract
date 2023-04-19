@@ -11,7 +11,7 @@ const vaultMeta: ERC20metadata = {
 const verify = async () => {
   const a = getAddresses()!;
 
-  // await Verify(a.OrangeAlphaParameters, []);
+  await Verify(a.OrangeAlphaParameters, []);
 
   await Verify(a.OrangeAlphaVault, [
     vaultMeta.name,

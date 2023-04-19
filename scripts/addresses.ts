@@ -36,12 +36,12 @@ export const getAddresses = () => {
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-        GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
-        SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
-        UniswapV3Twap: "0x9E58899B29361085Dc60EA4596650572f96F1Fc2",
-        OrangeAlphaParameters: "0x1D5C6AF5a5490175831Fa9877E7eeD9fc08D493B",
-        OrangeAlphaVault: "0xc8CDF6BffFe2B059dF11374cD9FE92a5288D212d",
-        OrangeAlphaPeriphery: "0x8A5FFE856A9a42d88ea23e1d93c7fC3bAE6d831b",
+        GelatoOps: "",
+        SafeAavePool: "",
+        UniswapV3Twap: "",
+        OrangeAlphaParameters: "",
+        OrangeAlphaVault: "",
+        OrangeAlphaPeriphery: "",
         OrangeAlphaResolver: "",
       };
   }
