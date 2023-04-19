@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeAlphaVault} from "../core/OrangeAlphaVault.sol";
+import {OrangeAlphaVault, IERC20, IVault, IFlashLoanRecipient} from "../core/OrangeAlphaVault.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";

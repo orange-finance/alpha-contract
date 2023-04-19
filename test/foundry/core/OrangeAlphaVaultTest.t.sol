@@ -312,16 +312,16 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
-        vault.stoploss(1, 0);
+        vault.stoploss(1);
     }
 
     function test_stoploss_Success0ByGelato() public {
         vm.prank(params.gelatoExecutor());
-        vault.stoploss(1, 0);
+        vault.stoploss(1);
     }
 
     function test_stoploss_Success1() public {
-        vault.stoploss(_ticks.currentTick, 0);
+        vault.stoploss(_ticks.currentTick);
         IOrangeAlphaVault.Ticks memory __ticks = vault.getTicksByStorage();
         assertEq(__ticks.currentTick.getSqrtRatioAtTick(), _ticks.currentTick.getSqrtRatioAtTick());
         assertEq(__ticks.currentTick, _ticks.currentTick);
@@ -334,7 +334,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         skip(1);
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, vault.totalAssets());
+        vault.stoploss(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -351,10 +351,10 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         skip(1);
 
         (, int24 _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
         skip(1);
         (, _tick, , , , , ) = pool.slot0();
-        vault.stoploss(_tick, (vault.totalAssets() * 9900) / 10000);
+        vault.stoploss(_tick);
         //assertion
         (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
         assertEq(_liquidity, 0);
@@ -535,5 +535,17 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         vault.uniswapV3MintCallback(1 ether, 1_000 * 1e6, "");
         assertEq(token0.balanceOf(address(vault)), 9 ether);
         assertEq(token1.balanceOf(address(vault)), 9_000 * 1e6);
+    }
+
+    /* ========== FLASHLOAN CALLBACK ========== */
+    function test_receiveFlashLoan_Revert() public {
+        address balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+
+        IERC20[] memory _tokensFlashloan = new IERC20[](1);
+        _tokensFlashloan[0] = token0;
+        uint256[] memory _amountsFlashloan = new uint256[](1);
+        _amountsFlashloan[0] = 100;
+        vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
+        IVault(balancer).flashLoan(IFlashLoanRecipient(address(vault)), _tokensFlashloan, _amountsFlashloan, "");
     }
 }

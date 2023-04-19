@@ -29,11 +29,7 @@ contract OrangeAlphaResolver is IResolver {
     }
 
     // @inheritdoc IResolver
-    function checker() external override returns (bool, bytes memory) {
-        if (params.gelatoExecutor() != msg.sender) {
-            return (false, bytes(ONLY_GELATO));
-        }
-
+    function checker() external view override returns (bool, bytes memory) {
         if (vault.hasPosition()) {
             IUniswapV3Pool _pool = vault.pool();
             (, int24 _currentTick, , , , , ) = _pool.slot0();
@@ -44,12 +40,7 @@ contract OrangeAlphaResolver is IResolver {
                 _isOutOfRange(_currentTick, _stoplossLowerTick, _stoplossUpperTick) &&
                 _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
-                uint256 _minFinalBalance = vault.stoploss(_twap, 0);
-                bytes memory execPayload = abi.encodeWithSelector(
-                    IOrangeAlphaVault.stoploss.selector,
-                    _twap,
-                    _minFinalBalance
-                );
+                bytes memory execPayload = abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector, _twap);
                 return (true, execPayload);
             }
         }
