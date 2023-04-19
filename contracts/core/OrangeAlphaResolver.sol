@@ -44,12 +44,7 @@ contract OrangeAlphaResolver is IResolver {
                 _isOutOfRange(_currentTick, _stoplossLowerTick, _stoplossUpperTick) &&
                 _isOutOfRange(_twap, _stoplossLowerTick, _stoplossUpperTick)
             ) {
-                uint256 _minFinalBalance = vault.stoploss(_twap, 0);
-                bytes memory execPayload = abi.encodeWithSelector(
-                    IOrangeAlphaVault.stoploss.selector,
-                    _twap,
-                    _minFinalBalance
-                );
+                bytes memory execPayload = abi.encodeWithSelector(IOrangeAlphaVault.stoploss.selector, _twap);
                 return (true, execPayload);
             }
         }

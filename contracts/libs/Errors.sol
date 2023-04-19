@@ -15,7 +15,6 @@ library Errors {
     string public constant LESS_LIQUIDITY = "110";
     string public constant HIGH_SLIPPAGE = "111";
     string public constant EQUAL_COLLATERAL_OR_DEBT = "112";
-    string public constant LESS_FINAL_BALANCE = "113";
     string public constant NO_NEED_FLASH = "114";
     string public constant ONLY_BALANCER_VAULT = "115";
     string public constant FLASHLOAN_LACK_OF_BALANCE = "116";

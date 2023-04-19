@@ -496,7 +496,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     }
 
     /// @inheritdoc IOrangeAlphaVault
-    function stoploss(int24 _inputTick, uint256 _minFinalBalance) external returns (uint256 finalBalance_) {
+    function stoploss(int24 _inputTick) external returns (uint256) {
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
         }
@@ -538,14 +538,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _swapAmountIn(true, _balanceToken0);
         }
 
-        // check balance of token1
-        finalBalance_ = token1.balanceOf(address(this));
-        if (finalBalance_ < _minFinalBalance) {
-            revert(Errors.LESS_FINAL_BALANCE);
-        }
-
         _emitAction(ActionType.STOPLOSS, msg.sender);
         hasPosition = false;
+        return token1.balanceOf(address(this));
     }
 
     /// @inheritdoc IOrangeAlphaVault
