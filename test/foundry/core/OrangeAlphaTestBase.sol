@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../utils/BaseTest.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
 import {IOrangeAlphaVault} from "../../../contracts/interfaces/IOrangeAlphaVault.sol";
-import {OrangeAlphaVaultMock} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
+import {OrangeAlphaVaultMock, IVault, IFlashLoanRecipient} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";

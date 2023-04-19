@@ -20,7 +20,7 @@ import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-// import "forge-std/console2.sol";
+import "forge-std/console2.sol";
 
 // import {Ints} from "../mocks/Ints.sol";
 
@@ -36,7 +36,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
     uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
     uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
-    address constant vault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+    address constant balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
     /* ========== STORAGES ========== */
     bool public hasPosition;
@@ -44,6 +44,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     int24 public upperTick;
     int24 public stoplossLowerTick;
     int24 public stoplossUpperTick;
+    bytes32 flashloanHash;
 
     /* ========== PARAMETERS ========== */
     IUniswapV3Pool public pool;
@@ -907,7 +908,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         _tokensFlashloan[0] = _token;
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = _amount;
-        IVault(vault).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
+        flashloanHash = keccak256(_userData); //set stroage for callback
+        IVault(balancer).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
@@ -947,7 +949,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != vault) revert(Errors.ONLY_BALANCER_VAULT);
+        if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
+        if (flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        flashloanHash = bytes32(0); //clear storage
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(FlashloanType.REDEEM)) {
@@ -973,7 +977,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _swapAmountOut(_zeroForOne, _amounts[0]);
 
             if (IERC20(_tokens[0]).balanceOf(address(this)) < _amounts[0]) revert(Errors.FLASHLOAN_LACK_OF_BALANCE);
-            IERC20(_tokens[0]).safeTransfer(vault, _amounts[0]);
+            IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
         }
     }
 }
