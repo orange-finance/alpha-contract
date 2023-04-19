@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../core/OrangeAlphaTestBase.sol";
+import {OrangeAlphaPeriphery, IOrangeAlphaPeriphery} from "../../../contracts/core/OrangeAlphaPeriphery.sol";
 
 contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
     using SafeERC20 for IERC20;
@@ -11,161 +12,366 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
     using Ints for int256;
 
     IOrangeAlphaVault.Ticks _ticks;
+    IOrangeAlphaPeriphery periphery;
 
     // currentTick = -204714;
 
     uint256 constant HEDGE_RATIO = 100e6; //100%
-    uint32 constant MAX_LTV = 70000000;
+    uint256 constant INITIAL_BAL = 100_000 * 1e6;
+    uint256 constant MIN_DEPOSIT = 10 * 1e6;
 
-    function setUp() public override {
-        super.setUp();
+    function _setUpParams() internal override {
+        periphery = new OrangeAlphaPeriphery(address(vault), address(params));
+        //set parameters
+        params.setPeriphery(address(periphery));
+        params.setAllowlistEnabled(false);
 
-        params.setMaxLtv(MAX_LTV);
-        _ticks.currentTick = currentTick;
-        _ticks.lowerTick = lowerTick;
-        _ticks.upperTick = upperTick;
-
-        //rebalance (set ticks)
-        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        //set Ticks for testing
+        (, int24 _tick, , , , , ) = pool.slot0();
+        currentTick = _tick;
 
         //deal
-        deal(address(token1), address(11), 10_000 * 1e6);
-        deal(address(token1), address(12), 10_000 * 1e6);
-        deal(address(token1), address(13), 10_000 * 1e6);
-        deal(address(token1), address(14), 10_000 * 1e6);
-        deal(address(token1), address(15), 10_000 * 1e6);
 
-        deal(address(token0), carol, 1000 ether);
-        deal(address(token1), carol, 100_000 * 1e6);
+        deal(address(token1), address(11), INITIAL_BAL);
+        deal(address(token1), address(12), INITIAL_BAL);
+        deal(address(token1), address(13), INITIAL_BAL);
+        deal(address(token1), address(14), INITIAL_BAL);
+        deal(address(token1), address(15), INITIAL_BAL);
+
+        deal(address(token0), carol, 1200 ether);
+        deal(address(token1), carol, 1_200_000 * 1e6);
 
         //approve
         vm.prank(address(11));
-        token1.approve(address(vault), type(uint256).max);
+        token1.approve(address(periphery), type(uint256).max);
         vm.prank(address(12));
-        token1.approve(address(vault), type(uint256).max);
+        token1.approve(address(periphery), type(uint256).max);
         vm.prank(address(13));
-        token1.approve(address(vault), type(uint256).max);
+        token1.approve(address(periphery), type(uint256).max);
         vm.prank(address(14));
-        token1.approve(address(vault), type(uint256).max);
+        token1.approve(address(periphery), type(uint256).max);
         vm.prank(address(15));
-        token1.approve(address(vault), type(uint256).max);
+        token1.approve(address(periphery), type(uint256).max);
+
+        vm.startPrank(carol);
+        token0.approve(address(router), type(uint256).max);
+        token1.approve(address(router), type(uint256).max);
+        vm.stopPrank();
     }
 
-    // function test_scenario1() public {
-    //     //deposit
+    //joint test of vault, periphery and parameters
+    function test_scenario0() public {
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
-    //     uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(11));
-    //     vault.deposit(10_000 * 1e6, _shares1, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(12));
-    //     vault.deposit(10_000 * 1e6, _shares2, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(13));
-    //     vault.deposit(10_000 * 1e6, _shares3, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(14));
-    //     vault.deposit(10_000 * 1e6, _shares4, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(15));
-    //     vault.deposit(10_000 * 1e6, _shares5, new bytes32[](0));
+        uint256 _shares = 10_000 * 1e6;
+        uint256 _maxAsset = 10_000 * 1e6;
+        vm.prank(address(11));
+        periphery.deposit(_shares, _maxAsset, new bytes32[](0));
+        skip(1);
+        vm.prank(address(12));
+        periphery.deposit(_shares, _maxAsset, new bytes32[](0));
+        skip(1);
 
-    //     skip(8 days);
+        assertEq(token1.balanceOf(address(11)), INITIAL_BAL - (10_000 * 1e6));
+        assertEq(token1.balanceOf(address(12)), INITIAL_BAL - (10_000 * 1e6));
+        assertEq(vault.balanceOf(address(11)), 10_000 * 1e6);
+        assertEq(vault.balanceOf(address(12)), 10_000 * 1e6);
 
-    //     //swap
-    //     multiSwapByCarol(10 ether, 12_000 * 1e6, 100);
+        skip(7 days);
 
-    //     //redeem
-    //     redeem(address(11));
-    //     skip(1);
-    //     redeem(address(12));
-    //     skip(1);
-    //     redeem(address(13));
-    //     skip(1);
-    //     redeem(address(14));
-    //     skip(1);
-    //     redeem(address(15));
+        uint256 _minAsset = 1_000 * 1e6;
+        vm.prank(address(11));
+        periphery.redeem(_shares, _minAsset);
+        skip(1);
+        vm.prank(address(12));
+        periphery.redeem(_shares, _minAsset);
+        skip(1);
+        assertEq(token1.balanceOf(address(11)), INITIAL_BAL);
+        assertEq(token1.balanceOf(address(12)), INITIAL_BAL);
+    }
 
-    //     (, int24 _tick, , , , , ) = pool.slot0();
-    //     console2.log(_tick.toString(), "afterTick");
-    // }
+    //deposit and redeem
+    function test_scenario1(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
 
-    // function test_scenario2() public {
-    //     consoleRate();
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
-    //     //deposit
-    //     uint256 _shares1 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(11));
-    //     vault.deposit(10_000 * 1e6, _shares1, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares2 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(12));
-    //     vault.deposit(10_000 * 1e6, _shares2, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares3 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(13));
-    //     vault.deposit(10_000 * 1e6, _shares3, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares4 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(14));
-    //     vault.deposit(10_000 * 1e6, _shares4, new bytes32[](0));
-    //     skip(1);
-    //     uint256 _shares5 = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
-    //     vm.prank(address(15));
-    //     vault.deposit(10_000 * 1e6, _shares5, new bytes32[](0));
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
-    //     skip(8 days);
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
 
-    //     //swap
-    //     multiSwapByCarol(10 ether, 12_000 * 1e6, 100);
+    //deposit, rebalance and redeem
+    function test_scenario2(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
-    //     //range out
-    //     swapByCarol(true, 640 ether);
-    //     skip(1 days);
-    //     (, int24 __tick, , , , , ) = pool.slot0();
-    //     console2.log(__tick.toString(), "middleTick");
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
 
-    //     //stoploss
-    //     vault.rebalance(lowerTick, upperTick, lowerTick, upperTick, 1);
-    //     // vm.prank(vault.dedicatedMsgSender());
-    //     vault.stoploss(__tick);
-    //     skip(1 days);
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
-    //     //rebalance
-    //     int24 _newLowerTick = -207600;
-    //     int24 _newUpperTick = -205560;
-    //     // (, int24 ___tick, , , , , ) = pool.slot0();
-    //     skip(1 days);
-    //     vault.rebalance(_newLowerTick, _newUpperTick, _newLowerTick, _newUpperTick, 2359131680723000);
-    //     skip(1 days);
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
 
-    //     //swap
-    //     multiSwapByCarol(10 ether, 12_000 * 1e6, 100);
+    //deposit, rebalance, ChaigingPrice(InRange) and redeem
+    function test_scenario3(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
-    //     //redeem
-    //     redeem(address(11));
-    //     skip(1);
-    //     redeem(address(12));
-    //     skip(1);
-    //     redeem(address(13));
-    //     skip(1);
-    //     redeem(address(14));
-    //     skip(1);
-    //     redeem(address(15));
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
 
-    //     (, int24 _tick, , , , , ) = pool.slot0();
-    //     console2.log(_tick.toString(), "afterTick");
-    // }
+        //swap
+        console2.log("swap");
+        multiSwapByCarol();
 
-    // /* ========== TEST functions ========== */
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
+
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
+
+    //Deposit, Rebalance, RisingPrice(OutOfRange), Stoploss, Rebalance and Redeem
+    function test_scenario4(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
+
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        //swap
+        console2.log("swap");
+        multiSwapByCarol();
+
+        console2.log("swap OutOfRange");
+        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+
+        //stoploss
+        console2.log("stoploss");
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.stoploss(_tick);
+
+        _rebalance(_tick);
+
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
+
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
+
+    //Deposit, Rebalance, FallingPrice(OutOfRange), Stoploss, Rebalance and Redeem
+    function test_scenario5(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        //if maxLtv is 80%, this case cause Aave error 36, COLLATERAL_CANNOT_COVER_NEW_BORROW
+        //because the price Uniswap is changed, but Aaves' is not changed.
+        params.setMaxLtv(70000000);
+
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
+
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        //swap
+        console2.log("swap");
+        multiSwapByCarol();
+
+        console2.log("swap OutOfRange");
+        swapByCarol(true, 1_000 ether); //current price over upperPrice
+
+        //stoploss
+        console2.log("stoploss");
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.stoploss(_tick);
+
+        _rebalance(_tick);
+
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
+
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
+
+    //Deposit, Rebalance, RisingPrice(OutOfRange), Stoploss, Rebalance, FallingPrice(OutOfRange), Stoploss, Rebalance, Redeem
+    function test_scenario6(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
+
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        //swap
+        console2.log("swap");
+        multiSwapByCarol();
+
+        console2.log("swap OutOfRange");
+        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+
+        //stoploss
+        console2.log("stoploss");
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.stoploss(_tick);
+
+        _rebalance(_tick);
+
+        //swap
+        console2.log("swap OutOfRange");
+        swapByCarol(true, 1_000 ether); //current price over upperPrice
+
+        //stoploss
+        console2.log("stoploss");
+        (, _tick, , , , , ) = pool.slot0();
+        vault.stoploss(_tick);
+
+        _rebalance(_tick);
+
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
+
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
+
+    //Flash testing
+    //Deposit, Rebalance, RisingPrice(OutOfRange), stoploss, Rebalance and FlashRedeem
+    function test_scenario8(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
+
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
+
+        //swap
+        console2.log("swap");
+        multiSwapByCarol();
+
+        console2.log("swap OutOfRange");
+        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+
+        //stoploss
+        console2.log("stoploss");
+        (, int24 _tick, , , , , ) = pool.slot0();
+        vault.stoploss(_tick);
+
+        _rebalance(_tick);
+
+        console2.log("flash redeem 11");
+        uint _minAsset1 = (vault.convertToAssets(_share1) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(11));
+        periphery.redeem(_share1, _minAsset1);
+        skip(1);
+
+        console2.log("flash redeem 12");
+        uint _minAsset2 = (vault.convertToAssets(_share2) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(12));
+        periphery.redeem(_share2, _minAsset2);
+        skip(1);
+
+        console2.log("flash redeem 13");
+        uint _minAsset3 = (vault.convertToAssets(_share3) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(13));
+        periphery.redeem(_share3, _minAsset3);
+        skip(1);
+
+        assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
+        assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
+        assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
+    }
+
+    /* ========== TEST functions ========== */
+    function _deposit(
+        uint _maxAsset1,
+        uint _maxAsset2,
+        uint _maxAsset3
+    ) private returns (uint _share1, uint _share2, uint _share3) {
+        console2.log("deposit11");
+        _share1 = _maxAsset1;
+        vm.prank(address(11));
+        periphery.deposit(_share1, _maxAsset1, new bytes32[](0));
+        skip(1);
+
+        console2.log("deposit12");
+        _share2 = (vault.convertToShares(_maxAsset2) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(12));
+        periphery.deposit(_share2, _maxAsset2, new bytes32[](0));
+        skip(1);
+
+        console2.log("deposit13");
+        _share3 = (vault.convertToShares(_maxAsset3) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(13));
+        periphery.deposit(_share3, _maxAsset3, new bytes32[](0));
+        skip(1);
+
+        skip(8 days);
+    }
+
+    function _redeem(
+        uint _share1,
+        uint _share2,
+        uint _share3
+    ) private returns (uint _minAsset1, uint _minAsset2, uint _minAsset3) {
+        console2.log("redeem 11");
+        _minAsset1 = (vault.convertToAssets(_share1) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(11));
+        periphery.redeem(_share1, _minAsset1);
+        skip(1);
+
+        console2.log("redeem 12");
+        _minAsset2 = (vault.convertToAssets(_share2) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(12));
+        periphery.redeem(_share2, _minAsset2);
+        skip(1);
+
+        console2.log("redeem 13");
+        _minAsset3 = (vault.convertToAssets(_share3) * 9900) / MAGIC_SCALE_1E4;
+        vm.prank(address(13));
+        periphery.redeem(_share3, _minAsset3);
+        skip(1);
+    }
+
+    function _rebalance(int24 _currentTick) private {
+        console2.log("rabalance");
+        int24 _roundedTick = roundTick(_currentTick);
+        lowerTick = _roundedTick - 900;
+        upperTick = _roundedTick + 900;
+        stoplossLowerTick = _roundedTick - 1500;
+        stoplossUpperTick = _roundedTick + 1500;
+        uint128 _liquidity = (vault.getRebalancedLiquidity(
+            lowerTick,
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            HEDGE_RATIO
+        ) * 9900) / MAGIC_SCALE_1E4;
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, _liquidity);
+        skip(1);
+    }
+
     // function redeem(address _user) private {
     //     uint256 _share11 = vault.balanceOf(_user);
     //     vm.prank(_user);
-    //     vault.redeem(_share11, _user, address(0), 9_600 * 1e6);
+    //     periphery.redeem(_share11, _user, address(0), 9_600 * 1e6);
     //     console2.log(token1.balanceOf(_user), _user);
     // }
 

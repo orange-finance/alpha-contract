@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../utils/BaseTest.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
 import {IOrangeAlphaVault} from "../../../contracts/interfaces/IOrangeAlphaVault.sol";
-import {OrangeAlphaVaultMock} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
+import {OrangeAlphaVaultMock, IVault, IFlashLoanRecipient} from "../../../contracts/mocks/OrangeAlphaVaultMock.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -69,7 +69,10 @@ contract OrangeAlphaTestBase is BaseTest {
             address(aToken1),
             address(params)
         );
+        _setUpParams();
+    }
 
+    function _setUpParams() internal virtual {
         //set parameters
         params.setPeriphery(address(this));
 
@@ -155,5 +158,9 @@ contract OrangeAlphaTestBase is BaseTest {
 
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
         return OracleLibrary.getQuoteAtTick(_tick, 1 ether, address(token0), address(token1));
+    }
+
+    function roundTick(int24 _tick) internal view returns (int24) {
+        return (_tick / pool.tickSpacing()) * pool.tickSpacing();
     }
 }
