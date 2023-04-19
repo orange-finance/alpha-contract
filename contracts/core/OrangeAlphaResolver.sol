@@ -29,11 +29,7 @@ contract OrangeAlphaResolver is IResolver {
     }
 
     // @inheritdoc IResolver
-    function checker() external override returns (bool, bytes memory) {
-        if (params.gelatoExecutor() != msg.sender) {
-            return (false, bytes(ONLY_GELATO));
-        }
-
+    function checker() external view override returns (bool, bytes memory) {
         if (vault.hasPosition()) {
             IUniswapV3Pool _pool = vault.pool();
             (, int24 _currentTick, , , , , ) = _pool.slot0();

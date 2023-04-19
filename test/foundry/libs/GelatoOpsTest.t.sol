@@ -6,36 +6,21 @@ import {GelatoOps, IOpsProxyFactory} from "../../../contracts/libs/GelatoOps.sol
 
 contract GelatoOpsTest is BaseTest {
     GelatoOpsMock gelatoOps;
-    address private constant OPS_PROXY_FACTORY =
-        0xC815dB16D4be6ddf2685C201937905aBf338F5D7;
+    address private constant OPS_PROXY_FACTORY = 0xC815dB16D4be6ddf2685C201937905aBf338F5D7;
     address dedicatedMsgSender;
 
     function setUp() public {
         gelatoOps = new GelatoOpsMock();
-        (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(
-            address(this)
-        );
+        (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(address(this));
     }
 
-    // function testConstuctor() public {
-    //     assertEq(
-    //         gelatoOps.getDedicatedMsgSender(msg.sender),
-    //         dedicatedMsgSender
-    //     );
-    // }
-
-    function testOnlyDedicatedMsgSender() public {
-        vm.prank(dedicatedMsgSender);
-        // gelatoOps.exec();
-    }
-
-    function testRevertOnlyDedicatedMsgSender() public {
-        vm.expectRevert("Only dedicated msg.sender");
-        vm.prank(alice);
-        // gelatoOps.exec();
+    function test_getDedicatedMsgSender() public {
+        assertEq(gelatoOps.getDedicatedMsgSender(address(this)), dedicatedMsgSender);
     }
 }
 
 contract GelatoOpsMock {
-    // function exec() external onlyDedicatedMsgSender {}
+    function getDedicatedMsgSender(address msgSender) external view returns (address dedicatedMsgSender) {
+        return GelatoOps.getDedicatedMsgSender(msgSender);
+    }
 }
