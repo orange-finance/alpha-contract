@@ -329,6 +329,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _totalSupply
         );
 
+        //memory the original balances
+        uint256 _balance0 = token0.balanceOf(address(this));
+        uint256 _balance1 = token1.balanceOf(address(this));
+
         // Transfer USDC from periphery to Vault
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
@@ -342,24 +346,21 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             address(this)
         );
 
-        uint256 _balance0 = token0.balanceOf(address(this));
-        uint256 _balance1 = token1.balanceOf(address(this));
-
         //usable balances for uniswap liquidity
         Balances memory _usableBalances = Balances(
-            _balance0 - _additionalPosition.token0Balance, //never be negative (I think)
-            _balance1 - _additionalPosition.token1Balance //never be negative
+            _balance0 + _additionalPosition.debtAmount0 - _additionalPosition.token0Balance, //never be negative (_balance0 > _additionalPosition.token0Balance)
+            _balance1 + _maxAssets - _additionalPosition.token1Balance //never be negative (_balance1 > _additionalPosition.token1Balance)
         );
 
         // Add liquidity
         _depositLiquidityByShares(_usableBalances, _shares, _totalSupply, _ticks);
 
         // Transfer surplus amount to receiver
-        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _additionalPosition.token0Balance; //should we really use balanceOf() here? can be simpler?
+        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _balance0 - _additionalPosition.token0Balance;
         if (_returningAmount0 > 0) {
             token0.safeTransfer(_receiver, _returningAmount0);
         }
-        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _additionalPosition.token1Balance; //
+        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _balance1 - _additionalPosition.token1Balance;
         if (_returningAmount1 > 0) {
             token1.safeTransfer(_receiver, _returningAmount1);
         }
