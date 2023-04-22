@@ -309,6 +309,27 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(this)), 9_997_500 * 1e6, 1e16);
     }
 
+    function test_redeem_Success3SurplusETHToUSDC() public {
+        uint256 _shares = 10_000 * 1e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(8 days);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 50e6, 0);
+        skip(1);
+
+        uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
+        uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
+        //assertion
+        assertApproxEqRel(_realAssets, _assets, 1e16);
+        assertEq(vault.balanceOf(address(this)), 0);
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertEq(_liquidity, 0);
+        assertEq(debtToken0.balanceOf(address(vault)), 0);
+        assertEq(aToken1.balanceOf(address(vault)), 0);
+        assertEq(token1.balanceOf(address(vault)), 0);
+        assertEq(token0.balanceOf(address(vault)), 0);
+        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
+    }
+
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
@@ -538,7 +559,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
-    function test_receiveFlashLoan_Revert() public {
+    function test_receiveFlashLoan_Revert1Zero() public {
         address balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
         IERC20[] memory _tokensFlashloan = new IERC20[](1);
@@ -546,6 +567,30 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = 100;
         vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
-        IVault(balancer).flashLoan(IFlashLoanRecipient(address(vault)), _tokensFlashloan, _amountsFlashloan, "");
+        IVault(balancer).flashLoan(
+            IFlashLoanRecipient(address(vault)),
+            _tokensFlashloan,
+            _amountsFlashloan,
+            abi.encode(1)
+        );
+    }
+
+    function test_receiveFlashLoan_Revert2() public {
+        address balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+
+        IERC20[] memory _tokensFlashloan = new IERC20[](1);
+        _tokensFlashloan[0] = token0;
+        uint256[] memory _amountsFlashloan = new uint256[](1);
+        _amountsFlashloan[0] = 100;
+
+        vault.setFlashloanHash(keccak256(abi.encode(2)));
+
+        vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
+        IVault(balancer).flashLoan(
+            IFlashLoanRecipient(address(vault)),
+            _tokensFlashloan,
+            _amountsFlashloan,
+            abi.encode(1)
+        );
     }
 }

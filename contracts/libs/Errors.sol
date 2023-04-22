@@ -18,7 +18,6 @@ library Errors {
     string public constant NO_NEED_FLASH = "113";
     string public constant ONLY_BALANCER_VAULT = "114";
     string public constant INVALID_FLASHLOAN_HASH = "115";
-    string public constant FLASHLOAN_LACK_OF_BALANCE = "116";
     string public constant INVALID_SHARES = "117";
 
     //OrangeAlphaPeriphery
