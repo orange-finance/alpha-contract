@@ -344,7 +344,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         // _depositedBalances are deposited balances by sender and will add to pool as liquidity
         Balances memory _depositedBalances = Balances(
-            _additionalPosition.debtAmount0,
+            _additionalPosition.debtAmount0 - _additionalPosition.token0Balance,
             _maxAssets - _additionalPosition.collateralAmount1 - _additionalPosition.token1Balance
         );
 
