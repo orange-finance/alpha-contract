@@ -329,10 +329,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _totalSupply
         );
 
-        //memory the original balances
-        uint256 _balance0 = token0.balanceOf(address(this));
-        uint256 _balance1 = token1.balanceOf(address(this));
-
         // Transfer USDC from periphery to Vault
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
@@ -346,21 +342,25 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             address(this)
         );
 
-        //usable balances for uniswap liquidity
-        Balances memory _usableBalances = Balances(
-            _balance0 + _additionalPosition.debtAmount0 - _additionalPosition.token0Balance, //never be negative (_balance0 > _additionalPosition.token0Balance)
-            _balance1 + _maxAssets - _additionalPosition.token1Balance //never be negative (_balance1 > _additionalPosition.token1Balance)
+        // _depositedBalances are deposited balances by sender and will add to pool as liquidity
+        Balances memory _depositedBalances = Balances(
+            _additionalPosition.debtAmount0 - _additionalPosition.token0Balance,
+            _maxAssets - _additionalPosition.collateralAmount1 - _additionalPosition.token1Balance
         );
 
+        // memory current remaining balance
+        uint256 _remainingAmount0 = token0.balanceOf(address(this)) - _depositedBalances.balance0;
+        uint256 _remainingAmount1 = token1.balanceOf(address(this)) - _depositedBalances.balance1;
+
         // Add liquidity
-        _depositLiquidityByShares(_usableBalances, _shares, _totalSupply, _ticks);
+        _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
 
         // Transfer surplus amount to receiver
-        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _balance0 - _additionalPosition.token0Balance;
+        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _remainingAmount0;
         if (_returningAmount0 > 0) {
             token0.safeTransfer(_receiver, _returningAmount0);
         }
-        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _balance1 - _additionalPosition.token1Balance;
+        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _remainingAmount1;
         if (_returningAmount1 > 0) {
             token1.safeTransfer(_receiver, _returningAmount1);
         }
@@ -456,10 +456,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             }
         } else {
             // swap surplus ETH to return receiver as USDC
-            _redeemableBalances.balance1 += _swapAmountIn(
-                true,
-                _redeemableBalances.balance0 - _redeemPosition.debtAmount0
-            );
+            _swapAmountIn(true, _redeemableBalances.balance0 - _redeemPosition.debtAmount0);
         }
 
         // memorize balance of token1 to be remained in vault
@@ -953,7 +950,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         bytes memory _userData
     ) external {
         if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
-        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        if (flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
         flashloanHash = bytes32(0); //clear storage
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
