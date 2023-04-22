@@ -31,14 +31,14 @@ contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     /* ========== CONSTRUCTOR ========== */
     constructor() {
         // these variables can be udpated by the manager
-        depositCap = 1_000_000 * 1e6;
-        totalDepositCap = 1_000_000 * 1e6;
+        depositCap = 100_000 * 1e6;
+        totalDepositCap = 100_000 * 1e6;
         minDepositAmount = 100 * 1e6;
         slippageBPS = 500; // default: 5% slippage
         tickSlippageBPS = 10;
         twapSlippageInterval = 5 minutes;
         maxLtv = 80000000; //80%
-        lockupPeriod = 7 days;
+        lockupPeriod = 0;
         strategists[msg.sender] = true;
         allowlistEnabled = true;
         _setGelato(msg.sender);
