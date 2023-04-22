@@ -20,7 +20,7 @@ import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 // import {Ints} from "../mocks/Ints.sol";
 
@@ -329,41 +329,28 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _totalSupply
         );
 
-        //memory the original balances
-        uint256 _balance0 = token0.balanceOf(address(this));
-        uint256 _balance1 = token1.balanceOf(address(this));
+        // calculate liquidity by shares
+        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
+        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, _totalSupply));
 
-        // Transfer USDC from periphery to Vault
-        token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
-
-        // Execute hedge
-        aave.safeSupply(address(token1), _additionalPosition.collateralAmount1, address(this), AAVE_REFERRAL_NONE);
-        aave.safeBorrow(
-            address(token0),
-            _additionalPosition.debtAmount0,
-            AAVE_VARIABLE_INTEREST,
-            AAVE_REFERRAL_NONE,
-            address(this)
-        );
-
-        //usable balances for uniswap liquidity
-        Balances memory _usableBalances = Balances(
-            _balance0 + _additionalPosition.debtAmount0 - _additionalPosition.token0Balance, //never be negative (_balance0 > _additionalPosition.token0Balance)
-            _balance1 + _maxAssets - _additionalPosition.token1Balance //never be negative (_balance1 > _additionalPosition.token1Balance)
-        );
-
-        // Add liquidity
-        _depositLiquidityByShares(_usableBalances, _shares, _totalSupply, _ticks);
-
-        // Transfer surplus amount to receiver
-        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _balance0 - _additionalPosition.token0Balance;
-        if (_returningAmount0 > 0) {
-            token0.safeTransfer(_receiver, _returningAmount0);
+        uint256 _additionalLiquidityAmount0;
+        uint256 _additionalLiquidityAmount1;
+        if (_additionalLiquidity > 0) {
+            (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+                _sqrtRatioX96,
+                _ticks.lowerTick.getSqrtRatioAtTick(),
+                _ticks.upperTick.getSqrtRatioAtTick(),
+                _additionalLiquidity
+            );
         }
-        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _balance1 - _additionalPosition.token1Balance;
-        if (_returningAmount1 > 0) {
-            token1.safeTransfer(_receiver, _returningAmount1);
-        }
+
+        _depositFlashloan(
+            _additionalPosition,
+            _additionalLiquidity,
+            _additionalLiquidityAmount0,
+            _additionalLiquidityAmount1
+        );
 
         // Mint to receiver
         _mint(_receiver, _shares);
@@ -372,38 +359,64 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         return _shares;
     }
 
-    ///@notice Add liquidity to pool by share ratio
-    ///@dev called by deposit
-    function _depositLiquidityByShares(
-        Balances memory _depositedBalances,
-        uint256 _shares,
-        uint256 _totalSupply,
-        Ticks memory _ticks
+    function _depositFlashloan(
+        Positions memory _additionalPosition,
+        uint128 _additionalLiquidity,
+        uint256 _additionalLiquidityAmount0,
+        uint256 _additionalLiquidityAmount1
     ) internal {
-        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
-        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, _totalSupply));
+        IERC20 _flashloanToken;
+        uint _flashloanAmount;
+        FlashloanType _flashloanType;
 
-        if (_additionalLiquidity > 0) {
-            (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-            (uint256 _additionalLiquidityAmount0, uint256 _additionalLiquidityAmount1) = LiquidityAmounts
-                .getAmountsForLiquidity(
-                    _sqrtRatioX96,
-                    _ticks.lowerTick.getSqrtRatioAtTick(),
-                    _ticks.upperTick.getSqrtRatioAtTick(),
-                    _additionalLiquidity
-                );
+        //The case of overhedge (debtETH > liqETH + balanceETH)
+        if (_additionalPosition.debtAmount0 > _additionalLiquidityAmount0 + _additionalPosition.token0Balance) {
+            // set Flashloan paramters
+            _flashloanToken = token1;
+            _flashloanAmount = _additionalPosition.collateralAmount1 + _additionalLiquidityAmount1 + 1;
+            _flashloanType = FlashloanType.DEPOSIT_OVERHEDGE;
+        } else {
+            // The case of underhedge (debtETH <= liqETH + balanceETH)
+            // Calculate the amount needed to pull from user's wallet (for the 1st time):
+            uint _1stTransferAmtUSDC = _additionalPosition.collateralAmount1 +
+                _additionalLiquidityAmount1 +
+                _additionalPosition.token1Balance;
+            token1.safeTransferFrom(msg.sender, address(this), _1stTransferAmtUSDC);
 
-            if (_additionalLiquidityAmount0 > _depositedBalances.balance0) {
-                uint256 _borrowFlashAmount0 = _additionalLiquidityAmount0 - _depositedBalances.balance0 + 1;
-                _makeFlashLoan(token0, _borrowFlashAmount0, abi.encode(FlashloanType.DEPOSIT, _additionalLiquidity));
-            } else if (_additionalLiquidityAmount1 > _depositedBalances.balance1) {
-                uint256 _borrowFlashAmount1 = _additionalLiquidityAmount1 - _depositedBalances.balance1 + 1;
-                _makeFlashLoan(token1, _borrowFlashAmount1, abi.encode(FlashloanType.DEPOSIT, _additionalLiquidity));
-            } else {
-                //rare case
-                _makeFlashLoan(token0, 0, abi.encode(FlashloanType.DEPOSIT, _additionalLiquidity));
-            }
+            // Supply USDC and Borrow ETH (consumes: addColAmt1)
+            aave.safeSupply(address(token1), _additionalPosition.collateralAmount1, address(this), AAVE_REFERRAL_NONE);
+            aave.safeBorrow(
+                address(token0),
+                _additionalPosition.debtAmount0,
+                AAVE_VARIABLE_INTEREST,
+                AAVE_REFERRAL_NONE,
+                address(this)
+            );
+
+            // set Flashloan paramters
+            _flashloanToken = token0;
+            // Calculate the delta amount of ETH needed for liquidity and take a flashloan of that amount
+            _flashloanAmount = _additionalPosition.debtAmount0 > _additionalLiquidityAmount0
+                ? 0
+                : _additionalLiquidityAmount0 - _additionalPosition.debtAmount0 + 1;
+            _flashloanType = FlashloanType.DEPOSIT_UNDERHEDGE;
         }
+
+        //execute flashloan
+        _makeFlashLoan(
+            _flashloanToken,
+            _flashloanAmount,
+            abi.encode(
+                _flashloanType,
+                _additionalLiquidity,
+                _additionalLiquidityAmount0,
+                _additionalPosition.collateralAmount1,
+                _additionalPosition.debtAmount0,
+                _additionalPosition.token0Balance,
+                _additionalPosition.token1Balance,
+                msg.sender
+            )
+        );
     }
 
     /// @inheritdoc IOrangeAlphaVault
@@ -858,6 +871,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
     ///@notice Swap exact amount out
     function _swapAmountOut(bool _zeroForOne, uint256 _amountOut) internal returns (uint256 amountIn_) {
+        if (_amountOut == 0) return 0;
         (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
         ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
             tokenIn: tokenIn,
@@ -874,6 +888,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
     ///@notice Swap exact amount in
     function _swapAmountIn(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
+        if (_amountIn == 0) return 0;
         (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
         ISwapRouter.ExactInputSingleParams memory _params = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
@@ -964,23 +979,63 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             aave.safeRepay(address(token0), _amount0, AAVE_VARIABLE_INTEREST, address(this));
             // Withdraw USDC as collateral
             aave.safeWithdraw(address(token1), _amount1, address(this));
-        } else if (_flashloanType == uint8(FlashloanType.DEPOSIT)) {
-            (uint8 _type, uint128 _additionalLiquidity) = abi.decode(_userData, (uint8, uint128));
+
+            //swap to repay flashloan
+            if (_amounts[0] > 0) {
+                bool _zeroForOne = (address(_tokens[0]) == address(token0)) ? false : true;
+                // swap USDC to ETH to repay flashloan
+                _swapAmountOut(_zeroForOne, _amounts[0]);
+            }
+        } else {
+            _depositInFlashloan(_amounts[0], _userData);
+        }
+        //repay flashloan
+        IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
+    }
+
+    function _depositInFlashloan(uint borrowAmount, bytes memory _userData) internal {
+        (
+            uint8 _type,
+            uint128 _additionalLiquidity,
+            uint256 _additionalLiquidityAmount0,
+            uint256 collateralAmount1,
+            uint256 debtAmount0,
+            uint256 token0Balance,
+            uint256 token1Balance,
+            address _periphery
+        ) = abi.decode(_userData, (uint8, uint128, uint256, uint256, uint256, uint256, uint256, address));
+
+        if (_type == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
+            // Supply USDC and Borrow ETH
+            aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
+            aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
             //add liquidity
             if (_additionalLiquidity > 0) {
                 pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
             }
-        }
 
-        //repay flashloan
-        if (_amounts[0] > 0) {
-            bool _zeroForOne = (address(_tokens[0]) == address(token0)) ? false : true;
-            // swap USDC to ETH to repay flashloan
-            _swapAmountOut(_zeroForOne, _amounts[0]);
+            // Calculate the amount of surplus ETH and swap to USDC
+            uint _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
+            uint _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
-            if (IERC20(_tokens[0]).balanceOf(address(this)) < _amounts[0]) revert(Errors.FLASHLOAN_LACK_OF_BALANCE);
-            IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
+            // Pull funds from user's wallet
+            // Transfer USDC from periphery to Vault
+            uint _pullAmountUSDC = borrowAmount + token1Balance - _amountOutFromSurplusETHSale;
+            token1.safeTransferFrom(_periphery, address(this), _pullAmountUSDC);
+        } else if (_type == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
+            // Add liquidity (consumes: addLiqAmt1)
+            if (_additionalLiquidity > 0) {
+                pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
+            }
+
+            // Calculate the amount of ETH needed to repay + remain in the balance:
+            uint ethAmtToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
+
+            // Pull funds from user's wallet (for the 2nd time)
+            // Do the swap and repay the flashloan
+            uint _2ndTransferAmtUSDC = _swapAmountOut(false, ethAmtToSwap);
+            token1.safeTransferFrom(_periphery, address(this), _2ndTransferAmtUSDC);
         }
     }
 }

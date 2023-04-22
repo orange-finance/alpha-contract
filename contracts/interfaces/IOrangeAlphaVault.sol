@@ -14,7 +14,8 @@ interface IOrangeAlphaVault {
     }
 
     enum FlashloanType {
-        DEPOSIT,
+        DEPOSIT_OVERHEDGE,
+        DEPOSIT_UNDERHEDGE,
         REDEEM
     }
 
