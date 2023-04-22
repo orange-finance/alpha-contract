@@ -37,6 +37,10 @@ contract OrangeAlphaVaultMock is OrangeAlphaVault {
         avgTick = _avgTick;
     }
 
+    function setFlashloanHash(bytes32 _flashloanHash) external {
+        flashloanHash = _flashloanHash;
+    }
+
     function getAavePoolLtv() external view returns (uint256) {
         (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = aave.getUserAccountData(address(this));
         if (totalCollateralBase == 0) return 0;

@@ -953,7 +953,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         bytes memory _userData
     ) external {
         if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
-        if (flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
         flashloanHash = bytes32(0); //clear storage
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));

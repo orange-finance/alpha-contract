@@ -559,7 +559,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
-    function test_receiveFlashLoan_Revert() public {
+    function test_receiveFlashLoan_Revert1Zero() public {
         address balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
         IERC20[] memory _tokensFlashloan = new IERC20[](1);
@@ -567,6 +567,30 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = 100;
         vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
-        IVault(balancer).flashLoan(IFlashLoanRecipient(address(vault)), _tokensFlashloan, _amountsFlashloan, "");
+        IVault(balancer).flashLoan(
+            IFlashLoanRecipient(address(vault)),
+            _tokensFlashloan,
+            _amountsFlashloan,
+            abi.encode(1)
+        );
+    }
+
+    function test_receiveFlashLoan_Revert2() public {
+        address balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
+
+        IERC20[] memory _tokensFlashloan = new IERC20[](1);
+        _tokensFlashloan[0] = token0;
+        uint256[] memory _amountsFlashloan = new uint256[](1);
+        _amountsFlashloan[0] = 100;
+
+        vault.setFlashloanHash(keccak256(abi.encode(2)));
+
+        vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
+        IVault(balancer).flashLoan(
+            IFlashLoanRecipient(address(vault)),
+            _tokensFlashloan,
+            _amountsFlashloan,
+            abi.encode(1)
+        );
     }
 }
