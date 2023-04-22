@@ -309,6 +309,27 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertApproxEqRel(token1.balanceOf(address(this)), 9_997_500 * 1e6, 1e16);
     }
 
+    function test_redeem_Success3SurplusETHToUSDC() public {
+        uint256 _shares = 10_000 * 1e6;
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        skip(8 days);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 50e6, 0);
+        skip(1);
+
+        uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
+        uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
+        //assertion
+        assertApproxEqRel(_realAssets, _assets, 1e16);
+        assertEq(vault.balanceOf(address(this)), 0);
+        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
+        assertEq(_liquidity, 0);
+        assertEq(debtToken0.balanceOf(address(vault)), 0);
+        assertEq(aToken1.balanceOf(address(vault)), 0);
+        assertEq(token1.balanceOf(address(vault)), 0);
+        assertEq(token0.balanceOf(address(vault)), 0);
+        assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
+    }
+
     function test_stoploss_Revert() public {
         vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);

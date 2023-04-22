@@ -456,7 +456,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             }
         } else {
             // swap surplus ETH to return receiver as USDC
-            _swapAmountIn(true, _redeemableBalances.balance0 - _redeemPosition.debtAmount0);
+            _redeemableBalances.balance1 += _swapAmountIn(
+                true,
+                _redeemableBalances.balance0 - _redeemPosition.debtAmount0
+            );
         }
 
         // memorize balance of token1 to be remained in vault
