@@ -342,25 +342,24 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             address(this)
         );
 
-        // _depositedBalances are deposited balances by sender and will add to pool as liquidity
-        Balances memory _depositedBalances = Balances(
-            _additionalPosition.debtAmount0 - _additionalPosition.token0Balance,
-            _maxAssets - _additionalPosition.collateralAmount1 - _additionalPosition.token1Balance
+        uint256 _balance0 = token0.balanceOf(address(this));
+        uint256 _balance1 = token1.balanceOf(address(this));
+
+        //usable balances for uniswap liquidity
+        Balances memory _usableBalances = Balances(
+            _balance0 - _additionalPosition.token0Balance, //never be negative (I think)
+            _balance1 - _additionalPosition.token1Balance //never be negative
         );
 
-        // memory current remaining balance
-        uint256 _remainingAmount0 = token0.balanceOf(address(this)) - _depositedBalances.balance0;
-        uint256 _remainingAmount1 = token1.balanceOf(address(this)) - _depositedBalances.balance1;
-
         // Add liquidity
-        _depositLiquidityByShares(_depositedBalances, _shares, _totalSupply, _ticks);
+        _depositLiquidityByShares(_usableBalances, _shares, _totalSupply, _ticks);
 
         // Transfer surplus amount to receiver
-        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _remainingAmount0;
+        uint256 _returningAmount0 = token0.balanceOf(address(this)) - _additionalPosition.token0Balance; //should we really use balanceOf() here? can be simpler?
         if (_returningAmount0 > 0) {
             token0.safeTransfer(_receiver, _returningAmount0);
         }
-        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _remainingAmount1;
+        uint256 _returningAmount1 = token1.balanceOf(address(this)) - _additionalPosition.token1Balance; //
         if (_returningAmount1 > 0) {
             token1.safeTransfer(_receiver, _returningAmount1);
         }
