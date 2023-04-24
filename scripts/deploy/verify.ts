@@ -31,10 +31,10 @@ const verify = async () => {
     a.OrangeAlphaParameters,
   ]);
 
-  // await Verify(a.OrangeAlphaResolver, [
-  //   a.OrangeAlphaVault,
-  //   a.OrangeAlphaParameters,
-  // ]);
+  await Verify(a.OrangeAlphaResolver, [
+    a.OrangeAlphaVault,
+    a.OrangeAlphaParameters,
+  ]);
 };
 
 const main = async () => {

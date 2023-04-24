@@ -11,7 +11,7 @@ async function main() {
     a.OrangeAlphaParameters
   )) as OrangeAlphaParameters;
 
-  const tx = await params.setStrategist(a.Strategist, true);
+  const tx = await params.setGelato(a.Owner);
   console.log(tx);
 }
 

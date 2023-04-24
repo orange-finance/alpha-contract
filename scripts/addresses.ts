@@ -29,6 +29,8 @@ export const getAddresses = () => {
     case "arb":
       return {
         Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
+        Owner: "0x38E4157345Bd2c8Cf7Dbe4B0C75302c2038AB7Ec", //Safe
+        Strategist: "0xd31583735e47206e9af728EF4f44f62B20db4b27",
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
@@ -36,13 +38,17 @@ export const getAddresses = () => {
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-        GelatoOps: "",
-        SafeAavePool: "",
-        UniswapV3Twap: "",
-        OrangeAlphaParameters: "",
-        OrangeAlphaVault: "",
-        OrangeAlphaPeriphery: "",
-        OrangeAlphaResolver: "",
+        //libraries
+        GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
+        SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
+        UniswapV3Twap: "0x9E58899B29361085Dc60EA4596650572f96F1Fc2",
+        RebalancePositionComputer: "0x180240fee8FA687212f98b707f8D89be9EEDDBDF",
+        //core contracts
+        OrangeAlphaParameters: "0xAbB7cEEfE00AC86BE7531F3a8Fa726e4679C6b73",
+        OrangeAlphaVault: "0x4615eF6F13C46a663cd5b9411Ff2B5eA47783c2C",
+        OrangeAlphaPeriphery: "0xa6C2a6A5c8C6Fb552A310cEF50ECbEc35a6639a7",
+        OrangeAlphaResolver: "0x5125b551633179eAe54970b4205891D94EB617F5",
+        OrangeAlphaComputer: "0xDE9952927877015aE764EA3Fbd437FbF3ceA65F3",
       };
   }
 };
