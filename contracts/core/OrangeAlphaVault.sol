@@ -348,11 +348,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
         _depositFlashloan(
-            _additionalPosition,
-            _additionalLiquidity,
+            _additionalPosition, //Aave & Contract Balances
+            _additionalLiquidity, //Uni
             _additionalLiquidityAmount0,
             _additionalLiquidityAmount1,
-            _maxAssets,
+            _maxAssets, //USDC from User
             _receiver
         );
 
@@ -374,6 +374,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         //The case of overhedge (debtETH > liqETH + balanceETH)
         if (_additionalPosition.debtAmount0 > _additionalLiquidityAmount0 + _additionalPosition.token0Balance) {
             //execute flashloan
+
+            /**
+             * Flashloan USDC. do some stuff. Swap ETH => USDC (leave some for _additionalPosition.token0Balance ). Return the loan.
+             */
             _makeFlashLoan(
                 token1,
                 _additionalPosition.collateralAmount1 + _additionalLiquidityAmount1 + 1,
@@ -393,16 +397,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         } else {
             //underhedge
 
-            // Supply USDC and Borrow ETH (consumes: addColAmt1)
-            aave.safeSupply(address(token1), _additionalPosition.collateralAmount1, address(this), AAVE_REFERRAL_NONE);
-            aave.safeBorrow(
-                address(token0),
-                _additionalPosition.debtAmount0,
-                AAVE_VARIABLE_INTEREST,
-                AAVE_REFERRAL_NONE,
-                address(this)
-            );
-            //execute flashloan
+            /**
+             * Flashloan ETH. do some stuff. Swap USDC => ETH (swap some more for _additionalPosition.token0Balance). Return the loan.
+             */
             _makeFlashLoan(
                 token0,
                 _additionalPosition.debtAmount0 > _additionalLiquidityAmount0
@@ -1016,6 +1013,15 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 _userData,
                 (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
             );
+        /**
+         * consuming factors (rephrasing parameters above)
+         * - collateral USDC
+         * - borrow ETH
+         * - liquidity ETH
+         * - liquidity USDC
+         * - additional ETH (in the Vault)
+         * - additional USDC (in the Vault)
+         */
 
         // Supply USDC and Borrow ETH
         aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
@@ -1051,6 +1057,19 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 _userData,
                 (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
             );
+        /**
+         * consuming factors (rephrasing parameters above)
+         * - collateral USDC
+         * - borrow ETH
+         * - liquidity ETH
+         * - liquidity USDC
+         * - additional ETH (in the Vault)
+         * - additional USDC (in the Vault)
+         */
+
+        // Supply USDC and Borrow ETH (consumes: colAmt1, debrAmt0)
+        aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
+        aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
         // Add liquidity (consumes: addLiqAmt1)
         if (_additionalLiquidity > 0) {
