@@ -995,7 +995,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
     }
 
-    function _depositInFlashloanOverhedge(uint borrowAmount, bytes memory _userData) internal {
+    function _depositInFlashloanOverhedge(uint256 borrowAmount, bytes memory _userData) internal {
         (
             ,
             uint128 _additionalLiquidity,
@@ -1031,15 +1031,15 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         }
 
         // Calculate the amount of surplus ETH and swap to USDC
-        uint _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
-        uint _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
+        uint256 _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
+        uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
         //Refund the unspent USDC
-        uint _refundAmountUSDC = _maxAssets - (borrowAmount + token1Balance - _amountOutFromSurplusETHSale);
+        uint256 _refundAmountUSDC = _maxAssets - (borrowAmount + token1Balance - _amountOutFromSurplusETHSale);
         token1.safeTransfer(_receiver, _refundAmountUSDC);
     }
 
-    function _depositInFlashloanUnderhedge(uint, bytes memory _userData) internal {
+    function _depositInFlashloanUnderhedge(uint256, bytes memory _userData) internal {
         (
             ,
             uint128 _additionalLiquidity,
@@ -1075,14 +1075,14 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         }
 
         // Calculate the amount of ETH needed to repay + remain in the balance:
-        uint ethAmtToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
+        uint256 ethAmtToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
 
         // Do the swap and repay the flashloan
-        uint _2ndTransferAmtUSDC = _swapAmountOut(false, ethAmtToSwap);
+        uint256 _2ndTransferAmtUSDC = _swapAmountOut(false, ethAmtToSwap);
 
         //Refund the unspent USDC
         // Pull funds from user's wallet (for the 2nd time)
-        uint _refundAmountUSDC = _maxAssets -
+        uint256 _refundAmountUSDC = _maxAssets -
             (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + _2ndTransferAmtUSDC);
         if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
     }
