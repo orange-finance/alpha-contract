@@ -315,7 +315,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_ticks);
-        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
+        (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
 
         //calculate additional Aave position and Contract balances by shares
         Positions memory _additionalPosition = _computeTargetPositionByShares(
@@ -328,7 +328,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         );
 
         //calculate additional amounts based on liquidity by shares
-        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, totalSupply));
+        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
         uint256 _additionalLiquidityAmount0;
         uint256 _additionalLiquidityAmount1;
@@ -1010,26 +1010,26 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
             );
         /**
-         * consuming factors (rephrasing parameters above)
-         * - collateral USDC
-         * - borrow ETH
-         * - liquidity ETH
-         * - liquidity USDC
-         * - additional ETH (in the Vault)
-         * - additional USDC (in the Vault)
+         * appending positions
+         * 1. collateral USDC
+         * 2. borrow ETH
+         * 3. liquidity ETH
+         * 4. liquidity USDC
+         * 5. additional ETH (in the Vault)
+         * 6. additional USDC (in the Vault)
          */
 
-        // Supply USDC and Borrow ETH
+        //Supply USDC and Borrow ETH (#1 and #2)
         aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
         aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
-        //add liquidity
+        //Add Liquidity (#3 and #4)
         if (_additionalLiquidity > 0) {
             pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
         }
 
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
-            // Calculate the amount of surplus ETH and swap to USDC
+            // Calculate the amount of surplus ETH and swap to USDC (Leave some ETH for #5)
             uint256 _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
             uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
@@ -1038,15 +1038,15 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 (borrowFlashloanAmount + token1Balance - _amountOutFromSurplusETHSale);
             if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
-            // Calculate the amount of ETH needed to repay + remain in the balance:
+            // Calculate the amount of ETH needed to be swapped to repay the loan. (Swap more ETH for #5)
             uint256 ethAmountToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
 
-            // Do the swap to repay the flashloan
-            uint256 _flashloanRepayUSDC = _swapAmountOut(false, ethAmountToSwap);
+            // Swap USDC=>WETH
+            uint256 usdcAmtUsedForEth = _swapAmountOut(false, ethAmountToSwap);
 
-            //Refund the unspent USDC
+            // Refund the unspent USDC (Leave some USDC for #6)
             uint256 _refundAmountUSDC = _maxAssets -
-                (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + _flashloanRepayUSDC);
+                (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + usdcAmtUsedForEth);
             if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
         }
     }
