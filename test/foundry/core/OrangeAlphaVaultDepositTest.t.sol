@@ -70,9 +70,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
     }
 
     function test_deposit_Success2() public {
-        console2.log("yama0");
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
-        console2.log("yama1");
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         // consoleUnderlyingAssets();
 
@@ -101,9 +99,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         );
 
         //deposit
-        console2.log("yama3");
         vault.deposit(_shares, address(this), 10_000 * 1e6);
-        console2.log("yama4");
 
         //assertion
         //Vault token balance
