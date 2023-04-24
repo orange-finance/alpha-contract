@@ -53,7 +53,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         uint256 _initialBalance = token1.balanceOf(address(this));
         vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         //assertion
-        assertEq(vault.balanceOf(address(this)), 10_000 * 1e6);
+        assertEq(vault.balanceOf(address(this)), 10_000 * 1e6 - 1e4);
         uint256 _realAssets = _initialBalance - token1.balanceOf(address(this));
         assertEq(_realAssets, 10_000 * 1e6);
         assertEq(token1.balanceOf(address(vault)), 10_000 * 1e6);
@@ -65,7 +65,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         uint256 _shares = (vault.convertToShares(10_000 * 1e6) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, address(this), 10_000 * 1e6);
         //assertion
-        assertEq(vault.balanceOf(address(this)), 19_900 * 1e6);
+        assertEq(vault.balanceOf(address(this)), 19_900 * 1e6 - 1e4);
         assertEq(token1.balanceOf(address(vault)), 19_900 * 1e6);
     }
 
@@ -103,7 +103,7 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
 
         //assertion
         //Vault token balance
-        assertEq(vault.balanceOf(address(this)), 10_000 * 1e6 + _shares);
+        assertEq(vault.balanceOf(address(this)), 10_000 * 1e6 + _shares - 1e4);
         //Position
         assertApproxEqRel(debtToken0.balanceOf(address(vault)), _debtBalance0 + _position.debtAmount0, 1e16);
         assertApproxEqRel(aToken1.balanceOf(address(vault)), _aBalance1 + _position.collateralAmount1, 1e16);

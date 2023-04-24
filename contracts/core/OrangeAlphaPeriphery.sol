@@ -6,8 +6,6 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IOrangeAlphaPeriphery, IOrangeAlphaVault, IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaPeriphery.sol";
 import {Errors} from "../libs/Errors.sol";
 
-// import "forge-std/console2.sol";
-
 contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     using SafeERC20 for IERC20;
 

@@ -7,8 +7,6 @@ import {IResolver} from "../interfaces/IResolver.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 
-// import "forge-std/console2.sol";
-
 contract OrangeAlphaResolver is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
