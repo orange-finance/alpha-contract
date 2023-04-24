@@ -42,9 +42,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     bytes32 flashloanHash;
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3Pool public immutable pool;
-    IERC20 public immutable token0; //weth
-    IERC20 public immutable token1; //usdc
+    IUniswapV3Pool public pool;
+    IERC20 public token0; //weth
+    IERC20 public token1; //usdc
     ISwapRouter public router;
     IAaveV3Pool public aave;
     IERC20 public debtToken0; //weth
