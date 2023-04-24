@@ -20,16 +20,11 @@ import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-// import "forge-std/console2.sol";
-
-// import {Ints} from "../mocks/Ints.sol";
-
 contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, IFlashLoanRecipient {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
     using SafeAavePool for IAaveV3Pool;
-    // using Ints for int24;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
