@@ -308,7 +308,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
             _mint(_receiver, _maxAssets - 1e4);
             _mint(address(0), 1e4); // for manipulation resistance
-            return _maxAssets;
+            return _maxAssets - 1e4;
         }
 
         Ticks memory _ticks = _getTicksByStorage();

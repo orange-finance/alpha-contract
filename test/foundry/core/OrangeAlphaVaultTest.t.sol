@@ -243,30 +243,27 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Revert2() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(1);
         vm.expectRevert(bytes(Errors.LESS_AMOUNT));
         vault.redeem(_shares, address(this), address(0), 100_900 * 1e6);
     }
 
     function test_redeem_Success0NoPosition() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
 
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
         uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
 
         //assertion
-        assertEq(10_000 * 1e6, _realAssets);
+        assertEq(10_000 * 1e6 - 1e4, _realAssets);
         assertEq(vault.balanceOf(address(this)), 0);
-        assertEq(token1.balanceOf(address(this)), 10_000_000 * 1e6);
+        assertEq(token1.balanceOf(address(this)), 10_000_000 * 1e6 - 1e4);
     }
 
     function test_redeem_Success1Max() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         skip(1);
@@ -274,20 +271,13 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         uint256 _assets = (vault.convertToAssets(_shares) * 9900) / MAGIC_SCALE_1E4;
         uint256 _realAssets = vault.redeem(_shares, address(this), address(0), _assets);
         //assertion
-        assertApproxEqRel(_realAssets, _assets, 1e17);
+        assertApproxEqRel(_realAssets, _assets - 1e4, 1e17);
         assertEq(vault.balanceOf(address(this)), 0);
-        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
-        assertEq(_liquidity, 0);
-        assertEq(debtToken0.balanceOf(address(vault)), 0);
-        assertEq(aToken1.balanceOf(address(vault)), 0);
-        assertEq(token1.balanceOf(address(vault)), 0);
-        assertEq(token0.balanceOf(address(vault)), 0);
         assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
     }
 
     function test_redeem_Success2Quater() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(_shares, address(this), 10_000 * 1e6);
+        uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         skip(1);
@@ -310,8 +300,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_redeem_Success3SurplusETHToUSDC() public {
-        uint256 _shares = 10_000 * 1e6;
-        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(8 days);
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 50e6, 0);
         skip(1);
@@ -321,12 +310,6 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         //assertion
         assertApproxEqRel(_realAssets, _assets, 1e16);
         assertEq(vault.balanceOf(address(this)), 0);
-        (uint128 _liquidity, , , , ) = pool.positions(vault.getPositionID());
-        assertEq(_liquidity, 0);
-        assertEq(debtToken0.balanceOf(address(vault)), 0);
-        assertEq(aToken1.balanceOf(address(vault)), 0);
-        assertEq(token1.balanceOf(address(vault)), 0);
-        assertEq(token0.balanceOf(address(vault)), 0);
         assertApproxEqRel(token1.balanceOf(address(this)), 10_000_000 * 1e6, 1e16);
     }
 
