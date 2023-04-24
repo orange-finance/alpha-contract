@@ -6,8 +6,6 @@ import {GelatoOps} from "../libs/GelatoOps.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 
-// import "forge-std/console2.sol";
-
 contract OrangeAlphaParameters is IOrangeAlphaParameters, Ownable {
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
