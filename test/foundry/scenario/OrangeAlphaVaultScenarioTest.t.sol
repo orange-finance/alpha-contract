@@ -64,10 +64,9 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
     function test_scenario0() public {
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
 
-        uint256 _shares = 10_000 * 1e6;
         uint256 _maxAsset = 10_000 * 1e6;
         vm.prank(address(11));
-        periphery.deposit(_shares, _maxAsset, new bytes32[](0));
+        uint _shares = periphery.deposit(10_000 * 1e6, _maxAsset, new bytes32[](0));
         skip(1);
         vm.prank(address(12));
         periphery.deposit(_shares, _maxAsset, new bytes32[](0));
@@ -307,9 +306,8 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         uint _maxAsset3
     ) private returns (uint _share1, uint _share2, uint _share3) {
         console2.log("deposit11");
-        _share1 = _maxAsset1;
         vm.prank(address(11));
-        periphery.deposit(_share1, _maxAsset1, new bytes32[](0));
+        _share1 = periphery.deposit(_maxAsset1, _maxAsset1, new bytes32[](0));
         skip(1);
 
         console2.log("deposit12");
