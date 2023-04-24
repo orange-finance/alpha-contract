@@ -21,6 +21,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
     uint256 constant MIN_DEPOSIT = 10 * 1e6;
 
     function _setUpParams() internal override {
+        params.setDepositCap(1_000_000 * 1e6, 1_000_000 * 1e6);
         periphery = new OrangeAlphaPeriphery(address(vault), address(params));
         //set parameters
         params.setPeriphery(address(periphery));
