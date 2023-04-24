@@ -1021,20 +1021,20 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
          * 6. additional USDC (in the Vault)
          */
 
-        //Supply USDC and Borrow ETH (1 and 2)
+        //Supply USDC and Borrow ETH (#1 and #2)
         aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
         aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
-        //Add Liquidity (3 and 4)
+        //Add Liquidity (#3 and #4)
         if (_additionalLiquidity > 0) {
             pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
         }
 
-        // Calculate the amount of surplus ETH and swap to USDC
+        // Calculate the amount of surplus ETH and swap to USDC (Leave some ETH for #5)
         uint256 _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
         uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
-        //Refund the unspent USDC
+        //Refund the unspent USDC (#6)
         uint256 _refundAmountUSDC = _maxAssets - (borrowAmount + token1Balance - _amountOutFromSurplusETHSale);
         token1.safeTransfer(_receiver, _refundAmountUSDC);
     }
@@ -1065,25 +1065,24 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
          * 6. additional USDC (in the Vault)
          */
 
-        // Supply USDC and Borrow ETH (consumes: colAmt1, debrAmt0)
+        // Supply USDC and Borrow ETH (#1 and #2)
         aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
         aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
-        // Add liquidity (consumes: addLiqAmt1)
+        // Add liquidity (#3 and #4)
         if (_additionalLiquidity > 0) {
             pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
         }
 
-        // Calculate the amount of ETH needed to repay + remain in the balance:
+        // Calculate the amount of ETH needed to be swapped to repay the loan. (Swap more ETH for #5)
         uint256 ethAmtToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
 
-        // Do the swap and repay the flashloan
-        uint256 _2ndTransferAmtUSDC = _swapAmountOut(false, ethAmtToSwap);
+        // Swap USDC=>WETH
+        uint256 usdcAmtUsedForEth = _swapAmountOut(false, ethAmtToSwap);
 
-        //Refund the unspent USDC
-        // Pull funds from user's wallet (for the 2nd time)
+        // Refund the unspent USDC (Leave some USDC for #6)
         uint256 _refundAmountUSDC = _maxAssets -
-            (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + _2ndTransferAmtUSDC);
+            (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + usdcAmtUsedForEth);
         if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
     }
 }
