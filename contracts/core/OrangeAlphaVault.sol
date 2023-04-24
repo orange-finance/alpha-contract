@@ -436,9 +436,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         if (_shares == 0) {
             revert(Errors.INVALID_AMOUNT);
         }
-        if (balanceOf[_receiver] < _shares) {
-            revert(Errors.INVALID_SHARES);
-        }
 
         uint256 _totalSupply = totalSupply;
         Ticks memory _ticks = _getTicksByStorage();
