@@ -45,11 +45,11 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     IUniswapV3Pool public immutable pool;
     IERC20 public immutable token0; //weth
     IERC20 public immutable token1; //usdc
-    ISwapRouter public immutable router;
-    IAaveV3Pool public immutable aave;
-    IERC20 public immutable debtToken0; //weth
-    IERC20 public immutable aToken1; //usdc
-    IOrangeAlphaParameters public immutable params;
+    ISwapRouter public router;
+    IAaveV3Pool public aave;
+    IERC20 public debtToken0; //weth
+    IERC20 public aToken1; //usdc
+    IOrangeAlphaParameters public params;
 
     /* ========== MODIFIER ========== */
     modifier onlyPeriphery() {
