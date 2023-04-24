@@ -16,14 +16,14 @@ contract OrangeAlphaParametersTest is BaseTest {
 
     /* ========== CONSTRUCTOR ========== */
     function test_constructor_Success() public {
-        assertEq(params.depositCap(), 1_000_000 * 1e6);
-        assertEq(params.totalDepositCap(), 1_000_000 * 1e6);
+        assertEq(params.depositCap(), 100_000 * 1e6);
+        assertEq(params.totalDepositCap(), 100_000 * 1e6);
         assertEq(params.minDepositAmount(), 100 * 1e6);
         assertEq(params.slippageBPS(), 500);
         assertEq(params.tickSlippageBPS(), 10);
         assertEq(params.twapSlippageInterval(), 5 minutes);
         assertEq(params.maxLtv(), 80000000);
-        assertEq(params.lockupPeriod(), 7 days);
+        assertEq(params.lockupPeriod(), 0);
         assertEq(params.strategists(address(this)), true);
         assertEq(params.allowlistEnabled(), true);
         assertEq(params.gelatoExecutor(), GelatoOps.getDedicatedMsgSender(address(this)));
