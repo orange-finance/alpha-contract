@@ -121,6 +121,14 @@ interface IOrangeAlphaVault {
      * @param _receiver receiver address
      * @param _maxAssets maximum amount of assets
      * @return shares
+     * @dev increase all position propotionally. e.g. when share = totalSupply, the Vault is doubling up the all position.
+     * Position including
+     * - Aave USDC Collateral
+     * - Aave ETH Debt
+     * - Uniswap USDC Liquidity
+     * - Uniswap ETH Liquidity
+     * - USDC balance in Vault
+     * - ETH balance in Vault
      */
     function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external returns (uint256 shares);
 
