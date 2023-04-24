@@ -315,7 +315,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_ticks);
-        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
+        (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
 
         //calculate additional Aave position and Contract balances by shares
         Positions memory _additionalPosition = _computeTargetPositionByShares(
@@ -328,7 +328,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         );
 
         //calculate additional amounts based on liquidity by shares
-        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, totalSupply));
+        uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
         uint256 _additionalLiquidityAmount0;
         uint256 _additionalLiquidityAmount1;
