@@ -1012,20 +1012,20 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
             );
         /**
-         * consuming factors (rephrasing parameters above)
-         * - collateral USDC
-         * - borrow ETH
-         * - liquidity ETH
-         * - liquidity USDC
-         * - additional ETH (in the Vault)
-         * - additional USDC (in the Vault)
+         * appending positions
+         * 1. collateral USDC
+         * 2. borrow ETH
+         * 3. liquidity ETH
+         * 4. liquidity USDC
+         * 5. additional ETH (in the Vault)
+         * 6. additional USDC (in the Vault)
          */
 
-        // Supply USDC and Borrow ETH
+        //Supply USDC and Borrow ETH (1 and 2)
         aave.safeSupply(address(token1), collateralAmount1, address(this), AAVE_REFERRAL_NONE);
         aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
-        //add liquidity
+        //Add Liquidity (3 and 4)
         if (_additionalLiquidity > 0) {
             pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
         }
@@ -1056,13 +1056,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
             );
         /**
-         * consuming factors (rephrasing parameters above)
-         * - collateral USDC
-         * - borrow ETH
-         * - liquidity ETH
-         * - liquidity USDC
-         * - additional ETH (in the Vault)
-         * - additional USDC (in the Vault)
+         * appending positions
+         * 1. collateral USDC
+         * 2. borrow ETH
+         * 3. liquidity ETH
+         * 4. liquidity USDC
+         * 5. additional ETH (in the Vault)
+         * 6. additional USDC (in the Vault)
          */
 
         // Supply USDC and Borrow ETH (consumes: colAmt1, debrAmt0)
