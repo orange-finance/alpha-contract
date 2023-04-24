@@ -300,7 +300,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
 
-        // initial deposit
+        //initial deposit
         if (totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
@@ -313,8 +313,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         Ticks memory _ticks = _getTicksByStorage();
 
-        //compute additional positions by shares
+        //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_ticks);
+        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
 
         //calculate additional Aave position and Contract balances by shares
         Positions memory _additionalPosition = _computeTargetPositionByShares(
@@ -326,8 +327,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             totalSupply
         );
 
-        // calculate additional liquidity by shares
-        (uint128 liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
+        //calculate additional amounts based on liquidity by shares
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(liquidity).mulDiv(_shares, totalSupply));
 
         uint256 _additionalLiquidityAmount0;
@@ -345,6 +345,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         //transfer USDC to this contract
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
+        //append position
         _depositFlashloan(
             _additionalPosition, //Aave & Contract Balances
             _additionalLiquidity, //Uni
@@ -354,7 +355,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _receiver
         );
 
-        // Mint to receiver
+        // mint share to receiver
         _mint(_receiver, _shares);
 
         _emitAction(ActionType.DEPOSIT, _receiver);
@@ -374,7 +375,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             //execute flashloan
 
             /**
-             * Flashloan USDC. do some stuff. Swap ETH => USDC (leave some for _additionalPosition.token0Balance ). Return the loan.
+             * Flashloan USDC. append positions. swap WETH=>USDC (leave some WETH for _additionalPosition.token0Balance ). Return the loan.
              */
             _makeFlashLoan(
                 token1,
@@ -396,7 +397,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             //underhedge
 
             /**
-             * Flashloan ETH. do some stuff. Swap USDC => ETH (swap some more for _additionalPosition.token0Balance). Return the loan.
+             * Flashloan ETH. append positions. swap USDC=>WETH (swap some more ETH for _additionalPosition.token0Balance). Return the loan.
              */
             _makeFlashLoan(
                 token0,
@@ -959,8 +960,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
-    /// @notice _userData are _flashloanType, _repayAmountToken0, _withdrawAmountToken1
-    /// @notice _userData are _flashloanType, _additionalLiquidity
+    ///@notice There are two types of _userData, determined by the FlashloanType (REDEEM or DEPOSIT_OVERHEDGE/UNDERHEDGE).
     function receiveFlashLoan(
         IERC20[] memory _tokens,
         uint256[] memory _amounts,
