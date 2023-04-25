@@ -383,8 +383,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 abi.encode(
                     FlashloanType.DEPOSIT_OVERHEDGE,
                     _additionalLiquidity,
-                    _additionalLiquidityAmount0,
-                    _additionalLiquidityAmount1,
                     _additionalPosition.collateralAmount1,
                     _additionalPosition.debtAmount0,
                     _additionalPosition.token0Balance,
@@ -407,8 +405,6 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
                 abi.encode(
                     FlashloanType.DEPOSIT_UNDERHEDGE,
                     _additionalLiquidity,
-                    _additionalLiquidityAmount0,
-                    _additionalLiquidityAmount1,
                     _additionalPosition.collateralAmount1,
                     _additionalPosition.debtAmount0,
                     _additionalPosition.token0Balance,
@@ -997,18 +993,13 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         (
             ,
             uint128 _additionalLiquidity,
-            uint256 _additionalLiquidityAmount0,
-            uint256 _additionalLiquidityAmount1,
             uint256 collateralAmount1,
             uint256 debtAmount0,
             uint256 token0Balance,
             uint256 token1Balance,
             uint256 _maxAssets,
             address _receiver
-        ) = abi.decode(
-                _userData,
-                (uint8, uint128, uint256, uint256, uint256, uint256, uint256, uint256, uint256, address)
-            );
+        ) = abi.decode(_userData, (uint8, uint128, uint256, uint256, uint256, uint256, uint256, address));
         /**
          * appending positions
          * 1. collateral USDC
@@ -1024,8 +1015,16 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         aave.safeBorrow(address(token0), debtAmount0, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
 
         //Add Liquidity (#3 and #4)
+        uint _additionalLiquidityAmount0;
+        uint _additionalLiquidityAmount1;
         if (_additionalLiquidity > 0) {
-            pool.mint(address(this), lowerTick, upperTick, _additionalLiquidity, "");
+            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = pool.mint(
+                address(this),
+                lowerTick,
+                upperTick,
+                _additionalLiquidity,
+                ""
+            );
         }
 
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
