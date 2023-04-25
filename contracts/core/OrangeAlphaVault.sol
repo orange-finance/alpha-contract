@@ -1027,23 +1027,25 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             );
         }
 
+        uint _actualUsedAmountUSDC;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
             // Calculate the amount of surplus ETH and swap to USDC (Leave some ETH for #5)
             uint256 _surplusAmountETH = debtAmount0 - (_additionalLiquidityAmount0 + token0Balance);
             uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
-            //Refund the unspent USDC (Leave some USDC for #6)
-            uint256 _refundAmountUSDC = _maxAssets -
-                (borrowFlashloanAmount + token1Balance - _amountOutFromSurplusETHSale);
-            if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
+            _actualUsedAmountUSDC = borrowFlashloanAmount + token1Balance - _amountOutFromSurplusETHSale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
             // Calculate the amount of ETH needed to be swapped to repay the loan, then swap USDC=>ETH (Swap more ETH for #5)
             uint256 ethAmountToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount0;
             uint256 usdcAmtUsedForEth = _swapAmountOut(false, ethAmountToSwap);
 
-            // Refund the unspent USDC (Leave some USDC for #6)
-            uint256 _refundAmountUSDC = _maxAssets -
-                (collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + usdcAmtUsedForEth);
+            _actualUsedAmountUSDC = collateralAmount1 + _additionalLiquidityAmount1 + token1Balance + usdcAmtUsedForEth;
+        }
+
+        //Refund the unspent USDC (Leave some USDC for #6)
+        if (_maxAssets < _actualUsedAmountUSDC) revert(Errors.LESS_MAX_ASSETS);
+        unchecked {
+            uint256 _refundAmountUSDC = _maxAssets - _actualUsedAmountUSDC;
             if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
         }
     }

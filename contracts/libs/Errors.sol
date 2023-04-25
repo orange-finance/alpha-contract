@@ -18,6 +18,7 @@ library Errors {
     string public constant NO_NEED_FLASH = "113";
     string public constant ONLY_BALANCER_VAULT = "114";
     string public constant INVALID_FLASHLOAN_HASH = "115";
+    string public constant LESS_MAX_ASSETS = "116";
 
     //OrangeAlphaPeriphery
     string public constant MERKLE_ALLOWLISTED = "201";

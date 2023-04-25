@@ -48,6 +48,13 @@ contract OrangeAlphaVaultDepositTest is OrangeAlphaTestBase, IOrangeAlphaVaultEv
         vault.deposit(1, address(this), 1);
     }
 
+    function test_deposit_Revert3LessMaxAssets() public {
+        vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        vm.expectRevert(bytes(Errors.LESS_MAX_ASSETS));
+        vault.deposit(10_000 * 1e6, address(this), 5_000 * 1e6);
+    }
+
     function test_deposit_Success0() public {
         //initial depositing
         uint256 _initialBalance = token1.balanceOf(address(this));
