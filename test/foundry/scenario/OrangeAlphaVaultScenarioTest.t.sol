@@ -69,12 +69,12 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         uint _shares = periphery.deposit(10_000 * 1e6, _maxAsset, new bytes32[](0));
         skip(1);
         vm.prank(address(12));
-        periphery.deposit(_shares, _maxAsset, new bytes32[](0));
+        uint _shares2 = periphery.deposit(10_000 * 1e6, _maxAsset, new bytes32[](0));
         skip(1);
 
         assertEq(token1.balanceOf(address(11)), INITIAL_BAL - (10_000 * 1e6));
         assertEq(token1.balanceOf(address(12)), INITIAL_BAL - (10_000 * 1e6));
-        assertEq(vault.balanceOf(address(11)), 10_000 * 1e6);
+        assertEq(vault.balanceOf(address(11)), 10_000 * 1e6 - 1e4);
         assertEq(vault.balanceOf(address(12)), 10_000 * 1e6);
 
         skip(7 days);
@@ -84,9 +84,9 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         periphery.redeem(_shares, _minAsset);
         skip(1);
         vm.prank(address(12));
-        periphery.redeem(_shares, _minAsset);
+        periphery.redeem(_shares2, _minAsset);
         skip(1);
-        assertEq(token1.balanceOf(address(11)), INITIAL_BAL);
+        assertEq(token1.balanceOf(address(11)), INITIAL_BAL - 1e4);
         assertEq(token1.balanceOf(address(12)), INITIAL_BAL);
     }
 
