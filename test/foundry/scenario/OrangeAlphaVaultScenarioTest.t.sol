@@ -22,6 +22,7 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
 
     function _setUpParams() internal override {
         params.setDepositCap(1_000_000 * 1e6, 1_000_000 * 1e6);
+        params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
         periphery = new OrangeAlphaPeriphery(address(vault), address(params));
         //set parameters
         params.setPeriphery(address(periphery));
@@ -165,7 +166,9 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
 
-        _rebalance(_tick);
+        lowerTick = roundTick(_tick) - 900;
+        upperTick = roundTick(_tick) + 900;
+        _rebalance(HEDGE_RATIO);
 
         (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
@@ -193,14 +196,16 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         multiSwapByCarol();
 
         console2.log("swap OutOfRange");
-        swapByCarol(true, 1_000 ether); //current price over upperPrice
+        swapByCarol(true, 1_000 ether); //current price under lowerPrice
 
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
 
-        _rebalance(_tick);
+        lowerTick = roundTick(_tick) - 900;
+        upperTick = roundTick(_tick) + 900;
+        _rebalance(HEDGE_RATIO);
 
         (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
@@ -231,18 +236,24 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
 
-        _rebalance(_tick);
+        (, _tick, , , , , ) = pool.slot0();
+        lowerTick = roundTick(_tick) - 900;
+        upperTick = roundTick(_tick) + 900;
+        _rebalance(HEDGE_RATIO);
 
         //swap
         console2.log("swap OutOfRange");
-        swapByCarol(true, 1_000 ether); //current price over upperPrice
+        swapByCarol(true, 1_000 ether); //current price under lowerPrice
 
         //stoploss
         console2.log("stoploss");
         (, _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
 
-        _rebalance(_tick);
+        (, _tick, , , , , ) = pool.slot0();
+        lowerTick = roundTick(_tick) - 900;
+        upperTick = roundTick(_tick) + 900;
+        _rebalance(HEDGE_RATIO);
 
         (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
@@ -251,15 +262,32 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         assertGt(token1.balanceOf(address(13)), INITIAL_BAL - _maxAsset3 + _minAsset3);
     }
 
-    //Flash testing
-    //Deposit, Rebalance, RisingPrice(OutOfRange), stoploss, Rebalance and FlashRedeem
-    function test_scenario8(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
+    //Fuzz testing
+    //Deposit, Rebalance, RisingPrice, stoploss, Rebalance, FallingPRice, Rebalance
+    function test_scenario7(
+        uint _maxAsset1,
+        uint _maxAsset2,
+        uint _maxAsset3,
+        uint _hedgeRatio,
+        uint _randomLowerTick,
+        uint _randomUpperTick
+    ) public {
+        // uint _maxAsset1 = 0;
+        // uint _maxAsset2 = 0;
+        // uint _maxAsset3 = 5628064358208601;
+        // uint _hedgeRatio = 150e6;
+        // uint _randomLowerTick = 0;
+        // uint _randomUpperTick = 1e18;
         _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
         _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
         _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
+        _hedgeRatio = bound(_hedgeRatio, 20e6, 100e6);
+        _randomLowerTick = bound(_randomLowerTick, 60, 900);
+        _randomUpperTick = bound(_randomUpperTick, 60, 900);
+
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
-        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 0);
         skip(1);
 
         //swap
@@ -267,32 +295,26 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         multiSwapByCarol();
 
         console2.log("swap OutOfRange");
-        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+        swapByCarol(false, 500_000 * 1e6); //current price over upperPrice
 
         //stoploss
         console2.log("stoploss");
         (, int24 _tick, , , , , ) = pool.slot0();
         vault.stoploss(_tick);
 
-        _rebalance(_tick);
+        lowerTick = roundTick(_tick - int24(uint24(_randomLowerTick)));
+        upperTick = roundTick(_tick + int24(uint24(_randomUpperTick)));
+        _rebalance(_hedgeRatio);
 
-        console2.log("flash redeem 11");
-        uint _minAsset1 = (vault.convertToAssets(_share1) * 9900) / MAGIC_SCALE_1E4;
-        vm.prank(address(11));
-        periphery.redeem(_share1, _minAsset1);
-        skip(1);
+        //swap
+        console2.log("swap OutOfRange");
+        swapByCarol(true, 400 ether); //current price under lowerPrice
 
-        console2.log("flash redeem 12");
-        uint _minAsset2 = (vault.convertToAssets(_share2) * 9900) / MAGIC_SCALE_1E4;
-        vm.prank(address(12));
-        periphery.redeem(_share2, _minAsset2);
-        skip(1);
+        lowerTick = roundTick(_tick - int24(uint24(_randomLowerTick)));
+        upperTick = roundTick(_tick + int24(uint24(_randomUpperTick)));
+        _rebalance(_hedgeRatio);
 
-        console2.log("flash redeem 13");
-        uint _minAsset3 = (vault.convertToAssets(_share3) * 9900) / MAGIC_SCALE_1E4;
-        vm.prank(address(13));
-        periphery.redeem(_share3, _minAsset3);
-        skip(1);
+        (uint _minAsset1, uint _minAsset2, uint _minAsset3) = _redeem(_share1, _share2, _share3);
 
         assertGt(token1.balanceOf(address(11)), INITIAL_BAL - _maxAsset1 + _minAsset1);
         assertGt(token1.balanceOf(address(12)), INITIAL_BAL - _maxAsset2 + _minAsset2);
@@ -349,21 +371,11 @@ contract OrangeAlphaVaultScenarioTest is OrangeAlphaTestBase {
         skip(1);
     }
 
-    function _rebalance(int24 _currentTick) private {
+    function _rebalance(uint _hedgeRatio) private {
         console2.log("rabalance");
-        int24 _roundedTick = roundTick(_currentTick);
-        lowerTick = _roundedTick - 900;
-        upperTick = _roundedTick + 900;
-        stoplossLowerTick = _roundedTick - 1500;
-        stoplossUpperTick = _roundedTick + 1500;
-        uint128 _liquidity = (vault.getRebalancedLiquidity(
-            lowerTick,
-            upperTick,
-            stoplossLowerTick,
-            stoplossUpperTick,
-            HEDGE_RATIO
-        ) * 9900) / MAGIC_SCALE_1E4;
-        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, _liquidity);
+        stoplossLowerTick = lowerTick - 600;
+        stoplossUpperTick = upperTick + 600;
+        vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 0);
         skip(1);
     }
 

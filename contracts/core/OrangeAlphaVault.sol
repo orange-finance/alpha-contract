@@ -254,18 +254,22 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         );
 
         if (_hedgeRatio == 0) {
-            position_.token1Balance = _assets.mulDiv(_amount1, (_amount0ValueInToken1 + _amount1));
-            position_.token0Balance = position_.token1Balance.mulDiv(_amount0, _amount1);
+            position_.token1Balance = (_amount0ValueInToken1 + _amount1 == 0)
+                ? 0
+                : _assets.mulDiv(_amount1, (_amount0ValueInToken1 + _amount1));
+            position_.token0Balance = (_amount1 == 0) ? 0 : position_.token1Balance.mulDiv(_amount0, _amount1);
         } else {
             //compute collateral/asset ratio
-            uint256 _x = MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
+            uint256 _x = (_amount0ValueInToken1 == 0) ? 0 : MAGIC_SCALE_1E8.mulDiv(_amount1, _amount0ValueInToken1);
             uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
                 _ltv +
                 MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
                 MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
 
             //Collateral
-            position_.collateralAmount1 = _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
+            position_.collateralAmount1 = (_collateralRatioReciprocal == 0)
+                ? 0
+                : _assets.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
 
             uint256 _borrowUsdc = position_.collateralAmount1.mulDiv(_ltv, MAGIC_SCALE_1E8);
             //borrowing usdc amount to weth
@@ -278,7 +282,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
             // amount added on Uniswap
             position_.token0Balance = position_.debtAmount0.mulDiv(MAGIC_SCALE_1E8, _hedgeRatio);
-            position_.token1Balance = position_.token0Balance.mulDiv(_amount1, _amount0);
+            position_.token1Balance = (_amount0 == 0) ? 0 : position_.token0Balance.mulDiv(_amount1, _amount0);
         }
     }
 
@@ -501,6 +505,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         Ticks memory _ticks
     ) internal returns (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) {
         (uint128 _liquidity, , , , ) = pool.positions(_getPositionID(_ticks.lowerTick, _ticks.upperTick));
+        //unnecessary to check _totalSupply == 0 because an error occurs in redeem before calling this function
         uint128 _burnLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
         (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = _burnAndCollectFees(
             _ticks.lowerTick,
