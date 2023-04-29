@@ -1,18 +1,17 @@
 import { ethers } from "hardhat";
 import { Verify, VerifyLibraries } from "../common";
+import { getAddresses } from "../addresses";
 
 async function main() {
-  await VerifyLibraries(
-    "0x27c9C92CAcE4D5b5525DC1589805Fc2540f76B21",
-    {
-      GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
-    },
-    []
-  );
+  const a = getAddresses()!;
 
-  await Verify("0x0F6E7a44e7994a1cFa68ba9116C313e7323a03E3", [
-    "0x27c9C92CAcE4D5b5525DC1589805Fc2540f76B21",
-  ]);
+  await VerifyLibraries(
+    a.OrangeAlphaComputer,
+    {
+      RebalancePositionComputer: a.RebalancePositionComputer,
+    },
+    [a.OrangeAlphaVault, a.OrangeAlphaParameters]
+  );
 }
 
 main().catch((error) => {

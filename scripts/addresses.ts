@@ -44,11 +44,11 @@ export const getAddresses = () => {
         UniswapV3Twap: "0x9E58899B29361085Dc60EA4596650572f96F1Fc2",
         RebalancePositionComputer: "0x180240fee8FA687212f98b707f8D89be9EEDDBDF",
         //core contracts
-        OrangeAlphaParameters: "0xAbB7cEEfE00AC86BE7531F3a8Fa726e4679C6b73",
-        OrangeAlphaVault: "0x4615eF6F13C46a663cd5b9411Ff2B5eA47783c2C",
-        OrangeAlphaPeriphery: "0xa6C2a6A5c8C6Fb552A310cEF50ECbEc35a6639a7",
-        OrangeAlphaResolver: "0x5125b551633179eAe54970b4205891D94EB617F5",
-        OrangeAlphaComputer: "0xDE9952927877015aE764EA3Fbd437FbF3ceA65F3",
+        OrangeAlphaParameters: "0xB4F003bcccD9514CbA2a40e26CA9e275c93EAC6C",
+        OrangeAlphaVault: "0x1c99416c7243563ebEDCBEd91ec8532fF74B9a39",
+        OrangeAlphaPeriphery: "0xCa612E6bCDcCa3d1b9828FDc912643228D4b8AA9",
+        OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
+        OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
       };
   }
 };
