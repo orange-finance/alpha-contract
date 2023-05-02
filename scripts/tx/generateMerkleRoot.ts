@@ -11,29 +11,7 @@ async function hashed(target: any[]) {
   });
 }
 
-const list = [
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-  {
-    address: "",
-  },
-];
+const list = [{ address: "" }];
 
 async function main() {
   const a = getAddresses()!;
