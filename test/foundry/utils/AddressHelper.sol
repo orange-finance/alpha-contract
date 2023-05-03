@@ -25,17 +25,12 @@ library AddressHelper {
         address wethUsdcPoolAddr;
         address wethUsdcPoolAddr500;
         address routerAddr;
+        address nonfungiblePositionManagerAddr;
     }
 
-    function addresses(uint256 _chainid)
-        internal
-        pure
-        returns (
-            TokenAddr memory tokenAddr_,
-            AaveAddr memory aaveAddr_,
-            UniswapAddr memory uniswapAddr_
-        )
-    {
+    function addresses(
+        uint256 _chainid
+    ) internal pure returns (TokenAddr memory tokenAddr_, AaveAddr memory aaveAddr_, UniswapAddr memory uniswapAddr_) {
         if (_chainid == MAINNET_ID) {
             //mainnet
             tokenAddr_ = TokenAddr({
@@ -56,7 +51,8 @@ library AddressHelper {
             uniswapAddr_ = UniswapAddr({
                 wethUsdcPoolAddr: address(0),
                 wethUsdcPoolAddr500: address(0),
-                routerAddr: address(0)
+                routerAddr: address(0),
+                nonfungiblePositionManagerAddr: address(0)
             });
         } else if (_chainid == GOERLI_ID) {
             //goerli
@@ -78,7 +74,8 @@ library AddressHelper {
             uniswapAddr_ = UniswapAddr({
                 wethUsdcPoolAddr: 0x5D5c8Aa7E4Df82D5f5e33b77c39524EBbc8988bF,
                 wethUsdcPoolAddr500: address(0),
-                routerAddr: address(0)
+                routerAddr: address(0),
+                nonfungiblePositionManagerAddr: address(0)
             });
         } else if (_chainid == ARB_ID) {
             //arbitrum
@@ -100,7 +97,8 @@ library AddressHelper {
             uniswapAddr_ = UniswapAddr({
                 wethUsdcPoolAddr: 0x17c14D2c404D167802b16C450d3c99F88F2c4F4d, // 0.3%
                 wethUsdcPoolAddr500: 0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443, // 0.05%
-                routerAddr: 0xE592427A0AEce92De3Edee1F18E0157C05861564
+                routerAddr: 0xE592427A0AEce92De3Edee1F18E0157C05861564,
+                nonfungiblePositionManagerAddr: 0xC36442b4a4522E871399CD717aBDD847Ab11FE88
             });
         }
     }
