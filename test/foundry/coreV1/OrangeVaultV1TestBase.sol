@@ -5,7 +5,6 @@ import "../utils/BaseTest.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
 
 import {OrangeVaultV1, IVault, IFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
-import {OrangeLiquidityPool, IOrangeLiquidityPool} from "../../../contracts/coreV1/OrangeLiquidityPool.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -28,7 +27,6 @@ contract OrangeVaultV1TestBase is BaseTest {
     AddressHelper.AaveAddr public aaveAddr;
     AddressHelper.UniswapAddr public uniswapAddr;
 
-    OrangeLiquidityPool public liquidityPool;
     OrangeVaultV1 public vault;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
@@ -59,7 +57,6 @@ contract OrangeVaultV1TestBase is BaseTest {
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
         aToken1 = IERC20(aaveAddr.ausdcAddr);
 
-        liquidityPool = new OrangeLiquidityPool(address(pool));
         vault = new OrangeVaultV1(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
