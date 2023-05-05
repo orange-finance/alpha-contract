@@ -24,8 +24,8 @@ contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IProx
     /* ========== Structs ========== */
 
     /* ========== CONSTANTS ========== */
-    uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
-    uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
+    uint16 constant AAVE_REFERRAL_NONE = 0;
+    uint256 constant AAVE_VARIABLE_INTEREST = 2;
 
     /* ========== STORAGES ========== */
 
@@ -74,7 +74,9 @@ contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IProx
     }
 
     function supply(uint256 amount) external onlyOperator {
-        token0.safeTransferFrom(operator, address(this), amount);
+        if (amount > 0) {
+            token0.safeTransferFrom(operator, address(this), amount);
+        }
         aave.safeSupply(address(token0), amount, address(this), AAVE_REFERRAL_NONE);
     }
 
@@ -84,11 +86,15 @@ contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IProx
 
     function borrow(uint256 amount) external onlyOperator {
         aave.safeBorrow(address(token1), amount, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
-        token1.transfer(operator, amount);
+        if (amount > 0) {
+            token1.safeTransfer(operator, amount);
+        }
     }
 
     function repay(uint256 amount) external onlyOperator {
-        token1.safeTransferFrom(operator, address(this), amount);
+        if (amount > 0) {
+            token1.safeTransferFrom(operator, address(this), amount);
+        }
         aave.safeRepay(address(token1), amount, AAVE_VARIABLE_INTEREST, address(this));
     }
 }
