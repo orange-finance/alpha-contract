@@ -3,6 +3,9 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
+import {UniswapV3LiquidityPoolManager} from "../../../contracts/liquidityPoolManager/UniswapV3LiquidityPoolManager.sol";
+import {AaveLendingPoolManager} from "../../../contracts/lendingPoolManager/AaveLendingPoolManager.sol";
+import {LiquidityPoolManagerFactory, IProxy} from "../../../contracts/liquidityPoolManager/LiquidityPoolManagerFactory.sol";
 
 import {OrangeVaultV1, IVault, IFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 
@@ -47,26 +50,36 @@ contract OrangeVaultV1TestBase is BaseTest {
 
     function setUp() public virtual {
         (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
-
-        params = new OrangeAlphaParameters();
-        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
+
+        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
         router = ISwapRouter(uniswapAddr.routerAddr);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
         aToken1 = IERC20(aaveAddr.ausdcAddr);
 
+        params = new OrangeAlphaParameters();
+
+        //TODO refactor
+        //factory
+        UniswapV3LiquidityPoolManager template = new UniswapV3LiquidityPoolManager();
+        AaveLendingPoolManager templateLending = new AaveLendingPoolManager();
+        LiquidityPoolManagerFactory factory = new LiquidityPoolManagerFactory();
+        factory.approveTemplate(IProxy(address(template)), true);
+        factory.approveTemplate(IProxy(address(templateLending)), true);
+
         vault = new OrangeVaultV1(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
-            address(pool),
             address(token0),
             address(token1),
-            address(router),
+            address(factory),
+            address(template),
+            address(pool),
+            address(templateLending),
             address(aave),
-            address(debtToken0),
-            address(aToken1),
+            address(router),
             address(params)
         );
         _setUpParams();

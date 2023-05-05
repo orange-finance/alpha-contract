@@ -17,7 +17,6 @@ contract LiquidityPoolManagerFactory {
 
     mapping(address => bool) public templates;
 
-    /// @notice inherit IPolicyFactory
     function approveTemplate(IProxy _template, bool _approval) external {
         if (address(_template) == address(0)) revert ZeroAddress();
         templates[address(_template)] = _approval;
@@ -25,7 +24,6 @@ contract LiquidityPoolManagerFactory {
         emit ManagerApproved(address(_template), _approval);
     }
 
-    /// @notice inherit IPolicyFactory
     function create(
         IProxy _template,
         uint256[] calldata _params,

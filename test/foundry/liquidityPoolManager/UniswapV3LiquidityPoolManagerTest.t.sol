@@ -82,8 +82,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         IUniswapV3LiquidityPoolManager.MintParams memory _mintParams = IUniswapV3LiquidityPoolManager.MintParams(
             lowerTick,
             upperTick,
-            _liquidity,
-            address(this)
+            _liquidity
         );
         (uint _amount0, uint _amount1) = liquidityPool.mint(_mintParams);
         console2.log(_amount0, _amount1);
@@ -149,8 +148,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         IUniswapV3LiquidityPoolManager.MintParams memory _mintParams = IUniswapV3LiquidityPoolManager.MintParams(
             lowerTick,
             upperTick,
-            _liquidity,
-            address(this)
+            _liquidity
         );
         (uint _amount0, uint _amount1) = liquidityPool.mint(_mintParams);
         console2.log(_amount0, _amount1);

@@ -62,6 +62,10 @@ contract UniswapV3LiquidityPoolManager is
         }
     }
 
+    function getCurrentTick() external view returns (int24 tick) {
+        (, tick, , , , , ) = pool.slot0();
+    }
+
     function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity_) {
         (liquidity_, , , , ) = pool.positions(keccak256(abi.encodePacked(address(this), _lowerTick, _upperTick)));
     }
@@ -169,10 +173,20 @@ contract UniswapV3LiquidityPoolManager is
         }
     }
 
+    ///@notice Cheking tickSpacing
+    function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
+        //TODO move tickSpacing to parameter or liquidityPool contract
+        int24 _spacing = pool.tickSpacing();
+        if (_lowerTick < _upperTick && _lowerTick % _spacing == 0 && _upperTick % _spacing == 0) {
+            return;
+        }
+        revert("Errors.INVALID_TICKS");
+    }
+
     /* ========== WRITE FUNCTIONS ========== */
 
     function mint(MintParams calldata _params) external onlyOperator returns (uint256, uint256) {
-        bytes memory data = abi.encode(_params.receiver);
+        bytes memory data = abi.encode(msg.sender);
 
         (uint256 amount0, uint256 amount1) = pool.mint(
             address(this),
