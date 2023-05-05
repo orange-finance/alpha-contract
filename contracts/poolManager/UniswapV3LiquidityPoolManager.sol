@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
-import {IProxy} from "../interfaces/IProxy.sol";
+import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {Initializable} from "../libs/Initializable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -21,7 +21,7 @@ contract UniswapV3LiquidityPoolManager is
     IUniswapV3LiquidityPoolManager,
     IUniswapV3MintCallback,
     Initializable,
-    IProxy
+    IOrangePoolManagerProxy
 {
     using SafeERC20 for IERC20;
     using TickMath for int24;
@@ -53,13 +53,19 @@ contract UniswapV3LiquidityPoolManager is
      * @param _params none
      * @param _references 0: pool address, 1: baseToken address, 2: targetToken address
      */
-    function initialize(uint256[] calldata, address[] calldata _references) external initializer {
-        operator = _references[0];
-        pool = IUniswapV3Pool(_references[1]);
-        fee = pool.fee();
-        if (_references[2] > _references[3]) {
+    function initialize(
+        address _operator,
+        address _token0,
+        address _token1,
+        uint256[] calldata,
+        address[] calldata _references
+    ) external initializer {
+        operator = _operator;
+        if (_token0 > _token1) {
             reversed = true;
         }
+        pool = IUniswapV3Pool(_references[0]);
+        fee = pool.fee();
     }
 
     function getCurrentTick() external view returns (int24 tick) {

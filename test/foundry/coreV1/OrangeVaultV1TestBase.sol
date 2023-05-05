@@ -3,9 +3,9 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
-import {UniswapV3LiquidityPoolManager} from "../../../contracts/liquidityPoolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "../../../contracts/lendingPoolManager/AaveLendingPoolManager.sol";
-import {LiquidityPoolManagerFactory, IProxy} from "../../../contracts/liquidityPoolManager/LiquidityPoolManagerFactory.sol";
+import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
+import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
 
 import {OrangeVaultV1, IVault, IFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 
@@ -65,9 +65,9 @@ contract OrangeVaultV1TestBase is BaseTest {
         //factory
         UniswapV3LiquidityPoolManager template = new UniswapV3LiquidityPoolManager();
         AaveLendingPoolManager templateLending = new AaveLendingPoolManager();
-        LiquidityPoolManagerFactory factory = new LiquidityPoolManagerFactory();
-        factory.approveTemplate(IProxy(address(template)), true);
-        factory.approveTemplate(IProxy(address(templateLending)), true);
+        PoolManagerFactory factory = new PoolManagerFactory();
+        factory.approveTemplate(IOrangePoolManagerProxy(address(template)), true);
+        factory.approveTemplate(IOrangePoolManagerProxy(address(templateLending)), true);
 
         vault = new OrangeVaultV1(
             "OrangeAlphaVault",

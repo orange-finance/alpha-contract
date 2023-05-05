@@ -5,7 +5,7 @@ pragma solidity 0.8.16;
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
-import {IProxy} from "../interfaces/IProxy.sol";
+import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
@@ -13,7 +13,7 @@ import {IVault} from "../interfaces/IVault.sol";
 import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {LiquidityPoolManagerFactory} from "../liquidityPoolManager/LiquidityPoolManagerFactory.sol";
+import {PoolManagerFactory} from "../poolManager/PoolManagerFactory.sol";
 //libraries
 import {ERC20} from "../libs/ERC20.sol";
 import {SafeAavePool, IAaveV3Pool} from "../libs/SafeAavePool.sol";
@@ -76,14 +76,15 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         token1 = IERC20(_token1);
 
         //create liquidity pool
-        address[] memory _references = new address[](4);
-        _references[0] = address(this);
-        _references[1] = _pool;
-        _references[2] = _token0;
-        _references[3] = _token1;
+        address[] memory _references = new address[](1);
+        _references[0] = _pool;
+
         liquidityPool = IUniswapV3LiquidityPoolManager(
-            LiquidityPoolManagerFactory(_factory).create(
-                IProxy(address(_liquidityPoolTemplate)),
+            PoolManagerFactory(_factory).create(
+                IOrangePoolManagerProxy(address(_liquidityPoolTemplate)),
+                address(this),
+                _token0,
+                _token1,
                 new uint256[](0),
                 _references
             )
@@ -92,14 +93,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         token1.safeApprove(address(liquidityPool), type(uint256).max);
 
         //create lending pool
-        address[] memory _referencesLending = new address[](4);
-        _referencesLending[0] = address(this);
-        _referencesLending[1] = _aave;
-        _referencesLending[2] = _token0;
-        _referencesLending[3] = _token1;
+        address[] memory _referencesLending = new address[](1);
+        _referencesLending[0] = _aave;
         lendingPool = IAaveLendingPoolManager(
-            LiquidityPoolManagerFactory(_factory).create(
-                IProxy(address(_lendingPoolTemplate)),
+            PoolManagerFactory(_factory).create(
+                IOrangePoolManagerProxy(address(_lendingPoolTemplate)),
+                address(this),
+                _token0,
+                _token1,
                 new uint256[](0),
                 _referencesLending
             )

@@ -3,8 +3,8 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {LiquidityPoolManagerFactory, IProxy} from "../../../contracts/liquidityPoolManager/LiquidityPoolManagerFactory.sol";
-import {UniswapV3LiquidityPoolManager, IUniswapV3LiquidityPoolManager} from "../../../contracts/liquidityPoolManager/UniswapV3LiquidityPoolManager.sol";
+import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
+import {UniswapV3LiquidityPoolManager, IUniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -13,7 +13,7 @@ import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
 import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
 import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
 
-contract LiquidityPoolManagerFactoryTest is BaseTest {
+contract PoolManagerFactoryTest is BaseTest {
     using TickMath for int24;
     using FullMath for uint256;
     using Ints for int24;
@@ -22,7 +22,7 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
     AddressHelper.TokenAddr public tokenAddr;
     AddressHelper.UniswapAddr public uniswapAddr;
 
-    LiquidityPoolManagerFactory public factory;
+    PoolManagerFactory public factory;
     UniswapV3LiquidityPoolManager public template;
     IUniswapV3LiquidityPoolManager public liquidityPool;
     IUniswapV3Pool public pool;
@@ -46,17 +46,21 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
 
         template = new UniswapV3LiquidityPoolManager();
 
-        factory = new LiquidityPoolManagerFactory();
-        factory.approveTemplate(IProxy(address(template)), true);
+        factory = new PoolManagerFactory();
+        factory.approveTemplate(IOrangePoolManagerProxy(address(template)), true);
 
         //create proxy
-        address[] memory _references = new address[](4);
-        _references[0] = address(this);
-        _references[1] = address(pool);
-        _references[2] = address(token0);
-        _references[3] = address(token1);
+        address[] memory _references = new address[](1);
+        _references[0] = address(pool);
         liquidityPool = IUniswapV3LiquidityPoolManager(
-            factory.create(IProxy(address(template)), new uint256[](0), _references)
+            factory.create(
+                IOrangePoolManagerProxy(address(template)),
+                address(this),
+                address(token0),
+                address(token1),
+                new uint256[](0),
+                _references
+            )
         );
 
         //set Ticks for testing
@@ -111,11 +115,16 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
 
     function test_createByVault() public {
         //create vault
-        address[] memory _references = new address[](3);
+        address[] memory _references = new address[](1);
         _references[0] = address(pool);
-        _references[1] = address(token0);
-        _references[2] = address(token1);
-        VaultMock _vault = new VaultMock(factory, IProxy(address(template)), new uint256[](0), _references);
+        VaultMock _vault = new VaultMock(
+            factory,
+            IOrangePoolManagerProxy(address(template)),
+            address(token0),
+            address(token1),
+            new uint256[](0),
+            _references
+        );
         UniswapV3LiquidityPoolManager _liq = _vault.liquidityPool();
         assertEq(_liq.operator(), address(_vault));
     }
@@ -137,20 +146,24 @@ contract VaultMock {
 
     //in construcor, create liquidity pool by factory
     constructor(
-        LiquidityPoolManagerFactory _factory,
-        IProxy _template,
-        uint256[] memory _params,
+        PoolManagerFactory _factory,
+        IOrangePoolManagerProxy _template,
+        address _token0,
+        address _token1,
+        uint256[] memory,
         address[] memory _references
     ) {
-        address[] memory referencesNew = new address[](4);
-        referencesNew[0] = address(this);
-        referencesNew[1] = _references[0];
-        referencesNew[2] = _references[1];
-        referencesNew[3] = _references[2];
-
-        //create proxy
+        address[] memory referencesNew = new address[](1);
+        referencesNew[0] = _references[0];
         liquidityPool = UniswapV3LiquidityPoolManager(
-            _factory.create(IProxy(address(_template)), _params, referencesNew)
+            _factory.create(
+                IOrangePoolManagerProxy(address(_template)),
+                address(this),
+                _token0,
+                _token1,
+                new uint256[](0),
+                _references
+            )
         );
     }
 }

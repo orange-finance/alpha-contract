@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
-import {IProxy} from "../interfaces/IProxy.sol";
+import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {Initializable} from "../libs/Initializable.sol";
 
 import {IAaveV3Pool, SafeAavePool} from "../libs/SafeAavePool.sol";
@@ -15,7 +15,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "forge-std/console2.sol";
 
-contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IProxy {
+contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IOrangePoolManagerProxy {
     // TODO cap
 
     using SafeERC20 for IERC20;
@@ -49,16 +49,22 @@ contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IProx
      * @param _params none
      * @param _references 0: operator, 1: aave pool, 2: baseToken, 3: targetToken
      */
-    function initialize(uint256[] calldata, address[] calldata _references) external initializer {
-        operator = _references[0];
-        aave = IAaveV3Pool(_references[1]);
+    function initialize(
+        address _operator,
+        address _token0,
+        address _token1,
+        uint256[] calldata,
+        address[] calldata _references
+    ) external initializer {
+        operator = _operator;
+        aave = IAaveV3Pool(_references[0]);
 
-        token0 = IERC20(_references[2]);
-        DataTypes.ReserveData memory reserveDataBase = aave.getReserveData(_references[2]);
+        token0 = IERC20(_token0);
+        DataTypes.ReserveData memory reserveDataBase = aave.getReserveData(_token0);
         aToken0 = IERC20(reserveDataBase.aTokenAddress);
 
-        token1 = IERC20(_references[3]);
-        DataTypes.ReserveData memory reserveDataTarget = aave.getReserveData(_references[3]);
+        token1 = IERC20(_token1);
+        DataTypes.ReserveData memory reserveDataTarget = aave.getReserveData(_token1);
         debtToken1 = IERC20(reserveDataTarget.variableDebtTokenAddress);
 
         token0.safeApprove(address(aave), type(uint256).max);

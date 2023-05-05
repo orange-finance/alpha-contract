@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {AaveLendingPoolManager, IAaveLendingPoolManager, IAaveV3Pool} from "../../../contracts/lendingPoolManager/AaveLendingPoolManager.sol";
+import {AaveLendingPoolManager, IAaveLendingPoolManager, IAaveV3Pool} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -31,12 +31,9 @@ contract AaveLendingPoolManagerTest is BaseTest {
 
         lendingPool = new AaveLendingPoolManager();
         //initialize
-        address[] memory _references = new address[](4);
-        _references[0] = address(this);
-        _references[1] = address(aave);
-        _references[2] = address(token0);
-        _references[3] = address(token1);
-        lendingPool.initialize(new uint256[](0), _references);
+        address[] memory _references = new address[](1);
+        _references[0] = address(aave);
+        lendingPool.initialize(address(this), address(token0), address(token1), new uint256[](0), _references);
 
         aToken0 = lendingPool.aToken0();
         debtToken1 = lendingPool.debtToken1();
