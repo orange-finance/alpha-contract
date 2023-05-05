@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-interface ILiquidityPoolManager {
+interface IProxy {
     /**
      * @notice initialize functions for proxy contracts.
      * @param  _params initilizing params

@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {LiquidityPoolManagerFactory, ILiquidityPoolManager} from "../../../contracts/liquidityPoolManager/LiquidityPoolManagerFactory.sol";
+import {LiquidityPoolManagerFactory, IProxy} from "../../../contracts/liquidityPoolManager/LiquidityPoolManagerFactory.sol";
 import {UniswapV3LiquidityPoolManager, IUniswapV3LiquidityPoolManager} from "../../../contracts/liquidityPoolManager/UniswapV3LiquidityPoolManager.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -47,7 +47,7 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
         template = new UniswapV3LiquidityPoolManager();
 
         factory = new LiquidityPoolManagerFactory();
-        factory.approveTemplate(ILiquidityPoolManager(address(template)), true);
+        factory.approveTemplate(IProxy(address(template)), true);
 
         //create proxy
         address[] memory _references = new address[](4);
@@ -56,7 +56,7 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
         _references[2] = address(token0);
         _references[3] = address(token1);
         liquidityPool = IUniswapV3LiquidityPoolManager(
-            factory.create(ILiquidityPoolManager(address(template)), new uint256[](0), _references)
+            factory.create(IProxy(address(template)), new uint256[](0), _references)
         );
 
         //set Ticks for testing
@@ -128,12 +128,7 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
         _references[0] = address(pool);
         _references[1] = address(token0);
         _references[2] = address(token1);
-        VaultMock _vault = new VaultMock(
-            factory,
-            ILiquidityPoolManager(address(template)),
-            new uint256[](0),
-            _references
-        );
+        VaultMock _vault = new VaultMock(factory, IProxy(address(template)), new uint256[](0), _references);
         UniswapV3LiquidityPoolManager _liq = _vault.liquidityPool();
         assertEq(_liq.operator(), address(_vault));
     }
@@ -156,7 +151,7 @@ contract VaultMock {
     //in construcor, create liquidity pool by factory
     constructor(
         LiquidityPoolManagerFactory _factory,
-        ILiquidityPoolManager _template,
+        IProxy _template,
         uint256[] memory _params,
         address[] memory _references
     ) {
@@ -168,7 +163,7 @@ contract VaultMock {
 
         //create proxy
         liquidityPool = UniswapV3LiquidityPoolManager(
-            _factory.create(ILiquidityPoolManager(address(_template)), _params, referencesNew)
+            _factory.create(IProxy(address(_template)), _params, referencesNew)
         );
     }
 }

@@ -2,6 +2,8 @@
 pragma solidity 0.8.16;
 
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
+import {IProxy} from "../interfaces/IProxy.sol";
+import {Initializable} from "../libs/Initializable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
@@ -10,11 +12,17 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 //libraries
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
+
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
 import "forge-std/console2.sol";
 
-contract UniswapV3LiquidityPoolManager is IUniswapV3LiquidityPoolManager, IUniswapV3MintCallback {
+contract UniswapV3LiquidityPoolManager is
+    IUniswapV3LiquidityPoolManager,
+    IUniswapV3MintCallback,
+    Initializable,
+    IProxy
+{
     using SafeERC20 for IERC20;
     using TickMath for int24;
 
@@ -24,7 +32,6 @@ contract UniswapV3LiquidityPoolManager is IUniswapV3LiquidityPoolManager, IUnisw
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== STORAGES ========== */
-    bool initialized;
 
     /* ========== PARAMETERS ========== */
     IUniswapV3Pool public pool;
@@ -40,15 +47,13 @@ contract UniswapV3LiquidityPoolManager is IUniswapV3LiquidityPoolManager, IUnisw
         _;
     }
 
-    /* ========== INITIALIZER ========== */
+    /* ========== Initializable ========== */
     /**
      * @notice
      * @param _params none
      * @param _references 0: pool address, 1: baseToken address, 2: targetToken address
      */
-    function initialize(uint256[] calldata _params, address[] calldata _references) external {
-        require(!initialized, "Token is already initialized");
-        initialized = true;
+    function initialize(uint256[] calldata, address[] calldata _references) external initializer {
         operator = _references[0];
         pool = IUniswapV3Pool(_references[1]);
         fee = pool.fee();

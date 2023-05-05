@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {IProxy} from "../interfaces/IProxy.sol";
 
 contract LiquidityPoolManagerFactory {
     /**
@@ -18,7 +18,7 @@ contract LiquidityPoolManagerFactory {
     mapping(address => bool) public templates;
 
     /// @notice inherit IPolicyFactory
-    function approveTemplate(ILiquidityPoolManager _template, bool _approval) external {
+    function approveTemplate(IProxy _template, bool _approval) external {
         if (address(_template) == address(0)) revert ZeroAddress();
         templates[address(_template)] = _approval;
 
@@ -27,13 +27,13 @@ contract LiquidityPoolManagerFactory {
 
     /// @notice inherit IPolicyFactory
     function create(
-        ILiquidityPoolManager _template,
+        IProxy _template,
         uint256[] calldata _params,
         address[] calldata _references
     ) external returns (address) {
         if (!templates[address(_template)]) revert UnauthorizedManager();
 
-        ILiquidityPoolManager _manager = ILiquidityPoolManager(_createClone(address(_template)));
+        IProxy _manager = IProxy(_createClone(address(_template)));
 
         _manager.initialize(_params, _references);
         emit ManagerCreated(address(_template), address(_manager), _params, _references);
