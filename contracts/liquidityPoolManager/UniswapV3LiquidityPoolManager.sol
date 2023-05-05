@@ -185,32 +185,34 @@ contract UniswapV3LiquidityPoolManager is
 
     /* ========== WRITE FUNCTIONS ========== */
 
-    function mint(MintParams calldata _params) external onlyOperator returns (uint256, uint256) {
+    function mint(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external onlyOperator returns (uint256, uint256) {
         bytes memory data = abi.encode(msg.sender);
 
-        (uint256 amount0, uint256 amount1) = pool.mint(
-            address(this),
-            _params.lowerTick,
-            _params.upperTick,
-            _params.liquidity,
-            data
-        );
+        (uint256 amount0, uint256 amount1) = pool.mint(address(this), lowerTick, upperTick, liquidity, data);
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
-    function collect(CollectParams calldata _params) external onlyOperator returns (uint128, uint128) {
+    function collect(int24 lowerTick, int24 upperTick) external onlyOperator returns (uint128, uint128) {
         (uint128 _amount0, uint128 _amount1) = pool.collect(
             msg.sender,
-            _params.lowerTick,
-            _params.upperTick,
+            lowerTick,
+            upperTick,
             type(uint128).max,
             type(uint128).max
         );
         return reversed ? (_amount1, _amount0) : (_amount0, _amount1);
     }
 
-    function burn(BurnParams calldata _params) external onlyOperator returns (uint256, uint256) {
-        (uint _burn0, uint _burn1) = pool.burn(_params.lowerTick, _params.upperTick, _params.liquidity);
+    function burn(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external onlyOperator returns (uint256, uint256) {
+        (uint _burn0, uint _burn1) = pool.burn(lowerTick, upperTick, liquidity);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
 

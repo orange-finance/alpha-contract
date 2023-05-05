@@ -85,12 +85,7 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
         uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
 
         //mint
-        IUniswapV3LiquidityPoolManager.MintParams memory _mintParams = IUniswapV3LiquidityPoolManager.MintParams(
-            lowerTick,
-            upperTick,
-            _liquidity
-        );
-        (uint _amount0, uint _amount1) = liquidityPool.mint(_mintParams);
+        (uint _amount0, uint _amount1) = liquidityPool.mint(lowerTick, upperTick, _liquidity);
         console2.log(_amount0, _amount1);
 
         //assertion of mint
@@ -104,19 +99,12 @@ contract LiquidityPoolManagerFactoryTest is BaseTest {
         _consoleBalance();
 
         // burn and collect
-        IUniswapV3LiquidityPoolManager.BurnParams memory _paramsBurn = IUniswapV3LiquidityPoolManager.BurnParams(
-            lowerTick,
-            upperTick,
-            _liquidity
-        );
-        (uint burn0_, uint burn1_) = liquidityPool.burn(_paramsBurn);
+        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_ + 1);
         assertEq(_amount1, burn1_ + 1);
         _consoleBalance();
 
-        IUniswapV3LiquidityPoolManager.CollectParams memory _collectParams = IUniswapV3LiquidityPoolManager
-            .CollectParams(lowerTick, upperTick);
-        (uint collect0, uint collect1) = liquidityPool.collect(_collectParams);
+        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
         console2.log(collect0, collect1);
         _consoleBalance();
     }

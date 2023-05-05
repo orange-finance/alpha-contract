@@ -648,7 +648,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
             token0.balanceOf(address(this)),
             token1.balanceOf(address(this))
         );
-        liquidityPool.mint(IUniswapV3LiquidityPoolManager.MintParams(_lowerTick, _upperTick, targetLiquidity_));
+        liquidityPool.mint(_lowerTick, _upperTick, targetLiquidity_);
     }
 
     /// @inheritdoc IOrangeVaultV1
@@ -768,11 +768,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         uint128 _liquidity
     ) internal returns (uint256 burn0_, uint256 burn1_) {
         if (_liquidity > 0) {
-            (burn0_, burn1_) = liquidityPool.burn(
-                IUniswapV3LiquidityPoolManager.BurnParams(_lowerTick, _upperTick, _liquidity)
-            );
+            (burn0_, burn1_) = liquidityPool.burn(_lowerTick, _upperTick, _liquidity);
         }
-        liquidityPool.collect(IUniswapV3LiquidityPoolManager.CollectParams(_lowerTick, _upperTick));
+        liquidityPool.collect(_lowerTick, _upperTick);
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -839,7 +837,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         uint _additionalLiquidityAmount1;
 
         (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = liquidityPool.mint(
-            IUniswapV3LiquidityPoolManager.MintParams(lowerTick, upperTick, _additionalLiquidity)
+            lowerTick,
+            upperTick,
+            _additionalLiquidity
         );
 
         uint _actualUsedAmountUSDC;

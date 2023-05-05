@@ -5,23 +5,6 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 
 // forked and modified from https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolActions.sol
 interface IUniswapV3LiquidityPoolManager {
-    struct MintParams {
-        int24 lowerTick;
-        int24 upperTick;
-        uint128 liquidity;
-    }
-
-    struct BurnParams {
-        int24 lowerTick;
-        int24 upperTick;
-        uint128 liquidity;
-    }
-
-    struct CollectParams {
-        int24 lowerTick;
-        int24 upperTick;
-    }
-
     function pool() external view returns (IUniswapV3Pool);
 
     function getCurrentTick() external view returns (int24 tick);
@@ -45,9 +28,17 @@ interface IUniswapV3LiquidityPoolManager {
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view;
 
-    function mint(MintParams calldata params) external returns (uint256 amount0, uint256 amount1);
+    function mint(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external returns (uint256 amount0, uint256 amount1);
 
-    function collect(CollectParams calldata params) external returns (uint128 amount0, uint128 amount1);
+    function collect(int24 lowerTick, int24 upperTick) external returns (uint128 amount0, uint128 amount1);
 
-    function burn(BurnParams calldata params) external returns (uint256 amount0, uint256 amount1);
+    function burn(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external returns (uint256 amount0, uint256 amount1);
 }
