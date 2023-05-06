@@ -103,3 +103,17 @@ library AddressHelper {
         }
     }
 }
+
+library AddressHelperV1 {
+    uint256 constant ARB_ID = 42161;
+
+    struct BalancerAddr {
+        address vaultAddr;
+    }
+
+    function addresses(uint256 _chainid) internal pure returns (BalancerAddr memory balancerAddr_) {
+        if (_chainid == ARB_ID) {
+            balancerAddr_ = BalancerAddr({vaultAddr: 0xBA12222222228d8Ba445958a75a0704d566BF2C8});
+        }
+    }
+}

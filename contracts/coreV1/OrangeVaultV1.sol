@@ -3,19 +3,19 @@ pragma solidity 0.8.16;
 
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
+import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
+import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
+
+import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
+import {OrangeERC20, ERC20Decimals} from "./OrangeERC20.sol";
 
 //libraries
-import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
-
-import {OrangeERC20, ERC20Decimals} from "./OrangeERC20.sol";
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
@@ -26,12 +26,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     using FullMath for uint256;
 
     /* ========== CONSTANTS ========== */
-    // uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-    // uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
-    uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
-    uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
-    address constant balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
-    uint24 constant routerFee = 500; //5% //TODO router to parameters
 
     /* ========== STORAGES ========== */
     bool public hasPosition;
@@ -46,9 +40,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     IAaveLendingPoolManager public lendingPool;
     IERC20 public token0; //collateral and deposited currency by users
     IERC20 public token1; //debt and hedge target token
-    ISwapRouter public router;
-
-    IOrangeAlphaParameters public params;
+    IOrangeV1Parameters public params;
 
     /* ========== MODIFIER ========== */
 
@@ -63,13 +55,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         address[] memory _liquidityReferences,
         address _lendingTemplate,
         address[] memory _lendingReferences,
-        address _router, //TODO router to parameters
         address _params
     ) OrangeERC20(_name, _symbol) OrangeValidationChecker(_params) {
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
-
         //create liquidity pool
         liquidityPool = IUniswapV3LiquidityPoolManager(
             IOrangePoolManagerFactory(_factory).create(
@@ -83,7 +73,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         );
         token0.safeApprove(address(liquidityPool), type(uint256).max);
         token1.safeApprove(address(liquidityPool), type(uint256).max);
-
         //create lending pool
         lendingPool = IAaveLendingPoolManager(
             IOrangePoolManagerFactory(_factory).create(
@@ -98,11 +87,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         token0.safeApprove(address(lendingPool), type(uint256).max);
         token1.safeApprove(address(lendingPool), type(uint256).max);
 
-        router = ISwapRouter(_router);
-        token0.safeApprove(_router, type(uint256).max);
-        token1.safeApprove(_router, type(uint256).max);
-
-        params = IOrangeAlphaParameters(_params);
+        params = IOrangeV1Parameters(_params);
+        token0.safeApprove(params.router(), type(uint256).max);
+        token1.safeApprove(params.router(), type(uint256).max);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -696,14 +683,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
-            fee: routerFee,
+            fee: params.routerFee(),
             recipient: address(this),
             deadline: block.timestamp,
             amountOut: _amountOut,
             amountInMaximum: type(uint256).max,
             sqrtPriceLimitX96: _sqrtPriceLimitX96
         });
-        amountIn_ = router.exactOutputSingle(_params);
+        amountIn_ = ISwapRouter(params.router()).exactOutputSingle(_params);
     }
 
     ///@notice Swap exact amount in
@@ -713,14 +700,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         ISwapRouter.ExactInputSingleParams memory _params = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
-            fee: routerFee,
+            fee: params.routerFee(),
             recipient: address(this),
             deadline: block.timestamp,
             amountIn: _amountIn,
             amountOutMinimum: 0,
             sqrtPriceLimitX96: _sqrtPriceLimitX96
         });
-        amountOut_ = router.exactInputSingle(_params);
+        amountOut_ = ISwapRouter(params.router()).exactInputSingle(_params);
     }
 
     function _makeFlashLoan(IERC20 _token, uint256 _amount, bytes memory _userData) internal {
@@ -729,7 +716,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = _amount;
         flashloanHash = keccak256(_userData); //set stroage for callback
-        IVault(balancer).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
+        IVault(params.balancer()).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
     }
 
     ///@notice Remove liquidity from Uniswap and collect fees
@@ -752,7 +739,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
+        if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
         if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
         flashloanHash = bytes32(0); //clear storage
 
@@ -775,7 +762,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             _depositInFlashloan(_flashloanType, _amounts[0], _userData);
         }
         //repay flashloan
-        IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
+        IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
     }
 
     function _depositInFlashloan(uint8 _flashloanType, uint256 borrowFlashloanAmount, bytes memory _userData) internal {

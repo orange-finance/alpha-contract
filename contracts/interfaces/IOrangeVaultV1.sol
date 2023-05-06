@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IUniswapV3LiquidityPoolManager} from "./IUniswapV3LiquidityPoolManager.sol";
-import {IOrangeAlphaParameters} from "./IOrangeAlphaParameters.sol";
+import {IOrangeV1Parameters} from "./IOrangeV1Parameters.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 interface IOrangeVaultV1 {
@@ -61,9 +61,7 @@ interface IOrangeVaultV1 {
 
     function liquidityPool() external view returns (IUniswapV3LiquidityPoolManager);
 
-    function router() external view returns (ISwapRouter);
-
-    function params() external view returns (IOrangeAlphaParameters);
+    function params() external view returns (IOrangeV1Parameters);
 
     /**
      * @notice convert assets to shares(shares is the amount of vault token)

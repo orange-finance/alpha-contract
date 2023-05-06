@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
-import {OrangeAlphaParameters} from "../../../contracts/core/OrangeAlphaParameters.sol";
+import {OrangeV1Parameters} from "../../../contracts/coreV1/OrangeV1Parameters.sol";
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
@@ -29,16 +29,18 @@ contract OrangeVaultV1TestBase is BaseTest {
     AddressHelper.TokenAddr public tokenAddr;
     AddressHelper.AaveAddr public aaveAddr;
     AddressHelper.UniswapAddr public uniswapAddr;
+    AddressHelperV1.BalancerAddr public balancerAddr;
 
     OrangeVaultV1 public vault;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
+    IVault public balancer;
     IAaveV3Pool public aave;
     IERC20 public token0;
     IERC20 public token1;
     IERC20 public debtToken0; //weth
     IERC20 public aToken1; //usdc
-    OrangeAlphaParameters public params;
+    OrangeV1Parameters public params;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -52,16 +54,22 @@ contract OrangeVaultV1TestBase is BaseTest {
         (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
-
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
-        router = ISwapRouter(uniswapAddr.routerAddr);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
         debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
         aToken1 = IERC20(aaveAddr.ausdcAddr);
+        router = ISwapRouter(uniswapAddr.routerAddr);
+        balancerAddr = AddressHelperV1.addresses(block.chainid);
+        balancer = IVault(balancerAddr.vaultAddr);
+        params = new OrangeV1Parameters();
+        params.setRouter(address(router));
+        params.setBalancer(address(balancer));
 
-        params = new OrangeAlphaParameters();
+        _deploy();
+        _dealAndApprove();
+    }
 
-        //TODO refactor
+    function _deploy() internal virtual {
         //factory
         UniswapV3LiquidityPoolManager _liquidityTemplate = new UniswapV3LiquidityPoolManager();
         AaveLendingPoolManager _lendingTemplate = new AaveLendingPoolManager();
@@ -72,7 +80,6 @@ contract OrangeVaultV1TestBase is BaseTest {
         _liquidityReferences[0] = address(pool);
         address[] memory _lendingReferences = new address[](1);
         _lendingReferences[0] = address(aave);
-
         vault = new OrangeVaultV1(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
@@ -83,16 +90,11 @@ contract OrangeVaultV1TestBase is BaseTest {
             _liquidityReferences,
             address(_lendingTemplate),
             _lendingReferences,
-            address(router),
             address(params)
         );
-        _setUpParams();
     }
 
-    function _setUpParams() internal virtual {
-        //set parameters
-        params.setPeriphery(address(this));
-
+    function _dealAndApprove() internal virtual {
         //set Ticks for testing
         (, int24 _tick, , , , , ) = pool.slot0();
         currentTick = _tick;
