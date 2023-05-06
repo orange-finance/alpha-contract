@@ -23,17 +23,6 @@ interface IOrangeVaultV1 {
     }
 
     /* ========== STRUCTS ========== */
-
-    struct Ticks {
-        int24 lowerTick;
-        int24 upperTick;
-    }
-
-    struct Balances {
-        uint256 balance0;
-        uint256 balance1;
-    }
-
     struct Positions {
         uint256 collateralAmount0; //collateral amount of token1 on Lending
         uint256 debtAmount1; //debt amount of token0 on Lending
@@ -108,6 +97,7 @@ interface IOrangeVaultV1 {
      * @param _shares amount of vault token
      * @param _receiver receiver address
      * @param _maxAssets maximum amount of assets
+     * @param _merkleProof merkle proof
      * @return shares
      * @dev increase all position propotionally. e.g. when share = totalSupply, the Vault is doubling up the all position.
      * Position including
@@ -118,7 +108,12 @@ interface IOrangeVaultV1 {
      * - USDC balance in Vault
      * - ETH balance in Vault
      */
-    function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external returns (uint256 shares);
+    function deposit(
+        uint256 _shares,
+        address _receiver,
+        uint256 _maxAssets,
+        bytes32[] calldata _merkleProof
+    ) external returns (uint256 shares);
 
     /**
      * @notice redeem vault token to assets

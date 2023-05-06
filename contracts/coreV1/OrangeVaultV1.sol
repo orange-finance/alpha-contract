@@ -5,37 +5,33 @@ pragma solidity 0.8.16;
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
-import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
 
-import {PoolManagerFactory} from "../poolManager/PoolManagerFactory.sol";
 //libraries
-import {ERC20} from "../libs/ERC20.sol";
-import {SafeAavePool, IAaveV3Pool} from "../libs/SafeAavePool.sol";
+import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
+
+import {OrangeERC20, ERC20Decimals} from "./OrangeERC20.sol";
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {TickMath} from "../libs/uniswap/TickMath.sol";
-import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
+contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, OrangeValidationChecker {
     using SafeERC20 for IERC20;
-    using TickMath for int24;
     using FullMath for uint256;
-    using SafeAavePool for IAaveV3Pool;
 
     /* ========== CONSTANTS ========== */
-    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
+    // uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
+    // uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
     uint16 constant AAVE_REFERRAL_NONE = 0; //for aave
     uint256 constant AAVE_VARIABLE_INTEREST = 2; //for aave
     address constant balancer = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
-    uint24 constant routerFee = 500; //5%
+    uint24 constant routerFee = 500; //5% //TODO router to parameters
 
     /* ========== STORAGES ========== */
     bool public hasPosition;
@@ -52,7 +48,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
     IERC20 public token1; //debt and hedge target token
     ISwapRouter public router;
 
-    IAaveV3Pool public aave;
     IOrangeAlphaParameters public params;
 
     /* ========== MODIFIER ========== */
@@ -64,45 +59,40 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         address _token0,
         address _token1,
         address _factory,
-        address _liquidityPoolTemplate,
-        address _pool,
-        address _lendingPoolTemplate,
-        address _aave,
-        address _router,
+        address _liquidityTemplate,
+        address[] memory _liquidityReferences,
+        address _lendingTemplate,
+        address[] memory _lendingReferences,
+        address _router, //TODO router to parameters
         address _params
-    ) ERC20(_name, _symbol, 6) {
+    ) OrangeERC20(_name, _symbol) OrangeValidationChecker(_params) {
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
 
         //create liquidity pool
-        address[] memory _references = new address[](1);
-        _references[0] = _pool;
-
         liquidityPool = IUniswapV3LiquidityPoolManager(
-            PoolManagerFactory(_factory).create(
-                IOrangePoolManagerProxy(address(_liquidityPoolTemplate)),
+            IOrangePoolManagerFactory(_factory).create(
+                _liquidityTemplate,
                 address(this),
                 _token0,
                 _token1,
                 new uint256[](0),
-                _references
+                _liquidityReferences
             )
         );
         token0.safeApprove(address(liquidityPool), type(uint256).max);
         token1.safeApprove(address(liquidityPool), type(uint256).max);
 
         //create lending pool
-        address[] memory _referencesLending = new address[](1);
-        _referencesLending[0] = _aave;
         lendingPool = IAaveLendingPoolManager(
-            PoolManagerFactory(_factory).create(
-                IOrangePoolManagerProxy(address(_lendingPoolTemplate)),
+            IOrangePoolManagerFactory(_factory).create(
+                _lendingTemplate,
                 address(this),
                 _token0,
                 _token1,
                 new uint256[](0),
-                _referencesLending
+                _lendingReferences
             )
         );
         token0.safeApprove(address(lendingPool), type(uint256).max);
@@ -116,6 +106,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+    function decimals() external view override returns (uint8) {
+        return ERC20Decimals(address(token0)).decimals();
+    }
+
     /// @inheritdoc IOrangeVaultV1
     /// @dev share is propotion of liquidity. Caluculate hedge position and liquidity position except for hedge position.
     function convertToShares(uint256 _assets) external view returns (uint256 shares_) {
@@ -212,9 +206,16 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /// @inheritdoc IOrangeVaultV1
-    function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external returns (uint256) {
+    function deposit(
+        uint256 _shares,
+        address _receiver,
+        uint256 _maxAssets,
+        bytes32[] calldata _merkleProof
+    ) external Allowlisted(_merkleProof) returns (uint256) {
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
+
+        _addDepositCap(_maxAssets);
 
         //initial deposit
         if (totalSupply == 0) {
@@ -227,10 +228,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
             return _maxAssets - 1e4;
         }
 
-        Ticks memory _ticks = Ticks(lowerTick, upperTick);
-
         //take current positions.
-        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_ticks.lowerTick, _ticks.upperTick);
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
         uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
 
         //calculate additional Aave position and Contract balances by shares
@@ -246,16 +245,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         //calculate additional amounts based on liquidity by shares
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
-        uint256 _additionalLiquidityAmount0;
-        uint256 _additionalLiquidityAmount1;
-        if (_additionalLiquidity > 0) {
-            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = liquidityPool.getAmountsForLiquidity(
-                _ticks.lowerTick,
-                _ticks.upperTick,
-                _additionalLiquidity
-            );
-        }
-
         //transfer USDC to this contract
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
@@ -263,8 +252,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         _depositFlashloan(
             _additionalPosition, //Aave & Contract Balances
             _additionalLiquidity, //Uni
-            _additionalLiquidityAmount0,
-            _additionalLiquidityAmount1,
             _maxAssets, //USDC from User
             _receiver
         );
@@ -279,11 +266,19 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
     function _depositFlashloan(
         Positions memory _additionalPosition,
         uint128 _additionalLiquidity,
-        uint256 _additionalLiquidityAmount0,
-        uint256 _additionalLiquidityAmount1,
         uint256 _maxAssets,
         address _receiver
     ) internal {
+        uint256 _additionalLiquidityAmount0;
+        uint256 _additionalLiquidityAmount1;
+        if (_additionalLiquidity > 0) {
+            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = liquidityPool.getAmountsForLiquidity(
+                lowerTick,
+                upperTick,
+                _additionalLiquidity
+            );
+        }
+
         //The case of overhedge (debtETH > liqETH + balanceETH)
         if (_additionalPosition.debtAmount1 > _additionalLiquidityAmount0 + _additionalPosition.token0Balance) {
             //execute flashloan
@@ -296,11 +291,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
                 _additionalPosition.collateralAmount0 + _additionalLiquidityAmount1 + 1,
                 abi.encode(
                     FlashloanType.DEPOSIT_OVERHEDGE,
+                    _additionalPosition,
                     _additionalLiquidity,
-                    _additionalPosition.collateralAmount0,
-                    _additionalPosition.debtAmount1,
-                    _additionalPosition.token0Balance,
-                    _additionalPosition.token1Balance,
                     _maxAssets,
                     _receiver
                 )
@@ -318,11 +310,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
                     : _additionalLiquidityAmount0 - _additionalPosition.debtAmount1 + 1,
                 abi.encode(
                     FlashloanType.DEPOSIT_UNDERHEDGE,
+                    _additionalPosition,
                     _additionalLiquidity,
-                    _additionalPosition.collateralAmount0,
-                    _additionalPosition.debtAmount1,
-                    _additionalPosition.token0Balance,
-                    _additionalPosition.token1Balance,
                     _maxAssets,
                     _receiver
                 )
@@ -336,7 +325,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         address _receiver,
         address,
         uint256 _minAssets
-    ) external returns (uint256 returnAssets_) {
+    ) external Lockup returns (uint256 returnAssets_) {
         //validation
         if (_shares == 0) {
             revert(Errors.INVALID_AMOUNT);
@@ -370,26 +359,21 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         );
 
         // `_redeemedBalances` are currently hold balances in this vault and will transfer to receiver
-        Balances memory _redeemableBalances = Balances(
-            _redeemPosition.token0Balance + _burnedLiquidityAmount0,
-            _redeemPosition.token1Balance + _burnedLiquidityAmount1
-        );
+        uint _redeemableToken0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
+        uint _redeemableToken1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
         uint256 _flashBorrowToken0;
-        if (_redeemPosition.debtAmount1 >= _redeemableBalances.balance0) {
+        if (_redeemPosition.debtAmount1 >= _redeemableToken0) {
             unchecked {
-                _flashBorrowToken0 = _redeemPosition.debtAmount1 - _redeemableBalances.balance0;
+                _flashBorrowToken0 = _redeemPosition.debtAmount1 - _redeemableToken0;
             }
         } else {
             // swap surplus ETH to return receiver as USDC
-            _redeemableBalances.balance1 += _swapAmountIn(
-                true,
-                _redeemableBalances.balance0 - _redeemPosition.debtAmount1
-            );
+            _redeemableToken1 += _swapAmountIn(true, _redeemableToken0 - _redeemPosition.debtAmount1);
         }
 
         // memorize balance of token1 to be remained in vault
-        uint256 _unRedeemableBalance1 = token1.balanceOf(address(this)) - _redeemableBalances.balance1;
+        uint256 _unRedeemableBalance1 = token1.balanceOf(address(this)) - _redeemableToken1;
 
         // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
         _makeFlashLoan(
@@ -405,6 +389,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
             revert(Errors.LESS_AMOUNT);
         }
         token1.safeTransfer(_receiver, returnAssets_);
+        _reduceDepositCap(returnAssets_);
 
         _emitAction(ActionType.REDEEM, _receiver);
     }
@@ -573,11 +558,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
                         _supply - _currentPosition.token1Balance //uncheckable
                     );
                 }
-                aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
+                lendingPool.supply(_supply);
 
                 // borrow
                 uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
-                aave.safeBorrow(address(token0), _borrow, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
+                lendingPool.borrow(_borrow);
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
                     // case2 repay
@@ -590,30 +575,24 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
                             _repay - _currentPosition.token0Balance //uncheckable
                         );
                     }
-                    aave.safeRepay(address(token0), _repay, AAVE_VARIABLE_INTEREST, address(this));
+                    lendingPool.repay(_repay);
 
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
                         // case2_1 repay and supply
                         uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-                        aave.safeSupply(address(token1), _supply, address(this), AAVE_REFERRAL_NONE);
+                        lendingPool.supply(_supply);
                     } else {
                         // case2_2 repay and withdraw
                         uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
-                        aave.safeWithdraw(address(token1), _withdraw, address(this));
+                        lendingPool.withdraw(_withdraw);
                     }
                 } else {
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
-                    aave.safeBorrow(
-                        address(token0),
-                        _borrow,
-                        AAVE_VARIABLE_INTEREST,
-                        AAVE_REFERRAL_NONE,
-                        address(this)
-                    );
+                    lendingPool.borrow(_borrow);
                     // withdraw should be the only option here.
                     uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
-                    aave.safeWithdraw(address(token1), _withdraw, address(this));
+                    lendingPool.withdraw(_withdraw);
                 }
             }
         }
@@ -676,15 +655,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         _position.collateralAmount0 = _collateralAmount0.mulDiv(_shares, _totalSupply);
         _position.token0Balance = _token0Balance.mulDiv(_shares, _totalSupply);
         _position.token1Balance = _token1Balance.mulDiv(_shares, _totalSupply);
-    }
-
-    function getPositionID(int24 _lowerTick, int24 _upperTick) external view returns (bytes32 positionID) {
-        return keccak256(abi.encodePacked(address(this), _lowerTick, _upperTick));
-    }
-
-    ///@notice Get Uniswap's position ID
-    function _getPositionID(int24 _lowerTick, int24 _upperTick) internal view returns (bytes32 positionID) {
-        return keccak256(abi.encodePacked(address(this), _lowerTick, _upperTick));
     }
 
     ///@notice Check slippage by tick
@@ -791,9 +761,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
             (, uint256 _amount0, uint256 _amount1) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay ETH
-            aave.safeRepay(address(token0), _amount0, AAVE_VARIABLE_INTEREST, address(this));
+            lendingPool.repay(_amount0);
             // Withdraw USDC as collateral
-            aave.safeWithdraw(address(token1), _amount1, address(this));
+            lendingPool.withdraw(_amount1);
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
@@ -809,16 +779,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
     }
 
     function _depositInFlashloan(uint8 _flashloanType, uint256 borrowFlashloanAmount, bytes memory _userData) internal {
-        (
-            ,
-            uint128 _additionalLiquidity,
-            uint256 collateralAmount0,
-            uint256 debtAmount1,
-            uint256 token0Balance,
-            uint256 token1Balance,
-            uint256 _maxAssets,
-            address _receiver
-        ) = abi.decode(_userData, (uint8, uint128, uint256, uint256, uint256, uint256, uint256, address));
+        (, Positions memory _positions, uint128 _additionalLiquidity, uint256 _maxAssets, address _receiver) = abi
+            .decode(_userData, (uint8, Positions, uint128, uint256, address));
         /**
          * appending positions
          * 1. collateral USDC
@@ -830,8 +792,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
          */
 
         //Supply USDC and Borrow ETH (#1 and #2)
-        aave.safeSupply(address(token1), collateralAmount0, address(this), AAVE_REFERRAL_NONE);
-        aave.safeBorrow(address(token0), debtAmount1, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
+        lendingPool.supply(_positions.collateralAmount0);
+        lendingPool.borrow(_positions.debtAmount1);
 
         //Add Liquidity (#3 and #4)
         uint _additionalLiquidityAmount0;
@@ -846,16 +808,21 @@ contract OrangeVaultV1 is IOrangeVaultV1, ERC20, IFlashLoanRecipient {
         uint _actualUsedAmountUSDC;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
             // Calculate the amount of surplus ETH and swap to USDC (Leave some ETH for #5)
-            uint256 _surplusAmountETH = debtAmount1 - (_additionalLiquidityAmount0 + token0Balance);
+            uint256 _surplusAmountETH = _positions.debtAmount1 -
+                (_additionalLiquidityAmount0 + _positions.token0Balance);
             uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
 
-            _actualUsedAmountUSDC = borrowFlashloanAmount + token1Balance - _amountOutFromSurplusETHSale;
+            _actualUsedAmountUSDC = borrowFlashloanAmount + _positions.token1Balance - _amountOutFromSurplusETHSale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
             // Calculate the amount of ETH needed to be swapped to repay the loan, then swap USDC=>ETH (Swap more ETH for #5)
-            uint256 ethAmountToSwap = _additionalLiquidityAmount0 + token0Balance - debtAmount1;
+            uint256 ethAmountToSwap = _additionalLiquidityAmount0 + _positions.token0Balance - _positions.debtAmount1;
             uint256 usdcAmtUsedForEth = _swapAmountOut(false, ethAmountToSwap);
 
-            _actualUsedAmountUSDC = collateralAmount0 + _additionalLiquidityAmount1 + token1Balance + usdcAmtUsedForEth;
+            _actualUsedAmountUSDC =
+                _positions.collateralAmount0 +
+                _additionalLiquidityAmount1 +
+                _positions.token1Balance +
+                usdcAmtUsedForEth;
         }
 
         //Refund the unspent USDC (Leave some USDC for #6)

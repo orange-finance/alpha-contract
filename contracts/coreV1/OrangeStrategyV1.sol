@@ -36,6 +36,7 @@ contract OrangeStrategyV1 {
         params = IOrangeAlphaParameters(_params);
     }
 
+    /* ========== VIEW FUNCTIONS ========== */
     /**
      * @notice get simuldated liquidity if rebalanced
      * @param _newLowerTick The new lower bound of the position's range

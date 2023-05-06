@@ -63,11 +63,15 @@ contract OrangeVaultV1TestBase is BaseTest {
 
         //TODO refactor
         //factory
-        UniswapV3LiquidityPoolManager template = new UniswapV3LiquidityPoolManager();
-        AaveLendingPoolManager templateLending = new AaveLendingPoolManager();
+        UniswapV3LiquidityPoolManager _liquidityTemplate = new UniswapV3LiquidityPoolManager();
+        AaveLendingPoolManager _lendingTemplate = new AaveLendingPoolManager();
         PoolManagerFactory factory = new PoolManagerFactory();
-        factory.approveTemplate(IOrangePoolManagerProxy(address(template)), true);
-        factory.approveTemplate(IOrangePoolManagerProxy(address(templateLending)), true);
+        factory.approveTemplate(IOrangePoolManagerProxy(address(_liquidityTemplate)), true);
+        factory.approveTemplate(IOrangePoolManagerProxy(address(_lendingTemplate)), true);
+        address[] memory _liquidityReferences = new address[](1);
+        _liquidityReferences[0] = address(pool);
+        address[] memory _lendingReferences = new address[](1);
+        _lendingReferences[0] = address(aave);
 
         vault = new OrangeVaultV1(
             "OrangeAlphaVault",
@@ -75,10 +79,10 @@ contract OrangeVaultV1TestBase is BaseTest {
             address(token0),
             address(token1),
             address(factory),
-            address(template),
-            address(pool),
-            address(templateLending),
-            address(aave),
+            address(_liquidityTemplate),
+            _liquidityReferences,
+            address(_lendingTemplate),
+            _lendingReferences,
             address(router),
             address(params)
         );
