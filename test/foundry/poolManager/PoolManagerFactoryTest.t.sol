@@ -54,7 +54,7 @@ contract PoolManagerFactoryTest is BaseTest {
         _references[0] = address(pool);
         liquidityPool = IUniswapV3LiquidityPoolManager(
             factory.create(
-                IOrangePoolManagerProxy(address(template)),
+                address(template),
                 address(this),
                 address(token0),
                 address(token1),
@@ -119,7 +119,7 @@ contract PoolManagerFactoryTest is BaseTest {
         _references[0] = address(pool);
         VaultMock _vault = new VaultMock(
             factory,
-            IOrangePoolManagerProxy(address(template)),
+            address(template),
             address(token0),
             address(token1),
             new uint256[](0),
@@ -147,7 +147,7 @@ contract VaultMock {
     //in construcor, create liquidity pool by factory
     constructor(
         PoolManagerFactory _factory,
-        IOrangePoolManagerProxy _template,
+        address _template,
         address _token0,
         address _token1,
         uint256[] memory,
@@ -156,14 +156,7 @@ contract VaultMock {
         address[] memory referencesNew = new address[](1);
         referencesNew[0] = _references[0];
         liquidityPool = UniswapV3LiquidityPoolManager(
-            _factory.create(
-                IOrangePoolManagerProxy(address(_template)),
-                address(this),
-                _token0,
-                _token1,
-                new uint256[](0),
-                _references
-            )
+            _factory.create(_template, address(this), _token0, _token1, new uint256[](0), _references)
         );
     }
 }
