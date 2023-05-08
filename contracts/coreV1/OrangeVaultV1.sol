@@ -131,7 +131,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         return _alignTotalAsset(amount0Balance, amount1Balance, amount0Collateral, amount1Debt);
     }
 
-    /// @notice Compute total asset price as USDC
+    /// @notice Compute total asset price as Token0
     /// @dev Underlying Assets - debt + supply called by _totalAssets
     function _alignTotalAsset(
         uint256 amount0Balance,
@@ -232,14 +232,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         //calculate additional amounts based on liquidity by shares
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
-        //transfer USDC to this contract
+        //transfer Token0 to this contract
         token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
         //append position
         _depositFlashloan(
             _additionalPosition, //Aave & Contract Balances
             _additionalLiquidity, //Uni
-            _maxAssets, //USDC from User
+            _maxAssets, //Token0 from User
             _receiver
         );
 
@@ -266,12 +266,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             );
         }
 
-        //The case of overhedge (debtETH > liqETH + balanceETH)
+        //The case of overhedge (debtToken1 > liqToken1 + balanceToken1)
         if (_additionalPosition.debtAmount1 > _additionalLiquidityAmount1 + _additionalPosition.token1Balance) {
             //execute flashloan
 
             /**
-             * Flashloan USDC. append positions. swap WETH=>USDC (leave some WETH for _additionalPosition.token0Balance ). Return the loan.
+             * Flashloan Token0. append positions. swap Token1=>Token0 (leave some Token1 for _additionalPosition.token1Balance ). Return the loan.
              */
             _makeFlashLoan(
                 token0,
@@ -288,7 +288,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             //underhedge
 
             /**
-             * Flashloan ETH. append positions. swap USDC=>WETH (swap some more ETH for _additionalPosition.token0Balance). Return the loan.
+             * Flashloan Token1. append positions. swap Token0=>Token1 (swap some more Token1 for _additionalPosition.token1Balance). Return the loan.
              */
             _makeFlashLoan(
                 token1,
@@ -355,14 +355,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
                 _flashBorrowToken1 = _redeemPosition.debtAmount1 - _redeemableToken1;
             }
         } else {
-            // swap surplus ETH to return receiver as USDC
+            // swap surplus Token1 to return receiver as Token0
             _redeemableToken0 += _swapAmountIn(true, _redeemableToken1 - _redeemPosition.debtAmount1);
         }
 
         // memorize balance of token1 to be remained in vault
         uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableToken0;
 
-        // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
+        // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
         _makeFlashLoan(
             token1,
             _flashBorrowToken1,
@@ -371,7 +371,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
 
         returnAssets_ = token0.balanceOf(address(this)) - _unRedeemableBalance0;
 
-        // Transfer USDC from Vault to Receiver
+        // Transfer Token0 from Vault to Receiver
         if (returnAssets_ < _minAssets) {
             revert(Errors.LESS_AMOUNT);
         }
@@ -422,7 +422,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         uint256 _balanceToken1 = token1.balanceOf(address(this));
         uint256 _withdrawingCollateral = lendingPool.balanceOfCollateral();
 
-        // Flashloan to borrow Repay ETH
+        // Flashloan to borrow Repay Token1
         uint256 _flashBorrowToken1;
         if (_repayingDebt > _balanceToken1) {
             unchecked {
@@ -430,14 +430,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             }
         }
 
-        // execute flashloan (repay ETH and withdraw USDC in callback function `receiveFlashLoan`)
+        // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
         _makeFlashLoan(
             token1,
             _flashBorrowToken1,
             abi.encode(FlashloanType.REDEEM, _repayingDebt, _withdrawingCollateral)
         );
 
-        // swap remaining all ETH to USDC
+        // swap remaining all Token1 to Token0
         _balanceToken1 = token1.balanceOf(address(this));
         if (_balanceToken1 > 0) {
             _swapAmountIn(true, _balanceToken1);
@@ -747,15 +747,15 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         if (_flashloanType == uint8(FlashloanType.REDEEM)) {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
-            // Repay ETH
+            // Repay Token1
             lendingPool.repay(_amount1);
-            // Withdraw USDC as collateral
+            // Withdraw Token0 as collateral
             lendingPool.withdraw(_amount0);
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
                 bool _zeroForOne = (address(_tokens[0]) == address(token0)) ? false : true;
-                // swap USDC to ETH to repay flashloan
+                // swap Token0 to Token1 to repay flashloan
                 _swapAmountOut(_zeroForOne, _amounts[0]);
             }
         } else {
@@ -770,15 +770,15 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             .decode(_userData, (uint8, Positions, uint128, uint256, address));
         /**
          * appending positions
-         * 1. collateral USDC
-         * 2. borrow ETH
-         * 3. liquidity ETH
-         * 4. liquidity USDC
-         * 5. additional ETH (in the Vault)
-         * 6. additional USDC (in the Vault)
+         * 1. collateral Token0
+         * 2. borrow Token1
+         * 3. liquidity Token0
+         * 4. liquidity Token1
+         * 5. additional Token0 (in the Vault)
+         * 6. additional Token1 (in the Vault)
          */
 
-        //Supply USDC and Borrow ETH (#1 and #2)
+        //Supply Token0 and Borrow Token1 (#1 and #2)
         lendingPool.supply(_positions.collateralAmount0);
         lendingPool.borrow(_positions.debtAmount1);
 
@@ -792,31 +792,36 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             _additionalLiquidity
         );
 
-        uint _actualUsedAmountUSDC;
+        uint _actualUsedAmountToken0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
-            // Calculate the amount of surplus ETH and swap to USDC (Leave some ETH for #5)
-            uint256 _surplusAmountETH = _positions.debtAmount1 -
+            // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
+            uint256 _surplusAmountToken1 = _positions.debtAmount1 -
                 (_additionalLiquidityAmount1 + _positions.token1Balance);
-            uint256 _amountOutFromSurplusETHSale = _swapAmountIn(true, _surplusAmountETH);
+            uint256 _amountOutFromSurplusToken1Sale = _swapAmountIn(true, _surplusAmountToken1);
 
-            _actualUsedAmountUSDC = borrowFlashloanAmount + _positions.token0Balance - _amountOutFromSurplusETHSale;
+            _actualUsedAmountToken0 =
+                borrowFlashloanAmount +
+                _positions.token0Balance -
+                _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
-            // Calculate the amount of ETH needed to be swapped to repay the loan, then swap USDC=>ETH (Swap more ETH for #5)
-            uint256 ethAmountToSwap = _additionalLiquidityAmount1 + _positions.token1Balance - _positions.debtAmount1;
-            uint256 usdcAmtUsedForEth = _swapAmountOut(false, ethAmountToSwap);
+            // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token1 for #5)
+            uint256 token1AmountToSwap = _additionalLiquidityAmount1 +
+                _positions.token1Balance -
+                _positions.debtAmount1;
+            uint256 token0AmtUsedForToken1 = _swapAmountOut(false, token1AmountToSwap);
 
-            _actualUsedAmountUSDC =
+            _actualUsedAmountToken0 =
                 _positions.collateralAmount0 +
                 _additionalLiquidityAmount0 +
                 _positions.token0Balance +
-                usdcAmtUsedForEth;
+                token0AmtUsedForToken1;
         }
 
-        //Refund the unspent USDC (Leave some USDC for #6)
-        if (_maxAssets < _actualUsedAmountUSDC) revert(Errors.LESS_MAX_ASSETS);
+        //Refund the unspent Token0 (Leave some Token0 for #6)
+        if (_maxAssets < _actualUsedAmountToken0) revert(Errors.LESS_MAX_ASSETS);
         unchecked {
-            uint256 _refundAmountUSDC = _maxAssets - _actualUsedAmountUSDC;
-            if (_refundAmountUSDC > 0) token0.safeTransfer(_receiver, _refundAmountUSDC);
+            uint256 _refundAmountToken0 = _maxAssets - _actualUsedAmountToken0;
+            if (_refundAmountToken0 > 0) token0.safeTransfer(_receiver, _refundAmountToken0);
         }
     }
 }
