@@ -31,9 +31,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     bool public hasPosition;
     int24 public lowerTick;
     int24 public upperTick;
-    int24 public stoplossLowerTick;
-    int24 public stoplossUpperTick;
-    bytes32 flashloanHash;
+    bytes32 flashloanHash; //tempolary use in flashloan
 
     /* ========== PARAMETERS ========== */
     IUniswapV3LiquidityPoolManager public liquidityPool;
@@ -319,8 +317,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         }
 
         uint256 _totalSupply = totalSupply;
-        int24 _lowerTick = lowerTick;
-        int24 _upperTick = upperTick;
 
         //burn
         _burn(_receiver, _shares);
@@ -329,8 +325,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) = _redeemLiqidityByShares(
             _shares,
             _totalSupply,
-            _lowerTick,
-            _upperTick
+            lowerTick,
+            upperTick
         );
 
         //compute redeem positions except liquidity
@@ -407,15 +403,13 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
 
         if (totalSupply == 0) return 0;
 
-        int24 _lowerTick = lowerTick;
-        int24 _upperTick = upperTick;
         _checkTickSlippage(liquidityPool.getCurrentTick(), _inputTick);
 
         // 1. Remove liquidity
         // 2. Collect fees
-        uint128 liquidity = liquidityPool.getCurrentLiquidity(_lowerTick, _upperTick);
+        uint128 liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
         if (liquidity > 0) {
-            _burnAndCollectFees(_lowerTick, _upperTick, liquidity);
+            _burnAndCollectFees(lowerTick, upperTick, liquidity);
         }
 
         uint256 _repayingDebt = lendingPool.balanceOfDebt();
@@ -452,8 +446,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,
-        int24 _newStoplossLowerTick,
-        int24 _newStoplossUpperTick,
         Positions memory _targetPosition,
         uint128 _minNewLiquidity
     ) external {
@@ -462,23 +454,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         }
         //validation of tickSpacing
         liquidityPool.validateTicks(_newLowerTick, _newUpperTick);
-        //TODO _newStoplossLowerTick is unused
-        liquidityPool.validateTicks(_newStoplossLowerTick, _newStoplossUpperTick);
-
-        int24 _lowerTick = lowerTick;
-        int24 _upperTick = upperTick;
 
         // 1. burn and collect fees
-        uint128 _liquidity = liquidityPool.getCurrentLiquidity(_lowerTick, _upperTick);
-        _burnAndCollectFees(_lowerTick, _upperTick, _liquidity);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        _burnAndCollectFees(lowerTick, upperTick, _liquidity);
 
         // Update storage of ranges
-        _lowerTick = _newLowerTick; //memory
-        _upperTick = _newUpperTick; //memory
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
-        stoplossLowerTick = _newStoplossLowerTick;
-        stoplossUpperTick = _newStoplossUpperTick;
 
         if (totalSupply == 0) {
             return;
@@ -497,8 +480,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
 
         // 5. Add liquidity
         uint128 _targetLiquidity = _addLiquidityInRebalance(
-            _lowerTick,
-            _upperTick,
+            _newLowerTick,
+            _newUpperTick,
             _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
             _targetPosition.token1Balance // amount of token1 to be added to Uniswap
         );
@@ -710,6 +693,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         amountOut_ = ISwapRouter(params.router()).exactInputSingle(_params);
     }
 
+    ///@notice make parameters and execute Flashloan
     function _makeFlashLoan(IERC20 _token, uint256 _amount, bytes memory _userData) internal {
         IERC20[] memory _tokensFlashloan = new IERC20[](1);
         _tokensFlashloan[0] = _token;
