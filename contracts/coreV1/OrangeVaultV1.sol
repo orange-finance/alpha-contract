@@ -43,7 +43,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     /* ========== MODIFIER ========== */
 
     /* ========== CONSTRUCTOR ========== */
-    constructor(
+    function initialize(
         string memory _name,
         string memory _symbol,
         address _token0,
@@ -54,7 +54,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         address _lendingTemplate,
         address[] memory _lendingReferences,
         address _params
-    ) OrangeERC20(_name, _symbol) OrangeValidationChecker(_params) {
+    ) public initializer {
+        OrangeValidationChecker.initialize(_params);
+        OrangeERC20.initialize(_name, _symbol);
+
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);

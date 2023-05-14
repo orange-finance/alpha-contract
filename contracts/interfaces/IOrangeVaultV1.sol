@@ -5,9 +5,25 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IUniswapV3LiquidityPoolManager} from "./IUniswapV3LiquidityPoolManager.sol";
 import {IOrangeV1Parameters} from "./IOrangeV1Parameters.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-interface IOrangeVaultV1 {
+// import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+
+interface IOrangeVaultV1Proxy {
+    function initialize(
+        string memory _name,
+        string memory _symbol,
+        address _token0,
+        address _token1,
+        address _poolFactory,
+        address _liquidityTemplate,
+        address[] memory _liquidityReferences,
+        address _lendingTemplate,
+        address[] memory _lendingReferences,
+        address _params
+    ) external;
+}
+
+interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
     enum ActionType {
         MANUAL,
         DEPOSIT,

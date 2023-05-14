@@ -80,7 +80,8 @@ contract OrangeVaultV1TestBase is BaseTest {
         _liquidityReferences[0] = address(pool);
         address[] memory _lendingReferences = new address[](1);
         _lendingReferences[0] = address(aave);
-        vault = new OrangeVaultV1(
+        vault = new OrangeVaultV1();
+        vault.initialize(
             "OrangeAlphaVault",
             "ORANGE_ALPHA_VAULT",
             address(token0),
