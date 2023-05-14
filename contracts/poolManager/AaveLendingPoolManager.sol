@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
 import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
-import {Initializable} from "../libs/Initializable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IAaveV3Pool, SafeAavePool} from "../libs/SafeAavePool.sol";
 import {DataTypes} from "../vendor/aave/DataTypes.sol";

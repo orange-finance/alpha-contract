@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
 import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
-import {Initializable} from "../libs/Initializable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
