@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IUniswapV3LiquidityPoolManager} from "./IUniswapV3LiquidityPoolManager.sol";
-import {IAaveLendingPoolManager} from "./IAaveLendingPoolManager.sol";
 import {IOrangeV1Parameters} from "./IOrangeV1Parameters.sol";
 
 // import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -60,9 +58,9 @@ interface IOrangeVaultV1 {
     /// @notice Get the token1 address
     function token1() external view returns (IERC20 token1);
 
-    function liquidityPool() external view returns (IUniswapV3LiquidityPoolManager);
+    function liquidityPool() external view returns (address);
 
-    function lendingPool() external view returns (IAaveLendingPoolManager);
+    function lendingPool() external view returns (address);
 
     function params() external view returns (IOrangeV1Parameters);
 

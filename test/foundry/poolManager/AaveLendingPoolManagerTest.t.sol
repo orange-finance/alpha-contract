@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {AaveLendingPoolManager, IAaveLendingPoolManager, IAaveV3Pool} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
+import {AaveLendingPoolManager, ILendingPoolManager, IAaveV3Pool} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

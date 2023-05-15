@@ -4,8 +4,8 @@ pragma solidity 0.8.16;
 //interafaces
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
-import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
+import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 //libraries
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
@@ -27,8 +27,8 @@ contract OrangeStrategyV1 {
 
     /* ========== PARAMETERS ========== */
     IOrangeVaultV1 public vault;
-    IUniswapV3LiquidityPoolManager public liquidityPool;
-    IAaveLendingPoolManager public lendingPool;
+    address public liquidityPool;
+    address public lendingPool;
     IERC20 public token0; //collateral and deposited currency by users
     IERC20 public token1; //debt and hedge target token
     IOrangeV1Parameters public params;
@@ -65,18 +65,21 @@ contract OrangeStrategyV1 {
 
         if (IERC20(address(vault)).totalSupply() == 0) return;
 
-        _checkTickSlippage(liquidityPool.getCurrentTick(), _inputTick);
+        _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 
         // 1. Remove liquidity
         // 2. Collect fees
-        uint128 liquidity = liquidityPool.getCurrentLiquidity(vault.lowerTick(), vault.upperTick());
+        uint128 liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(
+            vault.lowerTick(),
+            vault.upperTick()
+        );
         if (liquidity > 0) {
             _burnAndCollectFees(vault.lowerTick(), vault.upperTick(), liquidity);
         }
 
-        uint256 _repayingDebt = lendingPool.balanceOfDebt();
+        uint256 _repayingDebt = ILendingPoolManager(lendingPool).balanceOfDebt();
         uint256 _balanceToken1 = token1.balanceOf(address(vault));
-        uint256 _withdrawingCollateral = lendingPool.balanceOfCollateral();
+        uint256 _withdrawingCollateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
 
         // Flashloan to borrow Repay Token1
         uint256 _flashBorrowToken1;
@@ -114,10 +117,13 @@ contract OrangeStrategyV1 {
             revert("Errors.ONLY_STRATEGISTS");
         }
         //validation of tickSpacing
-        liquidityPool.validateTicks(_newLowerTick, _newUpperTick);
+        ILiquidityPoolManager(liquidityPool).validateTicks(_newLowerTick, _newUpperTick);
 
         // 1. burn and collect fees
-        uint128 _liquidity = liquidityPool.getCurrentLiquidity(_currentLowerTick, _currentUpperTick);
+        uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(
+            _currentLowerTick,
+            _currentUpperTick
+        );
         _burnAndCollectFees(_currentLowerTick, _currentUpperTick, _liquidity);
 
         if (IERC20(address(vault)).totalSupply() == 0) {
@@ -126,8 +132,8 @@ contract OrangeStrategyV1 {
 
         // 2. get current position
         IOrangeVaultV1.Positions memory _currentPosition = IOrangeVaultV1.Positions(
-            lendingPool.balanceOfCollateral(),
-            lendingPool.balanceOfDebt(),
+            ILendingPoolManager(lendingPool).balanceOfCollateral(),
+            ILendingPoolManager(lendingPool).balanceOfDebt(),
             token0.balanceOf(address(vault)),
             token1.balanceOf(address(vault))
         );
@@ -174,9 +180,9 @@ contract OrangeStrategyV1 {
         uint128 _liquidity
     ) internal returns (uint256 burn0_, uint256 burn1_) {
         if (_liquidity > 0) {
-            (burn0_, burn1_) = liquidityPool.burn(_lowerTick, _upperTick, _liquidity);
+            (burn0_, burn1_) = ILiquidityPoolManager(liquidityPool).burn(_lowerTick, _upperTick, _liquidity);
         }
-        liquidityPool.collect(_lowerTick, _upperTick);
+        ILiquidityPoolManager(liquidityPool).collect(_lowerTick, _upperTick);
     }
 
     ///@notice Swap exact amount out
@@ -251,11 +257,11 @@ contract OrangeStrategyV1 {
                         _supply - _currentPosition.token1Balance //uncheckable
                     );
                 }
-                lendingPool.supply(_supply);
+                ILendingPoolManager(lendingPool).supply(_supply);
 
                 // borrow
                 uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
-                lendingPool.borrow(_borrow);
+                ILendingPoolManager(lendingPool).borrow(_borrow);
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
                     // case2 repay
@@ -268,24 +274,24 @@ contract OrangeStrategyV1 {
                             _repay - _currentPosition.token1Balance //uncheckable
                         );
                     }
-                    lendingPool.repay(_repay);
+                    ILendingPoolManager(lendingPool).repay(_repay);
 
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
                         // case2_1 repay and supply
                         uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-                        lendingPool.supply(_supply);
+                        ILendingPoolManager(lendingPool).supply(_supply);
                     } else {
                         // case2_2 repay and withdraw
                         uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
-                        lendingPool.withdraw(_withdraw);
+                        ILendingPoolManager(lendingPool).withdraw(_withdraw);
                     }
                 } else {
                     // case3 borrow and withdraw
                     uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
-                    lendingPool.borrow(_borrow);
+                    ILendingPoolManager(lendingPool).borrow(_borrow);
                     // withdraw should be the only option here.
                     uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
-                    lendingPool.withdraw(_withdraw);
+                    ILendingPoolManager(lendingPool).withdraw(_withdraw);
                 }
             }
         }
@@ -315,13 +321,13 @@ contract OrangeStrategyV1 {
             }
         }
 
-        targetLiquidity_ = liquidityPool.getLiquidityForAmounts(
+        targetLiquidity_ = ILiquidityPoolManager(liquidityPool).getLiquidityForAmounts(
             _lowerTick,
             _upperTick,
             token0.balanceOf(address(this)),
             token1.balanceOf(address(this))
         );
-        liquidityPool.mint(_lowerTick, _upperTick, targetLiquidity_);
+        ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -343,9 +349,9 @@ contract OrangeStrategyV1 {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay Token1
-            lendingPool.repay(_amount1);
+            ILendingPoolManager(lendingPool).repay(_amount1);
             // Withdraw Token0 as collateral
-            lendingPool.withdraw(_amount0);
+            ILendingPoolManager(lendingPool).withdraw(_amount0);
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
@@ -378,7 +384,7 @@ contract OrangeStrategyV1 {
     //     );
 
     //     //compute liquidity
-    //     liquidity_ = liquidityPool.getLiquidityForAmounts(
+    //     liquidity_ = ILiquidityPoolManager(liquidityPool).getLiquidityForAmounts(
     //         _newLowerTick,
     //         _newUpperTick,
     //         _position.token0Balance,
@@ -415,7 +421,7 @@ contract OrangeStrategyV1 {
 
     //TODO move to computer
     // function _quoteCurrent(uint128 baseAmount, address baseToken, address quoteToken) internal view returns (uint256) {
-    //     (, int24 _tick, , , , , ) = liquidityPool.pool().slot0();
+    //     (, int24 _tick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
     //     return _quoteAtTick(_tick, baseAmount, baseToken, quoteToken);
     // }
 
@@ -431,7 +437,7 @@ contract OrangeStrategyV1 {
     //     if (_assets0 == 0) return IOrangeVaultV1.Positions(0, 0, 0, 0);
 
     //     // compute ETH/USDC amount ration to add liquidity
-    //     (uint256 _amount0, uint256 _amount1) = liquidityPool.getAmountsForLiquidity(
+    //     (uint256 _amount0, uint256 _amount1) = ILiquidityPoolManager(liquidityPool).getAmountsForLiquidity(
     //         _lowerTick,
     //         _upperTick,
     //         1e18 //any amount

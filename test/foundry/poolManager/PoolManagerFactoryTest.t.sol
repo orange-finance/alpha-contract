@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "../utils/BaseTest.sol";
 
 import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
-import {UniswapV3LiquidityPoolManager, IUniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -24,7 +24,7 @@ contract PoolManagerFactoryTest is BaseTest {
 
     PoolManagerFactory public factory;
     UniswapV3LiquidityPoolManager public template;
-    IUniswapV3LiquidityPoolManager public liquidityPool;
+    ILiquidityPoolManager public liquidityPool;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
     IERC20 public token0;
@@ -52,7 +52,7 @@ contract PoolManagerFactoryTest is BaseTest {
         //create proxy
         address[] memory _references = new address[](1);
         _references[0] = address(pool);
-        liquidityPool = IUniswapV3LiquidityPoolManager(
+        liquidityPool = ILiquidityPoolManager(
             factory.create(
                 address(template),
                 address(this),

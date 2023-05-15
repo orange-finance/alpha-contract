@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
+import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -18,7 +18,7 @@ import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 import "forge-std/console2.sol";
 
 contract UniswapV3LiquidityPoolManager is
-    IUniswapV3LiquidityPoolManager,
+    ILiquidityPoolManager,
     IUniswapV3MintCallback,
     Initializable,
     IOrangePoolManagerProxy

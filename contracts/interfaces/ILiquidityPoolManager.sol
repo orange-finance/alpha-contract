@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 // forked and modified from https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolActions.sol
-interface IUniswapV3LiquidityPoolManager {
+interface ILiquidityPoolManager {
     function pool() external view returns (IUniswapV3Pool);
 
     function getCurrentTick() external view returns (int24 tick);

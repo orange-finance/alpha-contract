@@ -4,13 +4,12 @@ pragma solidity 0.8.16;
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
-import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityPoolManager.sol";
-import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
+import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IVault} from "../interfaces/IVault.sol";
-import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
+import {IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../interfaces/IBalancerFlashloan.sol";
 
 //extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
@@ -23,7 +22,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
+contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
 
@@ -35,12 +34,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
     bytes32 flashloanHash; //tempolary use in flashloan
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3LiquidityPoolManager public liquidityPool;
-    IAaveLendingPoolManager public lendingPool;
-    IERC20 public token0; //collateral and deposited currency by users
-    IERC20 public token1; //debt and hedge target token
-    IOrangeV1Parameters public params;
-    address public strategyImpl; //TODO set function
+    address public immutable liquidityPool;
+    address public immutable lendingPool;
+    IERC20 public immutable token0; //collateral and deposited currency by users
+    IERC20 public immutable token1; //debt and hedge target token
+    IOrangeV1Parameters public immutable params;
+    address public strategyImpl;
 
     /* ========== MODIFIER ========== */
 
@@ -60,32 +59,30 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
+
         //create liquidity pool
-        liquidityPool = IUniswapV3LiquidityPoolManager(
-            IOrangePoolManagerFactory(_factory).create(
-                _liquidityTemplate,
-                address(this),
-                _token0,
-                _token1,
-                new uint256[](0),
-                _liquidityReferences
-            )
+        liquidityPool = IOrangePoolManagerFactory(_factory).create(
+            _liquidityTemplate,
+            address(this),
+            _token0,
+            _token1,
+            new uint256[](0),
+            _liquidityReferences
         );
-        token0.safeApprove(address(liquidityPool), type(uint256).max);
-        token1.safeApprove(address(liquidityPool), type(uint256).max);
+        token0.safeApprove(liquidityPool, type(uint256).max);
+        token1.safeApprove(liquidityPool, type(uint256).max);
+
         //create lending pool
-        lendingPool = IAaveLendingPoolManager(
-            IOrangePoolManagerFactory(_factory).create(
-                _lendingTemplate,
-                address(this),
-                _token0,
-                _token1,
-                new uint256[](0),
-                _lendingReferences
-            )
+        lendingPool = IOrangePoolManagerFactory(_factory).create(
+            _lendingTemplate,
+            address(this),
+            _token0,
+            _token1,
+            new uint256[](0),
+            _lendingReferences
         );
-        token0.safeApprove(address(lendingPool), type(uint256).max);
-        token1.safeApprove(address(lendingPool), type(uint256).max);
+        token0.safeApprove(lendingPool, type(uint256).max);
+        token1.safeApprove(lendingPool, type(uint256).max);
 
         params = IOrangeV1Parameters(_params);
         token0.safeApprove(params.router(), type(uint256).max);
@@ -130,8 +127,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
     ///@notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_lowerTick, _upperTick);
-        uint256 amount0Collateral = lendingPool.balanceOfCollateral();
-        uint256 amount1Debt = lendingPool.balanceOfDebt();
+        uint256 amount0Collateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
+        uint256 amount1Debt = ILendingPoolManager(lendingPool).balanceOfDebt();
 
         uint256 amount0Balance = _underlyingAssets.liquidityAmount0 +
             _underlyingAssets.accruedFees0 +
@@ -153,7 +150,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         if (amount1Balance < amount1Debt) {
             uint256 amount1deducted = amount1Debt - amount1Balance;
             amount1deducted = OracleLibrary.getQuoteAtTick(
-                liquidityPool.getCurrentTick(),
+                ILiquidityPoolManager(liquidityPool).getCurrentTick(),
                 uint128(amount1deducted),
                 address(token1),
                 address(token0)
@@ -163,7 +160,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
             uint256 amount1Added = amount1Balance - amount1Debt;
             if (amount1Added > 0) {
                 amount1Added = OracleLibrary.getQuoteAtTick(
-                    liquidityPool.getCurrentTick(),
+                    ILiquidityPoolManager(liquidityPool).getCurrentTick(),
                     uint128(amount1Added),
                     address(token1),
                     address(token0)
@@ -180,17 +177,16 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         int24 _lowerTick,
         int24 _upperTick
     ) internal view returns (UnderlyingAssets memory underlyingAssets) {
-        uint128 liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        uint128 liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(lowerTick, upperTick);
         // compute current holdings from liquidity
         if (liquidity > 0) {
-            (underlyingAssets.liquidityAmount0, underlyingAssets.liquidityAmount1) = liquidityPool
-                .getAmountsForLiquidity(_lowerTick, _upperTick, liquidity);
+            (underlyingAssets.liquidityAmount0, underlyingAssets.liquidityAmount1) = ILiquidityPoolManager(
+                liquidityPool
+            ).getAmountsForLiquidity(_lowerTick, _upperTick, liquidity);
         }
 
-        (underlyingAssets.accruedFees0, underlyingAssets.accruedFees1) = liquidityPool.getFeesEarned(
-            _lowerTick,
-            _upperTick
-        );
+        (underlyingAssets.accruedFees0, underlyingAssets.accruedFees1) = ILiquidityPoolManager(liquidityPool)
+            .getFeesEarned(_lowerTick, _upperTick);
 
         underlyingAssets.token0Balance = token0.balanceOf(address(this));
         underlyingAssets.token1Balance = token1.balanceOf(address(this));
@@ -239,12 +235,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
 
         //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
-        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(lowerTick, upperTick);
 
         //calculate additional Aave position and Contract balances by shares
         Positions memory _additionalPosition = _computeTargetPositionByShares(
-            lendingPool.balanceOfCollateral(),
-            lendingPool.balanceOfDebt(),
+            ILendingPoolManager(lendingPool).balanceOfCollateral(),
+            ILendingPoolManager(lendingPool).balanceOfDebt(),
             _underlyingAssets.token0Balance + _underlyingAssets.accruedFees0, //including pending fees
             _underlyingAssets.token1Balance + _underlyingAssets.accruedFees1, //including pending fees
             _shares,
@@ -281,11 +277,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         uint256 _additionalLiquidityAmount0;
         uint256 _additionalLiquidityAmount1;
         if (_additionalLiquidity > 0) {
-            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = liquidityPool.getAmountsForLiquidity(
-                lowerTick,
-                upperTick,
-                _additionalLiquidity
-            );
+            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = ILiquidityPoolManager(liquidityPool)
+                .getAmountsForLiquidity(lowerTick, upperTick, _additionalLiquidity);
         }
 
         //The case of overhedge (debtToken1 > liqToken1 + balanceToken1)
@@ -357,8 +350,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         //because liquidity is computed by shares
         //so `token0.balanceOf(address(this)) - _burnedLiquidityAmount0` means remaining balance and colleted fee
         Positions memory _redeemPosition = _computeTargetPositionByShares(
-            lendingPool.balanceOfCollateral(),
-            lendingPool.balanceOfDebt(),
+            ILendingPoolManager(lendingPool).balanceOfCollateral(),
+            ILendingPoolManager(lendingPool).balanceOfDebt(),
             token0.balanceOf(address(this)) - _burnedLiquidityAmount0,
             token1.balanceOf(address(this)) - _burnedLiquidityAmount1,
             _shares,
@@ -409,7 +402,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         int24 _lowerTick,
         int24 _upperTick
     ) internal returns (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) {
-        uint128 _liquidity = liquidityPool.getCurrentLiquidity(_lowerTick, _upperTick);
+        uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(_lowerTick, _upperTick);
         //unnecessary to check _totalSupply == 0 because an error occurs in redeem before calling this function
         uint128 _burnLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
         (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = _burnAndCollectFees(
@@ -504,7 +497,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = _amount;
         flashloanHash = keccak256(_userData); //set stroage for callback
-        IVault(params.balancer()).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
+        IBalancerVault(params.balancer()).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
     }
 
     ///@notice Remove liquidity from Uniswap and collect fees
@@ -514,9 +507,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
         uint128 _liquidity
     ) internal returns (uint256 burn0_, uint256 burn1_) {
         if (_liquidity > 0) {
-            (burn0_, burn1_) = liquidityPool.burn(_lowerTick, _upperTick, _liquidity);
+            (burn0_, burn1_) = ILiquidityPoolManager(liquidityPool).burn(_lowerTick, _upperTick, _liquidity);
         }
-        liquidityPool.collect(_lowerTick, _upperTick);
+        ILiquidityPoolManager(liquidityPool).collect(_lowerTick, _upperTick);
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -544,9 +537,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay Token1
-            lendingPool.repay(_amount1);
+            ILendingPoolManager(lendingPool).repay(_amount1);
             // Withdraw Token0 as collateral
-            lendingPool.withdraw(_amount0);
+            ILendingPoolManager(lendingPool).withdraw(_amount0);
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
@@ -581,14 +574,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, Oran
          */
 
         //Supply Token0 and Borrow Token1 (#1 and #2)
-        lendingPool.supply(_positions.collateralAmount0);
-        lendingPool.borrow(_positions.debtAmount1);
+        ILendingPoolManager(lendingPool).supply(_positions.collateralAmount0);
+        ILendingPoolManager(lendingPool).borrow(_positions.debtAmount1);
 
         //Add Liquidity (#3 and #4)
         uint _additionalLiquidityAmount0;
         uint _additionalLiquidityAmount1;
 
-        (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = liquidityPool.mint(
+        (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).mint(
             lowerTick,
             upperTick,
             _additionalLiquidity

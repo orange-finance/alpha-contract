@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
+import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
@@ -15,7 +15,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "forge-std/console2.sol";
 
-contract AaveLendingPoolManager is IAaveLendingPoolManager, Initializable, IOrangePoolManagerProxy {
+contract AaveLendingPoolManager is ILendingPoolManager, Initializable, IOrangePoolManagerProxy {
     // TODO cap
 
     using SafeERC20 for IERC20;

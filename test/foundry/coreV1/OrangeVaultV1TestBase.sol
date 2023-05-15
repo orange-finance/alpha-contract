@@ -7,7 +7,7 @@ import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/Unis
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
 
-import {OrangeVaultV1, IVault, IFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
+import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -34,7 +34,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     OrangeVaultV1 public vault;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
-    IVault public balancer;
+    IBalancerVault public balancer;
     IAaveV3Pool public aave;
     IERC20 public token0;
     IERC20 public token1;
@@ -60,7 +60,7 @@ contract OrangeVaultV1TestBase is BaseTest {
         aToken1 = IERC20(aaveAddr.ausdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
         balancerAddr = AddressHelperV1.addresses(block.chainid);
-        balancer = IVault(balancerAddr.vaultAddr);
+        balancer = IBalancerVault(balancerAddr.vaultAddr);
         params = new OrangeV1Parameters();
         params.setRouter(address(router));
         params.setBalancer(address(balancer));
