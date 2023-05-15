@@ -8,12 +8,14 @@ import {IUniswapV3LiquidityPoolManager} from "../interfaces/IUniswapV3LiquidityP
 import {IAaveLendingPoolManager} from "../interfaces/IAaveLendingPoolManager.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IVault} from "../interfaces/IVault.sol";
 import {IFlashLoanRecipient, IERC20} from "../interfaces/IFlashLoanRecipient.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+//extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
 import {OrangeERC20, ERC20Decimals} from "./OrangeERC20.sol";
+import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 
 //libraries
 import {Errors} from "../libs/Errors.sol";
@@ -21,14 +23,13 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, OrangeValidationChecker {
+contract OrangeVaultV1 is IOrangeVaultV1, IFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
 
     /* ========== CONSTANTS ========== */
 
     /* ========== STORAGES ========== */
-    bool public hasPosition;
     int24 public lowerTick;
     int24 public upperTick;
     bytes32 flashloanHash; //tempolary use in flashloan
@@ -39,11 +40,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     IERC20 public token0; //collateral and deposited currency by users
     IERC20 public token1; //debt and hedge target token
     IOrangeV1Parameters public params;
+    address public strategyImpl; //TODO set function
 
     /* ========== MODIFIER ========== */
 
     /* ========== CONSTRUCTOR ========== */
-    function initialize(
+    constructor(
         string memory _name,
         string memory _symbol,
         address _token0,
@@ -54,10 +56,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         address _lendingTemplate,
         address[] memory _lendingReferences,
         address _params
-    ) public initializer {
-        OrangeValidationChecker.initialize(_params);
-        OrangeERC20.initialize(_name, _symbol);
-
+    ) OrangeValidationChecker(_params) OrangeERC20(_name, _symbol) {
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
@@ -94,6 +93,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+
     function decimals() external view override returns (uint8) {
         return ERC20Decimals(address(token0)).decimals();
     }
@@ -115,6 +115,16 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     function totalAssets() external view returns (uint256) {
         if (totalSupply == 0) return 0;
         return _totalAssets(lowerTick, upperTick);
+    }
+
+    /// @inheritdoc IOrangeVaultV1
+    function getUnderlyingBalances() external view returns (UnderlyingAssets memory underlyingAssets) {
+        return _getUnderlyingBalances(lowerTick, upperTick);
+    }
+
+    /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    function _implementation() internal view override returns (address) {
+        return strategyImpl;
     }
 
     ///@notice internal function of totalAssets
@@ -163,11 +173,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         }
     }
 
-    /// @inheritdoc IOrangeVaultV1
-    function getUnderlyingBalances() external view returns (UnderlyingAssets memory underlyingAssets) {
-        return _getUnderlyingBalances(lowerTick, upperTick);
-    }
-
     /// @notice Get the amount of underlying assets
     /// The assets includes added liquidity, fees and left amount in this vault
     /// @dev similar to Arrakis'
@@ -189,6 +194,22 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
 
         underlyingAssets.token0Balance = token0.balanceOf(address(this));
         underlyingAssets.token1Balance = token1.balanceOf(address(this));
+    }
+
+    ///@notice Compute target position by shares
+    ///@dev called by deposit and redeem
+    function _computeTargetPositionByShares(
+        uint256 _collateralAmount0,
+        uint256 _debtAmount1,
+        uint256 _token0Balance,
+        uint256 _token1Balance,
+        uint256 _shares,
+        uint256 _totalSupply
+    ) internal pure returns (Positions memory _position) {
+        _position.collateralAmount0 = _collateralAmount0.mulDiv(_shares, _totalSupply);
+        _position.debtAmount1 = _debtAmount1.mulDiv(_shares, _totalSupply);
+        _position.token0Balance = _token0Balance.mulDiv(_shares, _totalSupply);
+        _position.token1Balance = _token1Balance.mulDiv(_shares, _totalSupply);
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -399,212 +420,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function stoploss(int24 _inputTick) external returns (uint256) {
-        if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
-            revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
-        }
-
-        if (totalSupply == 0) return 0;
-
-        _checkTickSlippage(liquidityPool.getCurrentTick(), _inputTick);
-
-        // 1. Remove liquidity
-        // 2. Collect fees
-        uint128 liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
-        if (liquidity > 0) {
-            _burnAndCollectFees(lowerTick, upperTick, liquidity);
-        }
-
-        uint256 _repayingDebt = lendingPool.balanceOfDebt();
-        uint256 _balanceToken1 = token1.balanceOf(address(this));
-        uint256 _withdrawingCollateral = lendingPool.balanceOfCollateral();
-
-        // Flashloan to borrow Repay Token1
-        uint256 _flashBorrowToken1;
-        if (_repayingDebt > _balanceToken1) {
-            unchecked {
-                _flashBorrowToken1 = _repayingDebt - _balanceToken1;
-            }
-        }
-
-        // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
-        _makeFlashLoan(
-            token1,
-            _flashBorrowToken1,
-            abi.encode(FlashloanType.REDEEM, _repayingDebt, _withdrawingCollateral)
-        );
-
-        // swap remaining all Token1 to Token0
-        _balanceToken1 = token1.balanceOf(address(this));
-        if (_balanceToken1 > 0) {
-            _swapAmountIn(true, _balanceToken1);
-        }
-
-        _emitAction(ActionType.STOPLOSS, msg.sender);
-        hasPosition = false;
-        return token0.balanceOf(address(this));
-    }
-
-    /// @inheritdoc IOrangeVaultV1
-    function rebalance(
-        int24 _newLowerTick,
-        int24 _newUpperTick,
-        Positions memory _targetPosition,
-        uint128 _minNewLiquidity
-    ) external {
-        if (!params.strategists(msg.sender)) {
-            revert(Errors.ONLY_STRATEGISTS);
-        }
-        //validation of tickSpacing
-        liquidityPool.validateTicks(_newLowerTick, _newUpperTick);
-
-        // 1. burn and collect fees
-        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
-        _burnAndCollectFees(lowerTick, upperTick, _liquidity);
-
-        // Update storage of ranges
-        lowerTick = _newLowerTick;
-        upperTick = _newUpperTick;
-
-        if (totalSupply == 0) {
-            return;
-        }
-
-        // 2. get current position
-        Positions memory _currentPosition = Positions(
-            lendingPool.balanceOfCollateral(),
-            lendingPool.balanceOfDebt(),
-            token0.balanceOf(address(this)),
-            token1.balanceOf(address(this))
-        );
-
-        // 4. execute hedge
-        _executeHedgeRebalance(_currentPosition, _targetPosition);
-
-        // 5. Add liquidity
-        uint128 _targetLiquidity = _addLiquidityInRebalance(
-            _newLowerTick,
-            _newUpperTick,
-            _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
-            _targetPosition.token1Balance // amount of token1 to be added to Uniswap
-        );
-        if (_targetLiquidity < _minNewLiquidity) {
-            revert(Errors.LESS_LIQUIDITY);
-        }
-        //TODO is LTV check necessary?
-
-        _emitAction(ActionType.REBALANCE, msg.sender);
-
-        if (_targetLiquidity > 0) {
-            hasPosition = true;
-        }
-    }
-
-    /// @notice execute hedge by changing collateral or debt amount
-    /// @dev called by rebalance
-    function _executeHedgeRebalance(Positions memory _currentPosition, Positions memory _targetPosition) internal {
-        /**memo
-         * what if current.collateral == target.collateral. both borrow or repay can come after.
-         * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
-         * Maybe, we can revert when one of them is equal.
-         */
-        if (
-            _currentPosition.collateralAmount0 == _targetPosition.collateralAmount0 ||
-            _currentPosition.debtAmount1 == _targetPosition.debtAmount1
-        ) {
-            // if originally collateral is 0, through this function
-            if (_currentPosition.collateralAmount0 == 0) return;
-            revert(Errors.EQUAL_COLLATERAL_OR_DEBT);
-        }
-        unchecked {
-            if (
-                _currentPosition.collateralAmount0 < _targetPosition.collateralAmount0 &&
-                _currentPosition.debtAmount1 < _targetPosition.debtAmount1
-            ) {
-                // case1 supply and borrow
-                uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-
-                if (_supply > _currentPosition.token1Balance) {
-                    // swap (if necessary)
-                    _swapAmountOut(
-                        true,
-                        _supply - _currentPosition.token1Balance //uncheckable
-                    );
-                }
-                lendingPool.supply(_supply);
-
-                // borrow
-                uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
-                lendingPool.borrow(_borrow);
-            } else {
-                if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
-                    // case2 repay
-                    uint256 _repay = _currentPosition.debtAmount1 - _targetPosition.debtAmount1; //uncheckable
-
-                    // swap (if necessary)
-                    if (_repay > _currentPosition.token1Balance) {
-                        _swapAmountOut(
-                            false,
-                            _repay - _currentPosition.token1Balance //uncheckable
-                        );
-                    }
-                    lendingPool.repay(_repay);
-
-                    if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
-                        // case2_1 repay and supply
-                        uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-                        lendingPool.supply(_supply);
-                    } else {
-                        // case2_2 repay and withdraw
-                        uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
-                        lendingPool.withdraw(_withdraw);
-                    }
-                } else {
-                    // case3 borrow and withdraw
-                    uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
-                    lendingPool.borrow(_borrow);
-                    // withdraw should be the only option here.
-                    uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
-                    lendingPool.withdraw(_withdraw);
-                }
-            }
-        }
-    }
-
-    /// @notice Add liquidity to Uniswap after swapping surplus amount if necessary
-    /// @dev called by rebalance
-    function _addLiquidityInRebalance(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint256 _targetAmount0,
-        uint256 _targetAmount1
-    ) internal returns (uint128 targetLiquidity_) {
-        uint256 _balance0 = token0.balanceOf(address(this));
-        uint256 _balance1 = token1.balanceOf(address(this));
-
-        //swap surplus amount
-        if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
-            //no need to swap
-        } else {
-            unchecked {
-                if (_balance0 > _targetAmount0) {
-                    _swapAmountIn(true, _balance0 - _targetAmount0);
-                } else if (_balance1 > _targetAmount1) {
-                    _swapAmountIn(false, _balance1 - _targetAmount1);
-                }
-            }
-        }
-
-        targetLiquidity_ = liquidityPool.getLiquidityForAmounts(
-            _lowerTick,
-            _upperTick,
-            token0.balanceOf(address(this)),
-            token1.balanceOf(address(this))
-        );
-        liquidityPool.mint(_lowerTick, _upperTick, targetLiquidity_);
-    }
-
-    /// @inheritdoc IOrangeVaultV1
     function emitAction() external {
         _emitAction(ActionType.MANUAL, msg.sender);
     }
@@ -613,59 +428,43 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         emit Action(_actionType, _caller, _totalAssets(lowerTick, upperTick), totalSupply);
     }
 
-    /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    ///@notice Compute target position by shares
-    ///@dev called by deposit and redeem
-    function _computeTargetPositionByShares(
-        uint256 _collateralAmount0,
-        uint256 _debtAmount1,
-        uint256 _token0Balance,
-        uint256 _token1Balance,
-        uint256 _shares,
-        uint256 _totalSupply
-    ) internal pure returns (Positions memory _position) {
-        _position.collateralAmount0 = _collateralAmount0.mulDiv(_shares, _totalSupply);
-        _position.debtAmount1 = _debtAmount1.mulDiv(_shares, _totalSupply);
-        _position.token0Balance = _token0Balance.mulDiv(_shares, _totalSupply);
-        _position.token1Balance = _token1Balance.mulDiv(_shares, _totalSupply);
+    function setStrategyImpl(address _strategyImpl) external {
+        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+        strategyImpl = _strategyImpl;
     }
 
-    ///@notice Check slippage by tick
-    function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
-        if (
-            _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
-            _currentTick < _inputTick - int24(params.tickSlippageBPS())
-        ) {
-            revert(Errors.HIGH_SLIPPAGE);
-        }
+    /* ========== EXTERNAL FUNCTIONS (Delegate call) ========== */
+
+    /// @inheritdoc IOrangeVaultV1
+    function stoploss(int24) external {
+        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+        //delegate call
+        _delegate(strategyImpl);
+
+        // _emitAction(ActionType.STOPLOSS, msg.sender);
+        // return token0.balanceOf(address(this));
+    }
+
+    /// @inheritdoc IOrangeVaultV1
+    function rebalance(int24, int24, int24 _newLowerTick, int24 _newUpperTick, Positions memory, uint128) external {
+        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+
+        // Update storage of ranges
+        lowerTick = _newLowerTick;
+        upperTick = _newUpperTick;
+
+        _delegate(strategyImpl);
+
+        // _emitAction(ActionType.REBALANCE, msg.sender);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-
-    ///@notice get slippage and parameters in _swapAmountOut and _swapAmountIn
-    /// return parameters (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96)
-    function _getSlippageOnSwapRouter(bool _zeroForOne) internal view returns (address, address, uint160) {
-        // (uint160 _sqrtRatioX96, , , , , , ) = liquidityPool.pool().slot0();
-        return
-            (_zeroForOne)
-                ? (
-                    address(token0),
-                    address(token1),
-                    // (_sqrtRatioX96 * (MAGIC_SCALE_1E4 - params.slippageBPS())) / MAGIC_SCALE_1E4
-                    0
-                )
-                : (
-                    address(token1),
-                    address(token0),
-                    // (_sqrtRatioX96 * (MAGIC_SCALE_1E4 + params.slippageBPS())) / MAGIC_SCALE_1E4
-                    0
-                );
-    }
-
     ///@notice Swap exact amount out
     function _swapAmountOut(bool _zeroForOne, uint256 _amountOut) internal returns (uint256 amountIn_) {
         if (_amountOut == 0) return 0;
-        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
+        (address tokenIn, address tokenOut) = (_zeroForOne)
+            ? (address(token0), address(token1))
+            : (address(token1), address(token0));
         ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
@@ -674,7 +473,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             deadline: block.timestamp,
             amountOut: _amountOut,
             amountInMaximum: type(uint256).max,
-            sqrtPriceLimitX96: _sqrtPriceLimitX96
+            sqrtPriceLimitX96: 0
         });
         amountIn_ = ISwapRouter(params.router()).exactOutputSingle(_params);
     }
@@ -682,7 +481,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
     ///@notice Swap exact amount in
     function _swapAmountIn(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
         if (_amountIn == 0) return 0;
-        (address tokenIn, address tokenOut, uint160 _sqrtPriceLimitX96) = _getSlippageOnSwapRouter(_zeroForOne);
+        (address tokenIn, address tokenOut) = (_zeroForOne)
+            ? (address(token0), address(token1))
+            : (address(token1), address(token0));
         ISwapRouter.ExactInputSingleParams memory _params = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
@@ -691,7 +492,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
             deadline: block.timestamp,
             amountIn: _amountIn,
             amountOutMinimum: 0,
-            sqrtPriceLimitX96: _sqrtPriceLimitX96
+            sqrtPriceLimitX96: 0
         });
         amountOut_ = ISwapRouter(params.router()).exactInputSingle(_params);
     }
@@ -726,12 +527,20 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
-        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
-        flashloanHash = bytes32(0); //clear storage
-
         uint8 _flashloanType = abi.decode(_userData, (uint8));
+        if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
+            //delegate call
+            _delegate(strategyImpl);
+        }
+
+        if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
+
         if (_flashloanType == uint8(FlashloanType.REDEEM)) {
+            //hash check
+            if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
+                revert(Errors.INVALID_FLASHLOAN_HASH);
+            flashloanHash = bytes32(0); //clear storage
+
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay Token1
@@ -746,8 +555,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, OrangeERC20, IFlashLoanRecipient, Oran
                 _swapAmountOut(_zeroForOne, _amounts[0]);
             }
         } else {
+            //hash check
+            if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
+                revert(Errors.INVALID_FLASHLOAN_HASH);
+            flashloanHash = bytes32(0); //clear storage
+
             _depositInFlashloan(_flashloanType, _amounts[0], _userData);
         }
+
         //repay flashloan
         IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
     }

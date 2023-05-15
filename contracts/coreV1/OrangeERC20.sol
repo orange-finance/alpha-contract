@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-
 interface ERC20Decimals {
     function decimals() external view returns (uint8);
 }
@@ -10,7 +8,7 @@ interface ERC20Decimals {
 /// @notice Modern and gas efficient ERC20 implementation.
 /// @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC20.sol)
 /// @dev Do not manually set balances without updating totalSupply, as the sum of all user balances must not exceed it.
-abstract contract OrangeERC20 is ERC20Decimals, Initializable {
+abstract contract OrangeERC20 is ERC20Decimals {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -41,7 +39,7 @@ abstract contract OrangeERC20 is ERC20Decimals, Initializable {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function initialize(string memory _name, string memory _symbol) public onlyInitializing {
+    constructor(string memory _name, string memory _symbol) {
         name = _name;
         symbol = _symbol;
     }

@@ -4,26 +4,12 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IUniswapV3LiquidityPoolManager} from "./IUniswapV3LiquidityPoolManager.sol";
+import {IAaveLendingPoolManager} from "./IAaveLendingPoolManager.sol";
 import {IOrangeV1Parameters} from "./IOrangeV1Parameters.sol";
 
 // import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-interface IOrangeVaultV1Proxy {
-    function initialize(
-        string memory _name,
-        string memory _symbol,
-        address _token0,
-        address _token1,
-        address _poolFactory,
-        address _liquidityTemplate,
-        address[] memory _liquidityReferences,
-        address _lendingTemplate,
-        address[] memory _lendingReferences,
-        address _params
-    ) external;
-}
-
-interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
+interface IOrangeVaultV1 {
     enum ActionType {
         MANUAL,
         DEPOSIT,
@@ -35,7 +21,8 @@ interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
     enum FlashloanType {
         DEPOSIT_OVERHEDGE,
         DEPOSIT_UNDERHEDGE,
-        REDEEM
+        REDEEM,
+        STOPLOSS
     }
 
     /* ========== STRUCTS ========== */
@@ -63,8 +50,9 @@ interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    /// @notice Get true if having the position of Uniswap
-    function hasPosition() external view returns (bool);
+    function lowerTick() external view returns (int24);
+
+    function upperTick() external view returns (int24);
 
     /// @notice Get the token1 address
     function token0() external view returns (IERC20 token0);
@@ -73,6 +61,8 @@ interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
     function token1() external view returns (IERC20 token1);
 
     function liquidityPool() external view returns (IUniswapV3LiquidityPoolManager);
+
+    function lendingPool() external view returns (IAaveLendingPoolManager);
 
     function params() external view returns (IOrangeV1Parameters);
 
@@ -144,18 +134,21 @@ interface IOrangeVaultV1 is IOrangeVaultV1Proxy {
     /**
      * @notice Remove all positions only when current price is out of range
      * @param inputTick Input tick for slippage checking
-     * @return finalBalance_ balance of USDC after removing all positions
      */
-    function stoploss(int24 inputTick) external returns (uint256 finalBalance_);
+    function stoploss(int24 inputTick) external;
 
     /**
      * @notice Change the range of underlying UniswapV3 position
+     * @param _currentLowerTick The current lower bound of the position's range
+     * @param _currentUpperTick The current upper bound of the position's range
      * @param _newLowerTick The new lower bound of the position's range
      * @param _newUpperTick The new upper bound of the position's range
      * @param _targetPosition target position
      * @param _minNewLiquidity minimum liqidiity
      */
     function rebalance(
+        int24 _currentLowerTick,
+        int24 _currentUpperTick,
         int24 _newLowerTick,
         int24 _newUpperTick,
         Positions memory _targetPosition,

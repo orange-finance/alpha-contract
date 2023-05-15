@@ -4,11 +4,10 @@ pragma solidity 0.8.16;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {Errors} from "../libs/Errors.sol";
 
-abstract contract OrangeValidationChecker is Initializable {
+abstract contract OrangeValidationChecker {
     using SafeERC20 for IERC20;
 
     /* ========== STRUCTS ========== */
@@ -38,7 +37,7 @@ abstract contract OrangeValidationChecker is Initializable {
     IOrangeAlphaParameters public parameters;
 
     /* ========== CONSTRUCTOR ========== */
-    function initialize(address _parameters) public onlyInitializing {
+    constructor(address _parameters) {
         parameters = IOrangeAlphaParameters(_parameters);
     }
 
