@@ -68,6 +68,8 @@ contract UniswapV3LiquidityPoolManager is
         fee = pool.fee();
     }
 
+    /* ========== VIEW FUNCTIONS ========== */
+
     function getCurrentTick() external view returns (int24 tick) {
         (, tick, , , , , ) = pool.slot0();
     }
@@ -219,6 +221,20 @@ contract UniswapV3LiquidityPoolManager is
         uint128 liquidity
     ) external onlyOperator returns (uint256, uint256) {
         (uint _burn0, uint _burn1) = pool.burn(lowerTick, upperTick, liquidity);
+        return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
+    }
+
+    function burnAndCollect(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external onlyOperator returns (uint256, uint256) {
+        uint _burn0;
+        uint _burn1;
+        if (liquidity > 0) {
+            (_burn0, _burn1) = pool.burn(lowerTick, upperTick, liquidity);
+        }
+        pool.collect(msg.sender, lowerTick, upperTick, type(uint128).max, type(uint128).max);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
 

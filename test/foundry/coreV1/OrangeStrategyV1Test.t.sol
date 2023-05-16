@@ -2,20 +2,20 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyV1} from "../../../contracts/coreV1/OrangeStrategyV1.sol";
+import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 
-contract OrangeStrategyV1Test is OrangeVaultV1TestBase {
+contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
     using Ints for int24;
     using Ints for int256;
 
-    OrangeStrategyV1 strategy;
+    OrangeStrategyImplV1 strategy;
 
     function setUp() public override {
         super.setUp();
-        strategy = new OrangeStrategyV1(address(vault));
+        strategy = new OrangeStrategyImplV1();
     }
 
     // function test_computeHedge_SuccessCase1() public {

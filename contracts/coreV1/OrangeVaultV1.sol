@@ -283,9 +283,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
         //The case of overhedge (debtToken1 > liqToken1 + balanceToken1)
         if (_additionalPosition.debtAmount1 > _additionalLiquidityAmount1 + _additionalPosition.token1Balance) {
-            //execute flashloan
-
             /**
+             * Overhedge
              * Flashloan Token0. append positions. swap Token1=>Token0 (leave some Token1 for _additionalPosition.token1Balance ). Return the loan.
              */
             _makeFlashLoan(
@@ -300,9 +299,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
                 )
             );
         } else {
-            //underhedge
-
             /**
+             * Underhedge
              * Flashloan Token1. append positions. swap Token0=>Token1 (swap some more Token1 for _additionalPosition.token1Balance). Return the loan.
              */
             _makeFlashLoan(
@@ -405,7 +403,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(_lowerTick, _upperTick);
         //unnecessary to check _totalSupply == 0 because an error occurs in redeem before calling this function
         uint128 _burnLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
-        (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = _burnAndCollectFees(
+        (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).burnAndCollect(
             _lowerTick,
             _upperTick,
             _burnLiquidity
@@ -498,18 +496,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         _amountsFlashloan[0] = _amount;
         flashloanHash = keccak256(_userData); //set stroage for callback
         IBalancerVault(params.balancer()).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
-    }
-
-    ///@notice Remove liquidity from Uniswap and collect fees
-    function _burnAndCollectFees(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint128 _liquidity
-    ) internal returns (uint256 burn0_, uint256 burn1_) {
-        if (_liquidity > 0) {
-            (burn0_, burn1_) = ILiquidityPoolManager(liquidityPool).burn(_lowerTick, _upperTick, _liquidity);
-        }
-        ILiquidityPoolManager(liquidityPool).collect(_lowerTick, _upperTick);
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
