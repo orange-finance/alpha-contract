@@ -13,7 +13,7 @@ import {IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../interfaces
 
 //extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
-import {OrangeERC20, ERC20Decimals} from "./OrangeERC20.sol";
+import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 
 //libraries
@@ -21,6 +21,8 @@ import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
+
+import "forge-std/console2.sol";
 
 contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
@@ -85,6 +87,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         token1.safeApprove(lendingPool, type(uint256).max);
 
         params = IOrangeV1Parameters(_params);
+        //TODO if router is updated, anyone cannnot approve new router
         token0.safeApprove(params.router(), type(uint256).max);
         token1.safeApprove(params.router(), type(uint256).max);
     }
@@ -92,7 +95,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     /* ========== VIEW FUNCTIONS ========== */
 
     function decimals() external view override returns (uint8) {
-        return ERC20Decimals(address(token0)).decimals();
+        return IERC20Decimals(address(token0)).decimals();
     }
 
     /// @inheritdoc IOrangeVaultV1
@@ -227,10 +230,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             if (_maxAssets < params.minDepositAmount()) {
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
             }
-            token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
-            _mint(_receiver, _maxAssets - 1e4);
-            _mint(address(0), 1e4); // for manipulation resistance
-            return _maxAssets - 1e4;
+            token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
+            uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 100);
+            _mint(_receiver, _maxAssets - _initialBurnedBalance);
+            _mint(address(0), _initialBurnedBalance); // for manipulation resistance
+            return _maxAssets - _initialBurnedBalance;
         }
 
         //take current positions.
@@ -251,7 +255,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
         //transfer Token0 to this contract
-        token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
+        token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
         //append position
         _depositFlashloan(
@@ -428,7 +432,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
     /// @inheritdoc IOrangeVaultV1
     function stoploss(int24) external {
-        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+        if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
+            revert("Errors.ONLY_STRATEGISTS_OR_GELATO");
+        }
+
         //delegate call
         _delegate(strategyImpl);
 
@@ -438,6 +445,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
     /// @inheritdoc IOrangeVaultV1
     function rebalance(int24, int24, int24 _newLowerTick, int24 _newUpperTick, Positions memory, uint128) external {
+        console2.log("OrangeVaultV1: rebalance");
         if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
 
         // Update storage of ranges
@@ -506,8 +514,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         uint256[] memory,
         bytes memory _userData
     ) external {
+        console2.log("receiveFlashLoan");
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
+            console2.log("FlashloanType.STOPLOSS");
             //delegate call
             _delegate(strategyImpl);
         }
@@ -515,6 +525,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
 
         if (_flashloanType == uint8(FlashloanType.REDEEM)) {
+            console2.log("FlashloanType.REDEEM");
             //hash check
             if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
                 revert(Errors.INVALID_FLASHLOAN_HASH);
@@ -534,6 +545,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
                 _swapAmountOut(_zeroForOne, _amounts[0]);
             }
         } else {
+            console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
             //hash check
             if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
                 revert(Errors.INVALID_FLASHLOAN_HASH);
@@ -547,6 +559,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     function _depositInFlashloan(uint8 _flashloanType, uint256 borrowFlashloanAmount, bytes memory _userData) internal {
+        console2.log("depositInFlashloan");
         (, Positions memory _positions, uint128 _additionalLiquidity, uint256 _maxAssets, address _receiver) = abi
             .decode(_userData, (uint8, Positions, uint128, uint256, address));
         /**
@@ -566,12 +579,13 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         //Add Liquidity (#3 and #4)
         uint _additionalLiquidityAmount0;
         uint _additionalLiquidityAmount1;
-
-        (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).mint(
-            lowerTick,
-            upperTick,
-            _additionalLiquidity
-        );
+        if (_additionalLiquidity > 0) {
+            (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).mint(
+                lowerTick,
+                upperTick,
+                _additionalLiquidity
+            );
+        }
 
         uint _actualUsedAmountToken0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
@@ -599,6 +613,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         }
 
         //Refund the unspent Token0 (Leave some Token0 for #6)
+        // console2.log(_maxAssets, _actualUsedAmountToken0);
         if (_maxAssets < _actualUsedAmountToken0) revert(Errors.LESS_MAX_ASSETS);
         unchecked {
             uint256 _refundAmountToken0 = _maxAssets - _actualUsedAmountToken0;

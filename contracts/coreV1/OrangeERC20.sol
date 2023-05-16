@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-interface ERC20Decimals {
+interface IERC20Decimals {
     function decimals() external view returns (uint8);
 }
 
 /// @notice Modern and gas efficient ERC20 implementation.
 /// @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC20.sol)
 /// @dev Do not manually set balances without updating totalSupply, as the sum of all user balances must not exceed it.
-abstract contract OrangeERC20 is ERC20Decimals {
+abstract contract OrangeERC20 is IERC20Decimals {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

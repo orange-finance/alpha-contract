@@ -11,11 +11,50 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using Ints for int24;
     using Ints for int256;
 
-    OrangeStrategyImplV1 strategy;
+    uint256 constant HEDGE_RATIO = 100e6; //100%
 
     function setUp() public override {
         super.setUp();
-        strategy = new OrangeStrategyImplV1();
+    }
+
+    function test_stoploss_SuccessZero() public {
+        vault.stoploss(currentTick);
+    }
+
+    //TODO move to OrangeVaultV1Test
+    function test_deposit_Success1() public {
+        // second depositing without liquidity (_additionalLiquidity = 0)
+        // underhedge
+        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
+        vault.deposit(_shares, address(this), 10 ether, new bytes32[](0));
+
+        //assertion
+        assertEq(vault.balanceOf(address(this)), 10 ether - 1e16 + _shares);
+        assertEq(token0.balanceOf(address(vault)), 10 ether + _shares);
+    }
+
+    function test_deposit_Success2() public {
+        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        console2.log(address(router));
+        consoleCurrentPosition();
+
+        uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
+        vault.deposit(_shares, address(this), 10 ether, new bytes32[](0));
+        consoleCurrentPosition();
+    }
+
+    function test_stoploss_Success1() public {
+        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        console2.log(address(router));
+        consoleCurrentPosition();
+
+        skip(1);
+        vault.stoploss(currentTick);
+        consoleCurrentPosition();
+        consoleUnderlyingAssets();
     }
 
     // function test_computeHedge_SuccessCase1() public {

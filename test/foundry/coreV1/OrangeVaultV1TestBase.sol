@@ -6,17 +6,14 @@ import {OrangeV1Parameters} from "../../../contracts/coreV1/OrangeV1Parameters.s
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
+import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20, IERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
+import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeStrategistV1} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
 
-import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeVaultV1.sol";
-
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-import {Errors} from "../../../contracts/libs/Errors.sol";
 import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
 import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
 import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
@@ -38,9 +35,11 @@ contract OrangeVaultV1TestBase is BaseTest {
     IAaveV3Pool public aave;
     IERC20 public token0;
     IERC20 public token1;
-    IERC20 public debtToken0; //weth
-    IERC20 public aToken1; //usdc
+    IERC20 public collateralToken0;
+    IERC20 public debtToken1;
     OrangeV1Parameters public params;
+    OrangeStrategyImplV1 public impl;
+    OrangeStrategistV1 public strategist;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -56,14 +55,17 @@ contract OrangeVaultV1TestBase is BaseTest {
         token1 = IERC20(tokenAddr.usdcAddr);
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
         aave = IAaveV3Pool(aaveAddr.poolAddr);
-        debtToken0 = IERC20(aaveAddr.vDebtWethAddr);
-        aToken1 = IERC20(aaveAddr.ausdcAddr);
+        collateralToken0 = IERC20(aaveAddr.awethAddr);
+        debtToken1 = IERC20(aaveAddr.vDebtUsdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
         balancerAddr = AddressHelperV1.addresses(block.chainid);
         balancer = IBalancerVault(balancerAddr.vaultAddr);
         params = new OrangeV1Parameters();
         params.setRouter(address(router));
         params.setBalancer(address(balancer));
+        params.setStrategist(address(this), true);
+        params.setAllowlistEnabled(false);
+        params.setDepositCap(100_000 ether, 100_000 ether);
 
         _deploy();
         _dealAndApprove();
@@ -80,9 +82,11 @@ contract OrangeVaultV1TestBase is BaseTest {
         _liquidityReferences[0] = address(pool);
         address[] memory _lendingReferences = new address[](1);
         _lendingReferences[0] = address(aave);
+
+        //vault
         vault = new OrangeVaultV1(
-            "OrangeAlphaVault",
-            "ORANGE_ALPHA_VAULT",
+            "OrangeVaultV1",
+            "ORANGE_VAULT_V1",
             address(token0),
             address(token1),
             address(factory),
@@ -92,6 +96,12 @@ contract OrangeVaultV1TestBase is BaseTest {
             _lendingReferences,
             address(params)
         );
+
+        //strategy impl
+        impl = new OrangeStrategyImplV1();
+        vault.setStrategyImpl(address(impl));
+        strategist = new OrangeStrategistV1(address(vault));
+        params.setStrategist(address(strategist), true);
     }
 
     function _dealAndApprove() internal virtual {
@@ -102,15 +112,15 @@ contract OrangeVaultV1TestBase is BaseTest {
         //deal
         deal(tokenAddr.wethAddr, address(this), 10_000 ether);
         deal(tokenAddr.usdcAddr, address(this), 10_000_000 * 1e6);
-        deal(tokenAddr.usdcAddr, alice, 10_000_000 * 1e6);
+        // deal(tokenAddr.usdcAddr, alice, 10_000_000 * 1e6);
         deal(tokenAddr.wethAddr, carol, 10_000 ether);
         deal(tokenAddr.usdcAddr, carol, 10_000_000 * 1e6);
 
         //approve
-        token1.approve(address(vault), type(uint256).max);
-        vm.startPrank(alice);
-        token1.approve(address(vault), type(uint256).max);
-        vm.stopPrank();
+        token0.approve(address(vault), type(uint256).max);
+        // vm.startPrank(alice);
+        // token1.approve(address(vault), type(uint256).max);
+        // vm.stopPrank();
         vm.startPrank(carol);
         token0.approve(address(router), type(uint256).max);
         token1.approve(address(router), type(uint256).max);
@@ -153,27 +163,27 @@ contract OrangeVaultV1TestBase is BaseTest {
         swapByCarol(true, 1 ether);
     }
 
-    // function consoleUnderlyingAssets() internal view {
-    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
-    //     console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
-    //     console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
-    //     console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
-    //     console2.log(_underlyingAssets.accruedFees0, "accruedFees0");
-    //     console2.log(_underlyingAssets.accruedFees1, "accruedFees1");
-    //     console2.log(_underlyingAssets.token0Balance, "token0Balance");
-    //     console2.log(_underlyingAssets.token1Balance, "token1Balance");
-    //     console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
-    // }
+    function consoleUnderlyingAssets() internal view {
+        IOrangeVaultV1.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
+        console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
+        console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
+        console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
+        console2.log(_underlyingAssets.accruedFees0, "accruedFees0");
+        console2.log(_underlyingAssets.accruedFees1, "accruedFees1");
+        console2.log(_underlyingAssets.token0Balance, "token0Balance");
+        console2.log(_underlyingAssets.token1Balance, "token1Balance");
+        console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
+    }
 
-    // function consoleCurrentPosition() internal view {
-    //     IOrangeAlphaVault.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
-    //     console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
-    //     console2.log(debtToken0.balanceOf(address(vault)), "debtAmount0");
-    //     console2.log(aToken1.balanceOf(address(vault)), "supplyAmount1");
-    //     console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
-    //     console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
-    //     console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
-    // }
+    function consoleCurrentPosition() internal view {
+        IOrangeVaultV1.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
+        console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
+        console2.log(collateralToken0.balanceOf(address(vault.lendingPool())), "collateralToken0");
+        console2.log(debtToken1.balanceOf(address(vault.lendingPool())), "debtToken1");
+        console2.log(_underlyingAssets.liquidityAmount0, "liquidityAmount0");
+        console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
+        console2.log("++++++++++++++++consoleCurrentPosition++++++++++++++++");
+    }
 
     function _quoteEthPriceByTick(int24 _tick) internal view returns (uint256) {
         return OracleLibrary.getQuoteAtTick(_tick, 1 ether, address(token0), address(token1));

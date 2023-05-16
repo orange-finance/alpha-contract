@@ -11,6 +11,8 @@ import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRoute
 import {IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../interfaces/IBalancerFlashloan.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "forge-std/console2.sol";
+
 contract OrangeStrategyImplV1 {
     using SafeERC20 for IERC20;
 
@@ -26,13 +28,6 @@ contract OrangeStrategyImplV1 {
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     function stoploss(int24 _inputTick) external {
-        if (
-            !IOrangeVaultV1(address(this)).params().strategists(msg.sender) &&
-            IOrangeVaultV1(address(this)).params().gelatoExecutor() != msg.sender
-        ) {
-            revert("Errors.ONLY_STRATEGISTS_OR_GELATO");
-        }
-
         if (IERC20(address(this)).totalSupply() == 0) return;
 
         _checkTickSlippage(
@@ -231,50 +226,55 @@ contract OrangeStrategyImplV1 {
                 _currentPosition.debtAmount1 < _targetPosition.debtAmount1
             ) {
                 // case1 supply and borrow
-                uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-
-                if (_supply > _currentPosition.token1Balance) {
+                console2.log("case1 supply and borrow");
+                uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
+                if (_supply0 > _currentPosition.token0Balance) {
                     // swap (if necessary)
                     _swapAmountOut(
-                        true,
-                        _supply - _currentPosition.token1Balance //uncheckable
+                        false,
+                        _supply0 - _currentPosition.token0Balance //uncheckable
                     );
                 }
-                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply);
+                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply0);
 
                 // borrow
-                uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
-                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow);
+                uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
+                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow1);
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
                     // case2 repay
-                    uint256 _repay = _currentPosition.debtAmount1 - _targetPosition.debtAmount1; //uncheckable
+                    console2.log("case2 repay");
+                    uint256 _repay1 = _currentPosition.debtAmount1 - _targetPosition.debtAmount1; //uncheckable
 
                     // swap (if necessary)
-                    if (_repay > _currentPosition.token1Balance) {
+                    if (_repay1 > _currentPosition.token1Balance) {
                         _swapAmountOut(
-                            false,
-                            _repay - _currentPosition.token1Balance //uncheckable
+                            true,
+                            _repay1 - _currentPosition.token1Balance //uncheckable
                         );
                     }
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).repay(_repay);
+                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).repay(_repay1);
 
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
                         // case2_1 repay and supply
-                        uint256 _supply = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply);
+                        console2.log("case2_1 repay and supply");
+
+                        uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
+                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply0);
                     } else {
                         // case2_2 repay and withdraw
-                        uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
-                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw);
+                        console2.log("case2_2 repay and withdraw");
+                        uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
+                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw0);
                     }
                 } else {
                     // case3 borrow and withdraw
-                    uint256 _borrow = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow);
+                    console2.log("case3 borrow and withdraw");
+                    uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
+                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow1);
                     // withdraw should be the only option here.
-                    uint256 _withdraw = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw);
+                    uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
+                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw0);
                 }
             }
         }
