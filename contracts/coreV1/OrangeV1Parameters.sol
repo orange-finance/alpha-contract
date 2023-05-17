@@ -27,6 +27,7 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
     address public gelatoExecutor;
     address public router;
     address public balancer;
+    address public strategyImpl;
 
     /* ========== CONSTRUCTOR ========== */
     constructor() {
@@ -165,5 +166,13 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
      */
     function setBalancer(address _balancer) external onlyOwner {
         balancer = _balancer;
+    }
+
+    /**
+     * @notice Set parameters of strategyImpl
+     * @param _strategyImpl strategyImpl
+     */
+    function setStrategyImpl(address _strategyImpl) external onlyOwner {
+        strategyImpl = _strategyImpl;
     }
 }

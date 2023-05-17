@@ -6,27 +6,29 @@ import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../interfaces/IBalancerFlashloan.sol";
 
 //extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
 import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
-import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
 
 //libraries
+import {Proxy} from "../libs/Proxy.sol";
 import {Errors} from "../libs/Errors.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
+import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
+import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
 
 import "forge-std/console2.sol";
 
 contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
+    using UniswapRouterSwapper for ISwapRouter;
+    using BalancerFlashloan for IBalancerVault;
 
     /* ========== CONSTANTS ========== */
 
@@ -41,9 +43,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     IERC20 public immutable token0; //collateral and deposited currency by users
     IERC20 public immutable token1; //debt and hedge target token
     IOrangeV1Parameters public immutable params;
-    address public strategyImpl;
-
-    /* ========== MODIFIER ========== */
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -87,9 +86,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         token1.safeApprove(lendingPool, type(uint256).max);
 
         params = IOrangeV1Parameters(_params);
-        //TODO if router is updated, anyone cannnot approve new router
-        token0.safeApprove(params.router(), type(uint256).max);
-        token1.safeApprove(params.router(), type(uint256).max);
+        approveToRouter();
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -123,9 +120,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    function _implementation() internal view override returns (address) {
-        return strategyImpl;
-    }
 
     ///@notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
@@ -216,7 +210,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     /// @inheritdoc IOrangeVaultV1
     function deposit(
         uint256 _shares,
-        address _receiver,
         uint256 _maxAssets,
         bytes32[] calldata _merkleProof
     ) external Allowlisted(_merkleProof) returns (uint256) {
@@ -232,7 +225,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
             uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 100);
-            _mint(_receiver, _maxAssets - _initialBurnedBalance);
+            _mint(msg.sender, _maxAssets - _initialBurnedBalance);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
             return _maxAssets - _initialBurnedBalance;
         }
@@ -261,22 +254,20 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         _depositFlashloan(
             _additionalPosition, //Aave & Contract Balances
             _additionalLiquidity, //Uni
-            _maxAssets, //Token0 from User
-            _receiver
+            _maxAssets //Token0 from User
         );
 
         // mint share to receiver
-        _mint(_receiver, _shares);
+        _mint(msg.sender, _shares);
 
-        _emitAction(ActionType.DEPOSIT, _receiver);
+        emitAction(ActionType.DEPOSIT, msg.sender);
         return _shares;
     }
 
     function _depositFlashloan(
         Positions memory _additionalPosition,
         uint128 _additionalLiquidity,
-        uint256 _maxAssets,
-        address _receiver
+        uint256 _maxAssets
     ) internal {
         uint256 _additionalLiquidityAmount0;
         uint256 _additionalLiquidityAmount1;
@@ -291,45 +282,46 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
              * Overhedge
              * Flashloan Token0. append positions. swap Token1=>Token0 (leave some Token1 for _additionalPosition.token1Balance ). Return the loan.
              */
-            _makeFlashLoan(
+            bytes memory _userData = abi.encode(
+                FlashloanType.DEPOSIT_OVERHEDGE,
+                _additionalPosition,
+                _additionalLiquidity,
+                _maxAssets,
+                msg.sender
+            );
+            flashloanHash = keccak256(_userData); //set stroage for callback
+            IBalancerVault(params.balancer()).makeFlashLoan(
+                IBalancerFlashLoanRecipient(address(this)),
                 token0,
                 _additionalPosition.collateralAmount0 + _additionalLiquidityAmount0 + 1,
-                abi.encode(
-                    FlashloanType.DEPOSIT_OVERHEDGE,
-                    _additionalPosition,
-                    _additionalLiquidity,
-                    _maxAssets,
-                    _receiver
-                )
+                _userData
             );
         } else {
             /**
              * Underhedge
              * Flashloan Token1. append positions. swap Token0=>Token1 (swap some more Token1 for _additionalPosition.token1Balance). Return the loan.
              */
-            _makeFlashLoan(
+            bytes memory _userData = abi.encode(
+                FlashloanType.DEPOSIT_UNDERHEDGE,
+                _additionalPosition,
+                _additionalLiquidity,
+                _maxAssets,
+                msg.sender
+            );
+            flashloanHash = keccak256(_userData); //set stroage for callback
+            IBalancerVault(params.balancer()).makeFlashLoan(
+                IBalancerFlashLoanRecipient(address(this)),
                 token1,
                 _additionalPosition.debtAmount1 > _additionalLiquidityAmount1
                     ? 0
                     : _additionalLiquidityAmount1 - _additionalPosition.debtAmount1 + 1,
-                abi.encode(
-                    FlashloanType.DEPOSIT_UNDERHEDGE,
-                    _additionalPosition,
-                    _additionalLiquidity,
-                    _maxAssets,
-                    _receiver
-                )
+                _userData
             );
         }
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function redeem(
-        uint256 _shares,
-        address _receiver,
-        address,
-        uint256 _minAssets
-    ) external Lockup returns (uint256 returnAssets_) {
+    function redeem(uint256 _shares, uint256 _minAssets) external Lockup returns (uint256 returnAssets_) {
         //validation
         if (_shares == 0) {
             revert(Errors.INVALID_AMOUNT);
@@ -338,7 +330,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         uint256 _totalSupply = totalSupply;
 
         //burn
-        _burn(_receiver, _shares);
+        _burn(msg.sender, _shares);
 
         // Remove liquidity by shares and collect all fees
         (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) = _redeemLiqidityByShares(
@@ -371,17 +363,29 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             }
         } else {
             // swap surplus Token1 to return receiver as Token0
-            _redeemableToken0 += _swapAmountIn(true, _redeemableToken1 - _redeemPosition.debtAmount1);
+            _redeemableToken0 += ISwapRouter(params.router()).swapAmountIn(
+                address(token0),
+                address(token1),
+                params.routerFee(),
+                _redeemableToken1 - _redeemPosition.debtAmount1
+            );
         }
 
         // memorize balance of token1 to be remained in vault
         uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableToken0;
 
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
-        _makeFlashLoan(
+        bytes memory _userData = abi.encode(
+            FlashloanType.REDEEM,
+            _redeemPosition.debtAmount1,
+            _redeemPosition.collateralAmount0
+        );
+        flashloanHash = keccak256(_userData); //set stroage for callback
+        IBalancerVault(params.balancer()).makeFlashLoan(
+            IBalancerFlashLoanRecipient(address(this)),
             token1,
             _flashBorrowToken1,
-            abi.encode(FlashloanType.REDEEM, _redeemPosition.debtAmount1, _redeemPosition.collateralAmount0)
+            _userData
         );
 
         returnAssets_ = token0.balanceOf(address(this)) - _unRedeemableBalance0;
@@ -390,10 +394,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         if (returnAssets_ < _minAssets) {
             revert(Errors.LESS_AMOUNT);
         }
-        token0.safeTransfer(_receiver, returnAssets_);
+        token0.safeTransfer(msg.sender, returnAssets_);
         _reduceDepositCap(returnAssets_);
 
-        _emitAction(ActionType.REDEEM, _receiver);
+        emitAction(ActionType.REDEEM, msg.sender);
     }
 
     ///@notice remove liquidity by share ratio and collect all fees
@@ -415,17 +419,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function emitAction() external {
-        _emitAction(ActionType.MANUAL, msg.sender);
-    }
-
-    function _emitAction(ActionType _actionType, address _caller) internal {
+    function emitAction(ActionType _actionType, address _caller) public {
         emit Action(_actionType, _caller, _totalAssets(lowerTick, upperTick), totalSupply);
     }
 
-    function setStrategyImpl(address _strategyImpl) external {
-        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
-        strategyImpl = _strategyImpl;
+    // if router is updated, approve to new router
+    function approveToRouter() public {
+        token0.safeApprove(params.router(), type(uint256).max);
+        token1.safeApprove(params.router(), type(uint256).max);
     }
 
     /* ========== EXTERNAL FUNCTIONS (Delegate call) ========== */
@@ -435,12 +436,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert("Errors.ONLY_STRATEGISTS_OR_GELATO");
         }
-
-        //delegate call
-        _delegate(strategyImpl);
-
-        // _emitAction(ActionType.STOPLOSS, msg.sender);
-        // return token0.balanceOf(address(this));
+        _delegate(params.strategyImpl());
     }
 
     /// @inheritdoc IOrangeVaultV1
@@ -452,58 +448,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
 
-        _delegate(strategyImpl);
-
-        // _emitAction(ActionType.REBALANCE, msg.sender);
-    }
-
-    /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
-    ///@notice Swap exact amount out
-    function _swapAmountOut(bool _zeroForOne, uint256 _amountOut) internal returns (uint256 amountIn_) {
-        if (_amountOut == 0) return 0;
-        (address tokenIn, address tokenOut) = (_zeroForOne)
-            ? (address(token0), address(token1))
-            : (address(token1), address(token0));
-        ISwapRouter.ExactOutputSingleParams memory _params = ISwapRouter.ExactOutputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: params.routerFee(),
-            recipient: address(this),
-            deadline: block.timestamp,
-            amountOut: _amountOut,
-            amountInMaximum: type(uint256).max,
-            sqrtPriceLimitX96: 0
-        });
-        amountIn_ = ISwapRouter(params.router()).exactOutputSingle(_params);
-    }
-
-    ///@notice Swap exact amount in
-    function _swapAmountIn(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
-        if (_amountIn == 0) return 0;
-        (address tokenIn, address tokenOut) = (_zeroForOne)
-            ? (address(token0), address(token1))
-            : (address(token1), address(token0));
-        ISwapRouter.ExactInputSingleParams memory _params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: params.routerFee(),
-            recipient: address(this),
-            deadline: block.timestamp,
-            amountIn: _amountIn,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-        amountOut_ = ISwapRouter(params.router()).exactInputSingle(_params);
-    }
-
-    ///@notice make parameters and execute Flashloan
-    function _makeFlashLoan(IERC20 _token, uint256 _amount, bytes memory _userData) internal {
-        IERC20[] memory _tokensFlashloan = new IERC20[](1);
-        _tokensFlashloan[0] = _token;
-        uint256[] memory _amountsFlashloan = new uint256[](1);
-        _amountsFlashloan[0] = _amount;
-        flashloanHash = keccak256(_userData); //set stroage for callback
-        IBalancerVault(params.balancer()).flashLoan(this, _tokensFlashloan, _amountsFlashloan, _userData);
+        _delegate(params.strategyImpl());
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -516,10 +461,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     ) external {
         console2.log("receiveFlashLoan");
         uint8 _flashloanType = abi.decode(_userData, (uint8));
+
         if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
             console2.log("FlashloanType.STOPLOSS");
             //delegate call
-            _delegate(strategyImpl);
+            _delegate(params.strategyImpl());
         }
 
         if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
@@ -540,9 +486,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
-                bool _zeroForOne = (address(_tokens[0]) == address(token0)) ? false : true;
+                (address _tokenIn, address _tokenOut) = (address(_tokens[0]) == address(token0))
+                    ? (address(token1), address(token0))
+                    : (address(token0), address(token1));
                 // swap Token0 to Token1 to repay flashloan
-                _swapAmountOut(_zeroForOne, _amounts[0]);
+                ISwapRouter(params.router()).swapAmountOut(_tokenIn, _tokenOut, params.routerFee(), _amounts[0]);
             }
         } else {
             console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
@@ -592,7 +540,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
             uint256 _surplusAmountToken1 = _positions.debtAmount1 -
                 (_additionalLiquidityAmount1 + _positions.token1Balance);
-            uint256 _amountOutFromSurplusToken1Sale = _swapAmountIn(true, _surplusAmountToken1);
+            uint256 _amountOutFromSurplusToken1Sale = ISwapRouter(params.router()).swapAmountIn(
+                address(token0),
+                address(token1),
+                params.routerFee(),
+                _surplusAmountToken1
+            );
 
             _actualUsedAmountToken0 =
                 borrowFlashloanAmount +
@@ -603,7 +556,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             uint256 token1AmountToSwap = _additionalLiquidityAmount1 +
                 _positions.token1Balance -
                 _positions.debtAmount1;
-            uint256 token0AmtUsedForToken1 = _swapAmountOut(false, token1AmountToSwap);
+            uint256 token0AmtUsedForToken1 = ISwapRouter(params.router()).swapAmountOut(
+                address(token1),
+                address(token0),
+                params.routerFee(),
+                token1AmountToSwap
+            );
 
             _actualUsedAmountToken0 =
                 _positions.collateralAmount0 +

@@ -46,4 +46,7 @@ interface IOrangeV1Parameters {
 
     /// @notice Get the balancer contract
     function balancer() external view returns (address);
+
+    /// @notice Get the strategy implementation contract
+    function strategyImpl() external view returns (address);
 }

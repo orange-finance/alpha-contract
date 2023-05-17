@@ -99,7 +99,7 @@ contract OrangeVaultV1TestBase is BaseTest {
 
         //strategy impl
         impl = new OrangeStrategyImplV1();
-        vault.setStrategyImpl(address(impl));
+        params.setStrategyImpl(address(impl));
         strategist = new OrangeStrategistV1(address(vault));
         params.setStrategist(address(strategist), true);
     }

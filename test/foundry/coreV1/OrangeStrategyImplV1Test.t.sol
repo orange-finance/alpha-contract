@@ -25,9 +25,9 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     function test_deposit_Success1() public {
         // second depositing without liquidity (_additionalLiquidity = 0)
         // underhedge
-        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
         uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-        vault.deposit(_shares, address(this), 10 ether, new bytes32[](0));
+        vault.deposit(_shares, 10 ether, new bytes32[](0));
 
         //assertion
         assertEq(vault.balanceOf(address(this)), 10 ether - 1e16 + _shares);
@@ -35,18 +35,18 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     }
 
     function test_deposit_Success2() public {
-        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
         strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         console2.log(address(router));
         consoleCurrentPosition();
 
         uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-        vault.deposit(_shares, address(this), 10 ether, new bytes32[](0));
+        vault.deposit(_shares, 10 ether, new bytes32[](0));
         consoleCurrentPosition();
     }
 
     function test_stoploss_Success1() public {
-        vault.deposit(10 ether, address(this), 10 ether, new bytes32[](0));
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
         strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         console2.log(address(router));
         consoleCurrentPosition();

@@ -94,7 +94,6 @@ interface IOrangeVaultV1 {
     /**
      * @notice deposit assets and get vault token
      * @param _shares amount of vault token
-     * @param _receiver receiver address
      * @param _maxAssets maximum amount of assets
      * @param _merkleProof merkle proof
      * @return shares
@@ -109,7 +108,6 @@ interface IOrangeVaultV1 {
      */
     function deposit(
         uint256 _shares,
-        address _receiver,
         uint256 _maxAssets,
         bytes32[] calldata _merkleProof
     ) external returns (uint256 shares);
@@ -117,17 +115,10 @@ interface IOrangeVaultV1 {
     /**
      * @notice redeem vault token to assets
      * @param shares amount of vault token
-     * @param receiver receiver address
-     * @param owner owner address
      * @param minAssets minimum amount of returned assets
      * @return assets
      */
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner,
-        uint256 minAssets
-    ) external returns (uint256 assets);
+    function redeem(uint256 shares, uint256 minAssets) external returns (uint256 assets);
 
     /**
      * @notice Remove all positions only when current price is out of range
@@ -156,5 +147,5 @@ interface IOrangeVaultV1 {
     /**
      * @notice emit action event
      */
-    function emitAction() external;
+    function emitAction(ActionType _actionType, address _caller) external;
 }

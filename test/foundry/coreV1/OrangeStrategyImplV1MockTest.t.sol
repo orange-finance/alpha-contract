@@ -45,12 +45,7 @@ contract OrangeStrategyImplV1Caller is Proxy {
         return impl;
     }
 
-    function swapAmountOut(
-        address router,
-        address tokenIn,
-        address tokenOut,
-        uint256 _amountOut
-    ) external returns (uint256 amountIn_) {
+    function swapAmountOut(address, address, address, uint256) external returns (uint256) {
         _delegate(impl);
     }
 }
