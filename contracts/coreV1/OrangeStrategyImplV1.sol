@@ -19,13 +19,6 @@ contract OrangeStrategyImplV1 {
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    /* ========== CONSTANTS ========== */
-    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-
-    /* ========== STORAGES ========== */
-    bool public hasPosition;
-    bytes32 flashloanHash; //tempolary use in flashloan
-
     /* ========== EXTERNAL FUNCTIONS ========== */
     function rebalance(
         int24 _currentLowerTick,
@@ -38,6 +31,7 @@ contract OrangeStrategyImplV1 {
         if (!IOrangeVaultV1(address(this)).params().strategists(msg.sender)) {
             revert("Errors.ONLY_STRATEGISTS");
         }
+
         //validation of tickSpacing
         ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).validateTicks(
             _newLowerTick,
@@ -81,21 +75,11 @@ contract OrangeStrategyImplV1 {
             revert("Errors.LESS_LIQUIDITY");
         }
 
-        if (_targetLiquidity > 0) {
-            hasPosition = true;
-        }
         // emit event
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE, msg.sender);
     }
 
-    function stoploss(int24 _inputTick) external {
-        if (IERC20(address(this)).totalSupply() == 0) return;
-
-        _checkTickSlippage(
-            ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getCurrentTick(),
-            _inputTick
-        );
-
+    function stoploss(int24) external {
         // 1. Remove liquidity
         // 2. Collect fees
         uint128 liquidity = ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getCurrentLiquidity(
@@ -129,7 +113,6 @@ contract OrangeStrategyImplV1 {
             _repayingDebt,
             _withdrawingCollateral
         );
-        flashloanHash = keccak256(_userData); //set stroage for callback
         IBalancerVault(IOrangeVaultV1(address(this)).params().balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             IOrangeVaultV1(address(this)).token1(),
@@ -148,20 +131,8 @@ contract OrangeStrategyImplV1 {
             );
         }
 
-        hasPosition = false;
         // emit event
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
-    }
-
-    /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    ///@notice Check slippage by tick
-    function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
-        if (
-            _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
-            _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
-        ) {
-            revert("Errors.HIGH_SLIPPAGE");
-        }
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -304,15 +275,8 @@ contract OrangeStrategyImplV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != IOrangeVaultV1(address(this)).params().balancer()) revert("Errors.ONLY_BALANCER_VAULT");
-
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
-            //hash check
-            if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
-                revert("Errors.INVALID_FLASHLOAN_HASH");
-            flashloanHash = bytes32(0); //clear storage
-
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay Token1
