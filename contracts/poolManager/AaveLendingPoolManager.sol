@@ -2,12 +2,9 @@
 pragma solidity 0.8.16;
 
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
-import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IAaveV3Pool, SafeAavePool} from "../libs/SafeAavePool.sol";
 import {DataTypes} from "../vendor/aave/DataTypes.sol";
-
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //libraries
@@ -15,9 +12,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "forge-std/console2.sol";
 
-contract AaveLendingPoolManager is ILendingPoolManager, Initializable, IOrangePoolManagerProxy {
-    // TODO cap
-
+contract AaveLendingPoolManager is ILendingPoolManager {
     using SafeERC20 for IERC20;
     using SafeAavePool for IAaveV3Pool;
 
@@ -44,20 +39,9 @@ contract AaveLendingPoolManager is ILendingPoolManager, Initializable, IOrangePo
     }
 
     /* ========== INITIALIZER ========== */
-    /**
-     * @notice
-     * @param _params none
-     * @param _references 0: operator, 1: aave pool, 2: baseToken, 3: targetToken
-     */
-    function initialize(
-        address _operator,
-        address _token0,
-        address _token1,
-        uint256[] calldata,
-        address[] calldata _references
-    ) external initializer {
+    constructor(address _operator, address _token0, address _token1, address _aave) {
         operator = _operator;
-        aave = IAaveV3Pool(_references[0]);
+        aave = IAaveV3Pool(_aave);
 
         token0 = IERC20(_token0);
         DataTypes.ReserveData memory reserveDataBase = aave.getReserveData(_token0);

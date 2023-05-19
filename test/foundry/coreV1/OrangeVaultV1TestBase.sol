@@ -5,7 +5,6 @@ import "../utils/BaseTest.sol";
 import {OrangeV1Parameters} from "../../../contracts/coreV1/OrangeV1Parameters.sol";
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-import {PoolManagerFactory, IOrangePoolManagerProxy} from "../../../contracts/poolManager/PoolManagerFactory.sol";
 import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20, IERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 import {OrangeStrategistV1} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
@@ -72,28 +71,14 @@ contract OrangeVaultV1TestBase is BaseTest {
     }
 
     function _deploy() internal virtual {
-        //factory
-        UniswapV3LiquidityPoolManager _liquidityTemplate = new UniswapV3LiquidityPoolManager();
-        AaveLendingPoolManager _lendingTemplate = new AaveLendingPoolManager();
-        PoolManagerFactory factory = new PoolManagerFactory();
-        factory.approveTemplate(IOrangePoolManagerProxy(address(_liquidityTemplate)), true);
-        factory.approveTemplate(IOrangePoolManagerProxy(address(_lendingTemplate)), true);
-        address[] memory _liquidityReferences = new address[](1);
-        _liquidityReferences[0] = address(pool);
-        address[] memory _lendingReferences = new address[](1);
-        _lendingReferences[0] = address(aave);
-
         //vault
         vault = new OrangeVaultV1(
             "OrangeVaultV1",
             "ORANGE_VAULT_V1",
             address(token0),
             address(token1),
-            address(factory),
-            address(_liquidityTemplate),
-            _liquidityReferences,
-            address(_lendingTemplate),
-            _lendingReferences,
+            address(pool),
+            address(aave),
             address(params)
         );
 

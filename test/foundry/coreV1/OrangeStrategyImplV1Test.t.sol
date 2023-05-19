@@ -229,14 +229,7 @@ contract ProxyMock is Proxy {
         impl = _impl;
     }
 
-    function rebalance(
-        int24,
-        int24,
-        int24 _newLowerTick,
-        int24 _newUpperTick,
-        IOrangeVaultV1.Positions memory,
-        uint128
-    ) external {
+    function rebalance(int24, int24, int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
         _delegate(impl);
     }
 }

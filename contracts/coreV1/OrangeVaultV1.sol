@@ -3,11 +3,10 @@ pragma solidity 0.8.16;
 
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {IOrangePoolManagerFactory} from "../interfaces/IOrangePoolManagerFactory.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 
 //extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
@@ -21,6 +20,8 @@ import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
+import {UniswapV3LiquidityPoolManager} from "../poolManager/UniswapV3LiquidityPoolManager.sol";
+import {AaveLendingPoolManager} from "../poolManager/AaveLendingPoolManager.sol";
 
 import "forge-std/console2.sol";
 
@@ -51,11 +52,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         string memory _symbol,
         address _token0,
         address _token1,
-        address _factory,
-        address _liquidityTemplate,
-        address[] memory _liquidityReferences,
-        address _lendingTemplate,
-        address[] memory _lendingReferences,
+        address _pool,
+        address _aave,
         address _params
     ) OrangeValidationChecker(_params) OrangeERC20(_name, _symbol) {
         // setting adresses and approving
@@ -63,26 +61,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         token1 = IERC20(_token1);
 
         //create liquidity pool
-        liquidityPool = IOrangePoolManagerFactory(_factory).create(
-            _liquidityTemplate,
-            address(this),
-            _token0,
-            _token1,
-            new uint256[](0),
-            _liquidityReferences
-        );
+        liquidityPool = address(new UniswapV3LiquidityPoolManager(address(this), _token0, _token1, _pool));
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
         //create lending pool
-        lendingPool = IOrangePoolManagerFactory(_factory).create(
-            _lendingTemplate,
-            address(this),
-            _token0,
-            _token1,
-            new uint256[](0),
-            _lendingReferences
-        );
+        lendingPool = address(new AaveLendingPoolManager(address(this), _token0, _token1, _aave));
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 

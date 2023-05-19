@@ -2,7 +2,6 @@
 pragma solidity 0.8.16;
 
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {IOrangePoolManagerProxy} from "../interfaces/IOrangePoolManagerProxy.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -17,12 +16,7 @@ import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
-contract UniswapV3LiquidityPoolManager is
-    ILiquidityPoolManager,
-    IUniswapV3MintCallback,
-    Initializable,
-    IOrangePoolManagerProxy
-{
+contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
 
@@ -48,23 +42,12 @@ contract UniswapV3LiquidityPoolManager is
     }
 
     /* ========== Initializable ========== */
-    /**
-     * @notice
-     * @param _params none
-     * @param _references 0: pool address, 1: baseToken address, 2: targetToken address
-     */
-    function initialize(
-        address _operator,
-        address _token0,
-        address _token1,
-        uint256[] calldata,
-        address[] calldata _references
-    ) external initializer {
+    constructor(address _operator, address _token0, address _token1, address _pool) {
         operator = _operator;
         if (_token0 > _token1) {
             reversed = true;
         }
-        pool = IUniswapV3Pool(_references[0]);
+        pool = IUniswapV3Pool(_pool);
         fee = pool.fee();
     }
 

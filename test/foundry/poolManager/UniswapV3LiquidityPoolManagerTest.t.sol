@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -44,11 +44,12 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         token1 = IERC20(tokenAddr.usdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
 
-        liquidityPool = new UniswapV3LiquidityPoolManager();
-        //initialize
-        address[] memory _references = new address[](1);
-        _references[0] = address(pool);
-        liquidityPool.initialize(address(this), address(token0), address(token1), new uint256[](0), _references);
+        liquidityPool = new UniswapV3LiquidityPoolManager(
+            address(this),
+            address(token0),
+            address(token1),
+            address(pool)
+        );
 
         //set Ticks for testing
         (, int24 _tick, , , , , ) = pool.slot0();
@@ -114,10 +115,12 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
     function test_allReverse_Success() public {
         //re-deploy contract
-        liquidityPool = new UniswapV3LiquidityPoolManager();
-        address[] memory _references = new address[](1);
-        _references[0] = address(pool);
-        liquidityPool.initialize(address(this), address(token1), address(token0), new uint256[](0), _references);
+        liquidityPool = new UniswapV3LiquidityPoolManager(
+            address(this),
+            address(token1),
+            address(token0),
+            address(pool)
+        );
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);
 
