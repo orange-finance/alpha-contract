@@ -3,12 +3,12 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 import {OrangeValidationChecker, ErrorsV1} from "../../../contracts/coreV1/OrangeValidationChecker.sol";
-import {OrangeV1Parameters} from "../../../contracts/coreV1/OrangeV1Parameters.sol";
+import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
 
 contract OrangeValidationCheckerTest is BaseTest {
     AddressHelper.TokenAddr public tokenAddr;
 
-    OrangeV1Parameters public params;
+    OrangeParametersV1 public params;
 
     OrangeValidationCheckerMock checker;
 
@@ -20,7 +20,7 @@ contract OrangeValidationCheckerTest is BaseTest {
         (tokenAddr, , ) = AddressHelper.addresses(block.chainid);
 
         //deploy parameters
-        params = new OrangeV1Parameters();
+        params = new OrangeParametersV1();
 
         //set parameters
         params.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);

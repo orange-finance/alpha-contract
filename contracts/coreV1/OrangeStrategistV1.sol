@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 //interafaces
-import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
+import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
@@ -29,7 +29,7 @@ contract OrangeStrategistV1 is IResolver {
     address public immutable liquidityPool;
     address public immutable token0; //collateral and deposited currency by users
     address public immutable token1; //debt and hedge target token
-    IOrangeV1Parameters public immutable params;
+    IOrangeParametersV1 public immutable params;
 
     /* ========== MODIFIER ========== */
     modifier onlyOperator() {
@@ -44,7 +44,7 @@ contract OrangeStrategistV1 is IResolver {
         token0 = address(vault.token0());
         token1 = address(vault.token1());
         liquidityPool = vault.liquidityPool();
-        params = IOrangeV1Parameters(vault.params());
+        params = IOrangeParametersV1(vault.params());
     }
 
     /* ========== WRITE FUNCTIONS ========== */

@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 //interafaces
-import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
+import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";

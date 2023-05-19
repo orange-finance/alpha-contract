@@ -3,7 +3,7 @@ pragma solidity 0.8.16;
 
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
+import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
@@ -44,7 +44,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     address public immutable lendingPool;
     IERC20 public immutable token0; //collateral and deposited currency by users
     IERC20 public immutable token1; //debt and hedge target token
-    IOrangeV1Parameters public immutable params;
+    IOrangeParametersV1 public immutable params;
 
     /* ========== CONSTRUCTOR ========== */
     constructor(
@@ -70,7 +70,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 
-        params = IOrangeV1Parameters(_params);
+        params = IOrangeParametersV1(_params);
         approveToRouter();
     }
 

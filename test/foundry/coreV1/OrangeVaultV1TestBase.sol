@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
-import {OrangeV1Parameters} from "../../../contracts/coreV1/OrangeV1Parameters.sol";
+import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20, IERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
@@ -36,7 +36,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     IERC20 public token1;
     IERC20 public collateralToken0;
     IERC20 public debtToken1;
-    OrangeV1Parameters public params;
+    OrangeParametersV1 public params;
     OrangeStrategyImplV1 public impl;
     OrangeStrategistV1 public strategist;
 
@@ -59,7 +59,7 @@ contract OrangeVaultV1TestBase is BaseTest {
         router = ISwapRouter(uniswapAddr.routerAddr);
         balancerAddr = AddressHelperV1.addresses(block.chainid);
         balancer = IBalancerVault(balancerAddr.vaultAddr);
-        params = new OrangeV1Parameters();
+        params = new OrangeParametersV1();
         params.setRouter(address(router));
         params.setBalancer(address(balancer));
         params.setStrategist(address(this), true);
