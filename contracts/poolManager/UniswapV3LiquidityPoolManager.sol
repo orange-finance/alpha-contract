@@ -52,6 +52,18 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+    function getTwap(uint32 _minute) external view returns (int24 avgTick) {
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = _minute;
+        secondsAgo[1] = 0;
+
+        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+
+        require(tickCumulatives.length == 2, "array len");
+        unchecked {
+            avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
+        }
+    }
 
     function getCurrentTick() external view returns (int24 tick) {
         (, tick, , , , , ) = pool.slot0();

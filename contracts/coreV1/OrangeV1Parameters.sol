@@ -2,7 +2,6 @@
 pragma solidity 0.8.16;
 
 import {Ownable} from "../libs/Ownable.sol";
-import {GelatoOps} from "../libs/GelatoOps.sol";
 import {Errors} from "../libs/Errors.sol";
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 
@@ -23,7 +22,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
     uint24 public routerFee;
-    address public gelatoExecutor;
     address public router;
     address public balancer;
     address public strategyImpl;
@@ -41,7 +39,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
         strategists[msg.sender] = true;
         allowlistEnabled = true;
         routerFee = 500; // 5% uniswap routers fee
-        _setGelato(msg.sender);
     }
 
     /**
@@ -128,18 +125,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
      */
     function setRouterFee(uint24 _routerFee) external onlyOwner {
         routerFee = _routerFee;
-    }
-
-    /**
-     * @notice Set parameters of gelato
-     * @param _gelatoAdmin Gelato admin
-     */
-    function setGelato(address _gelatoAdmin) external onlyOwner {
-        _setGelato(_gelatoAdmin);
-    }
-
-    function _setGelato(address _gelatoAdmin) internal {
-        gelatoExecutor = GelatoOps.getDedicatedMsgSender(_gelatoAdmin);
     }
 
     /**

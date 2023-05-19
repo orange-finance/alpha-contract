@@ -427,9 +427,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
     /// @inheritdoc IOrangeVaultV1
     function stoploss(int24 _inputTick) external {
-        if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
-            revert("Errors.ONLY_STRATEGISTS_OR_GELATO");
-        }
+        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
 
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 

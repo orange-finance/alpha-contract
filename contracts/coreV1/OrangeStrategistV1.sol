@@ -5,25 +5,37 @@ pragma solidity 0.8.16;
 import {IOrangeV1Parameters} from "../interfaces/IOrangeV1Parameters.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {IResolver} from "../interfaces/IResolver.sol";
 
 //libraries
+import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeStrategistV1 {
+contract OrangeStrategistV1 is IResolver {
+    using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
 
+    /* ========== STORAGE ========== */
+    int24 public stoplossLowerTick;
+    int24 public stoplossUpperTick;
+    mapping(address => bool) operators;
+
     /* ========== PARAMETERS ========== */
-    IOrangeVaultV1 public vault;
-    address public liquidityPool;
-    address public token0; //collateral and deposited currency by users
-    address public token1; //debt and hedge target token
-    IOrangeV1Parameters public params;
+    IOrangeVaultV1 public immutable vault;
+    address public immutable liquidityPool;
+    address public immutable token0; //collateral and deposited currency by users
+    address public immutable token1; //debt and hedge target token
+    IOrangeV1Parameters public immutable params;
 
     /* ========== MODIFIER ========== */
+    modifier onlyOperator() {
+        require(operators[msg.sender], "ONLY_OPERATOR");
+        _;
+    }
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address _vault) {
@@ -39,11 +51,11 @@ contract OrangeStrategistV1 {
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,
-        int24,
+        int24 _newStoplossLowerTick,
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
-    ) external {
+    ) external onlyOperator {
         if (!params.strategists(msg.sender)) {
             revert("Errors.ONLY_STRATEGISTS");
         }
@@ -66,12 +78,37 @@ contract OrangeStrategistV1 {
             _targetPosition,
             _minNewLiquidity
         );
+
+        //update storage
+        stoplossLowerTick = _newStoplossLowerTick;
+        stoplossUpperTick = _newStoplossUpperTick;
+    }
+
+    function stoploss(int24 _inputTick) external onlyOperator {
+        vault.stoploss(_inputTick);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+    // @inheritdoc IResolver
+    function checker() external view override returns (bool, bytes memory) {
+        if (vault.hasPosition()) {
+            (, int24 _currentTick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
+            int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
+            if (
+                _isOutOfRange(_currentTick, stoplossLowerTick, stoplossUpperTick) &&
+                _isOutOfRange(_twap, stoplossLowerTick, stoplossUpperTick)
+            ) {
+                bytes memory execPayload = abi.encodeWithSelector(IOrangeVaultV1.stoploss.selector, _twap);
+                return (true, execPayload);
+            }
+        }
+        return (false, bytes("ERROR_CANNOT_STOPLOSS"));
+    }
+
     function getRebalancedLiquidity(
         int24 _newLowerTick,
         int24 _newUpperTick,
+        int24,
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio
     ) external view returns (uint128 liquidity_) {
@@ -109,6 +146,11 @@ contract OrangeStrategistV1 {
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
+    ///@notice Can stoploss when has position and out of range
+    function _isOutOfRange(int24 _targetTick, int24 _lowerTick, int24 _upperTick) internal pure returns (bool) {
+        return (_targetTick > _upperTick || _targetTick < _lowerTick);
+    }
+
     function _quoteAtTick(
         int24 _tick,
         uint128 baseAmount,

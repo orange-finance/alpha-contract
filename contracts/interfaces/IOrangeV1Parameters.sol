@@ -35,9 +35,6 @@ interface IOrangeV1Parameters {
     /// @notice Get router fee
     function routerFee() external view returns (uint24);
 
-    /// @notice Get the gelato executor
-    function gelatoExecutor() external view returns (address);
-
     /// @notice Get the router contract
     function router() external view returns (address);
 

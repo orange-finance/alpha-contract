@@ -64,6 +64,8 @@ interface IOrangeVaultV1 {
 
     function params() external view returns (IOrangeV1Parameters);
 
+    function hasPosition() external view returns (bool);
+
     /**
      * @notice convert assets to shares(shares is the amount of vault token)
      * @param assets amount of assets

@@ -7,6 +7,8 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 interface ILiquidityPoolManager {
     function pool() external view returns (IUniswapV3Pool);
 
+    function getTwap(uint32 _minute) external view returns (int24 avgTick);
+
     function getCurrentTick() external view returns (int24 tick);
 
     function getCurrentLiquidity(int24 lowerTick, int24 upperTick) external view returns (uint128 liquidity);
