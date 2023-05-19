@@ -15,7 +15,6 @@ contract OrangeValidationCheckerTest is BaseTest {
     //parameters
     uint256 constant DEPOSIT_CAP = 1_000_000 * 1e6;
     uint256 constant TOTAL_DEPOSIT_CAP = 1_000_000 * 1e6;
-    uint32 constant LOCKUP_PERIOD = 7 days;
 
     function setUp() public {
         (tokenAddr, , ) = AddressHelper.addresses(block.chainid);
@@ -25,7 +24,6 @@ contract OrangeValidationCheckerTest is BaseTest {
 
         //set parameters
         params.setDepositCap(DEPOSIT_CAP, TOTAL_DEPOSIT_CAP);
-        params.setLockupPeriod(LOCKUP_PERIOD);
         params.setAllowlistEnabled(false); //merkle allow list off
 
         checker = new OrangeValidationCheckerMock(address(params));
@@ -65,20 +63,6 @@ contract OrangeValidationCheckerTest is BaseTest {
         assertEq(checker.totalDeposits(), 900_000 * 1e6);
     }
 
-    function test_lockup_Revert1() public {
-        //lockup
-        checker.addDepositCap(800_000 * 1e6);
-        vm.expectRevert(bytes(ErrorsV1.LOCKUP));
-        checker.execLockup();
-    }
-
-    function test_lockup_Success() public {
-        //lockup
-        checker.addDepositCap(800_000 * 1e6);
-        skip(8 days);
-        assertEq(checker.execLockup(), true);
-    }
-
     function test_reduceDepositCap_Success1() public {
         checker.addDepositCap(800_000 * 1e6);
         skip(8 days);
@@ -104,10 +88,6 @@ contract OrangeValidationCheckerMock is OrangeValidationChecker {
     constructor(address _params) OrangeValidationChecker(_params) {}
 
     function execAllowlisted(bytes32[] calldata _merkleProof) external view Allowlisted(_merkleProof) returns (bool) {
-        return true;
-    }
-
-    function execLockup() external view Lockup returns (bool) {
         return true;
     }
 

@@ -23,9 +23,6 @@ interface IOrangeV1Parameters {
     /// @notice Get the maximum LTV
     function maxLtv() external view returns (uint32);
 
-    /// @notice Get the lockup period
-    function lockupPeriod() external view returns (uint40);
-
     /// @notice Get true/false of strategist
     function strategists(address) external view returns (bool);
 

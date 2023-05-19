@@ -315,7 +315,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function redeem(uint256 _shares, uint256 _minAssets) external Lockup returns (uint256 returnAssets_) {
+    function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256 returnAssets_) {
         //validation
         if (_shares == 0) {
             revert(Errors.INVALID_AMOUNT);

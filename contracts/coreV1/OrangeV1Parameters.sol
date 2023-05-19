@@ -19,7 +19,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
     uint24 public tickSlippageBPS;
     uint32 public twapSlippageInterval;
     uint32 public maxLtv;
-    uint40 public lockupPeriod;
     mapping(address => bool) public strategists;
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
@@ -39,7 +38,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
         tickSlippageBPS = 10;
         twapSlippageInterval = 5 minutes;
         maxLtv = 80000000; //80%
-        lockupPeriod = 0;
         strategists[msg.sender] = true;
         allowlistEnabled = true;
         routerFee = 500; // 5% uniswap routers fee
@@ -81,7 +79,7 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
     }
 
     /**
-     * @notice Set parameters of lockup period
+     * @notice Set parameters of twap slippage
      * @param _twapSlippageInterval TWAP slippage interval
      */
     function setTwapSlippageInterval(uint32 _twapSlippageInterval) external onlyOwner {
@@ -97,14 +95,6 @@ contract OrangeV1Parameters is IOrangeV1Parameters, Ownable {
             revert(Errors.INVALID_PARAM);
         }
         maxLtv = _maxLtv;
-    }
-
-    /**
-     * @notice Set parameters of lockup period
-     * @param _lockupPeriod Lockup period
-     */
-    function setLockupPeriod(uint40 _lockupPeriod) external onlyOwner {
-        lockupPeriod = _lockupPeriod;
     }
 
     /**

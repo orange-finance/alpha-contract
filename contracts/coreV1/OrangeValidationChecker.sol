@@ -21,13 +21,6 @@ abstract contract OrangeValidationChecker {
         _;
     }
 
-    modifier Lockup() {
-        if (block.timestamp < deposits[msg.sender].timestamp + parameters.lockupPeriod()) {
-            revert(ErrorsV1.LOCKUP);
-        }
-        _;
-    }
-
     /* ========== STORAGES ========== */
     mapping(address => DepositType) public deposits;
     uint256 public totalDeposits;
