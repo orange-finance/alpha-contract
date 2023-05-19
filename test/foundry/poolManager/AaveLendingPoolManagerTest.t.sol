@@ -43,9 +43,27 @@ contract AaveLendingPoolManagerTest is BaseTest {
         token1.approve(address(lendingPool), type(uint256).max);
     }
 
-    function test_initialize() public {
+    function test_constructor() public {
         assertEq(address(lendingPool.aToken0()), aaveAddr.awethAddr);
         assertEq(address(lendingPool.debtToken1()), aaveAddr.vDebtUsdcAddr);
+    }
+
+    function test_onlyOperator_Revert() public {
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        lendingPool.supply(0);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        lendingPool.withdraw(0);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        lendingPool.borrow(0);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        lendingPool.repay(0);
     }
 
     function test_all_Success() public {

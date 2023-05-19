@@ -34,7 +34,7 @@ contract AaveLendingPoolManager is ILendingPoolManager {
 
     /* ========== MODIFIER ========== */
     modifier onlyOperator() {
-        require(msg.sender == operator, "Only operator can call this function");
+        if (msg.sender != operator) revert("ONLY_OPERATOR");
         _;
     }
 

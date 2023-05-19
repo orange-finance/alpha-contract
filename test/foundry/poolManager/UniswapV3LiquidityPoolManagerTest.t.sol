@@ -70,6 +70,58 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         vm.stopPrank();
     }
 
+    function test_onlyOperator_Revert() public {
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        liquidityPool.mint(lowerTick, upperTick, 0);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        liquidityPool.collect(lowerTick, upperTick);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        liquidityPool.burn(lowerTick, upperTick, 0);
+
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
+
+        vm.expectRevert(bytes("ONLY_CALLBACK_CALLER"));
+        vm.prank(alice);
+        liquidityPool.uniswapV3MintCallback(0, 0, bytes(""));
+    }
+
+    function test_constructor_Success() public {
+        assertEq(liquidityPool.reversed(), false);
+        liquidityPool = new UniswapV3LiquidityPoolManager(
+            address(this),
+            address(token1),
+            address(token0),
+            address(pool)
+        );
+        assertEq(liquidityPool.reversed(), true);
+    }
+
+    function test_getTwap_Success() public {
+        int24 _twap = liquidityPool.getTwap(5 minutes);
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = 5 minutes;
+        secondsAgo[1] = 0;
+        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+        int24 avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
+        assertEq(avgTick, _twap);
+    }
+
+    function test_validateTicks_Revert() public {
+        vm.expectRevert(bytes("INVALID_TICKS"));
+        liquidityPool.validateTicks(1, upperTick);
+        vm.expectRevert(bytes("INVALID_TICKS"));
+        liquidityPool.validateTicks(lowerTick, 1);
+        vm.expectRevert(bytes("INVALID_TICKS"));
+        liquidityPool.validateTicks(upperTick, lowerTick);
+    }
+
     function test_all_Success() public {
         // _consoleBalance();
 
