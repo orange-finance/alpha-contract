@@ -234,7 +234,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
-            uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 100);
+            uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 1000);
             _mint(msg.sender, _maxAssets - _initialBurnedBalance);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
             return _maxAssets - _initialBurnedBalance;
@@ -446,8 +446,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
             revert("Errors.ONLY_STRATEGISTS_OR_GELATO");
         }
-
-        if (IERC20(address(this)).totalSupply() == 0) return;
 
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 

@@ -12,8 +12,8 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 //libraries
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
-
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
@@ -183,12 +183,11 @@ contract UniswapV3LiquidityPoolManager is
 
     ///@notice Cheking tickSpacing
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
-        //TODO move tickSpacing to parameter or liquidityPool contract
         int24 _spacing = pool.tickSpacing();
         if (_lowerTick < _upperTick && _lowerTick % _spacing == 0 && _upperTick % _spacing == 0) {
             return;
         }
-        revert("Errors.INVALID_TICKS");
+        revert(ErrorsV1.INVALID_TICKS);
     }
 
     /* ========== WRITE FUNCTIONS ========== */

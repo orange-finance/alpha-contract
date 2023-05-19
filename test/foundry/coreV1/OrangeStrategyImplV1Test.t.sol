@@ -2,7 +2,8 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {Proxy} from "../../../contracts/libs/Proxy.sol";
 
 contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using SafeERC20 for IERC20;
@@ -12,9 +13,23 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using Ints for int256;
 
     uint256 constant HEDGE_RATIO = 100e6; //100%
+    ProxyMock proxy;
 
     function setUp() public override {
         super.setUp();
+        proxy = new ProxyMock(address(params), address(impl));
+    }
+
+    //access controls
+    function test_rebalance_Revert1() public {
+        vm.expectRevert(bytes(ErrorsV1.ONLY_STRATEGISTS));
+        vm.prank(alice);
+        proxy.rebalance(0, 0, lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
+    }
+
+    function test_rebalance_Revert2() public {
+        vm.expectRevert(bytes(ErrorsV1.INVALID_TICKS));
+        vault.rebalance(0, 0, 1, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
     }
 
     function test_stoploss_SuccessZero() public {
@@ -42,6 +57,11 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
 
         uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
         vault.deposit(_shares, 10 ether, new bytes32[](0));
+        consoleCurrentPosition();
+
+        skip(1);
+        console2.log("vault.balance", vault.balanceOf(address(this)));
+        vault.redeem(vault.balanceOf(address(this)), 0);
         consoleCurrentPosition();
     }
 
@@ -198,4 +218,25 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     //     // console2.log(_computedHedgeRatio, "computedHedgeRatio");
     //     assertApproxEqRel(_computedHedgeRatio, _hedgeRatio, 1e16);
     // }
+}
+
+contract ProxyMock is Proxy {
+    address public immutable params;
+    address public immutable impl;
+
+    constructor(address _params, address _impl) {
+        params = _params;
+        impl = _impl;
+    }
+
+    function rebalance(
+        int24,
+        int24,
+        int24 _newLowerTick,
+        int24 _newUpperTick,
+        IOrangeVaultV1.Positions memory,
+        uint128
+    ) external {
+        _delegate(impl);
+    }
 }

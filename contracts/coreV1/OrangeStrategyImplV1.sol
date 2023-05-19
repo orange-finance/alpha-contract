@@ -11,6 +11,7 @@ import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
+import {ErrorsV1} from "./ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
@@ -29,7 +30,7 @@ contract OrangeStrategyImplV1 {
         uint128 _minNewLiquidity
     ) external {
         if (!IOrangeVaultV1(address(this)).params().strategists(msg.sender)) {
-            revert("Errors.ONLY_STRATEGISTS");
+            revert(ErrorsV1.ONLY_STRATEGISTS);
         }
 
         //validation of tickSpacing
@@ -48,10 +49,6 @@ contract OrangeStrategyImplV1 {
             _currentUpperTick,
             _liquidity
         );
-
-        if (IERC20(address(this)).totalSupply() == 0) {
-            return;
-        }
 
         // 2. get current position
         IOrangeVaultV1.Positions memory _currentPosition = IOrangeVaultV1.Positions(
@@ -72,7 +69,7 @@ contract OrangeStrategyImplV1 {
             _targetPosition.token1Balance // amount of IOrangeVaultV1(address(this)).token1() to be added to Uniswap
         );
         if (_targetLiquidity < _minNewLiquidity) {
-            revert("Errors.LESS_LIQUIDITY");
+            revert(ErrorsV1.LESS_LIQUIDITY);
         }
 
         // emit event
@@ -80,6 +77,10 @@ contract OrangeStrategyImplV1 {
     }
 
     function stoploss(int24) external {
+        if (!IOrangeVaultV1(address(this)).params().strategists(msg.sender)) {
+            revert(ErrorsV1.ONLY_STRATEGISTS);
+        }
+
         // 1. Remove liquidity
         // 2. Collect fees
         uint128 liquidity = ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getCurrentLiquidity(
@@ -154,7 +155,7 @@ contract OrangeStrategyImplV1 {
         ) {
             // if originally collateral is 0, through this function
             if (_currentPosition.collateralAmount0 == 0) return;
-            revert("Errors.EQUAL_COLLATERAL_OR_DEBT");
+            revert(ErrorsV1.EQUAL_COLLATERAL_OR_DEBT);
         }
         unchecked {
             if (
@@ -275,6 +276,8 @@ contract OrangeStrategyImplV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
+        if (msg.sender != IOrangeVaultV1(address(this)).params().balancer()) revert(ErrorsV1.ONLY_BALANCER_VAULT);
+
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));

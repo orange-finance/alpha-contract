@@ -4,8 +4,7 @@ pragma solidity 0.8.16;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaParameters.sol";
-
-import {Errors} from "../libs/Errors.sol";
+import {ErrorsV1} from "./ErrorsV1.sol";
 
 abstract contract OrangeValidationChecker {
     using SafeERC20 for IERC20;
@@ -24,7 +23,7 @@ abstract contract OrangeValidationChecker {
 
     modifier Lockup() {
         if (block.timestamp < deposits[msg.sender].timestamp + parameters.lockupPeriod()) {
-            revert(Errors.LOCKUP);
+            revert(ErrorsV1.LOCKUP);
         }
         _;
     }
@@ -45,20 +44,20 @@ abstract contract OrangeValidationChecker {
     function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view {
         if (parameters.allowlistEnabled()) {
             if (!MerkleProof.verify(_merkleProof, parameters.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
-                revert(Errors.MERKLE_ALLOWLISTED);
+                revert(ErrorsV1.MERKLE_ALLOWLISTED);
             }
         }
     }
 
     function _addDepositCap(uint256 _assets) internal {
         if (deposits[msg.sender].assets + _assets > parameters.depositCap()) {
-            revert(Errors.CAPOVER);
+            revert(ErrorsV1.CAPOVER);
         }
         deposits[msg.sender].assets += _assets;
         deposits[msg.sender].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
         if (_totalDeposits + _assets > parameters.totalDepositCap()) {
-            revert(Errors.CAPOVER);
+            revert(ErrorsV1.CAPOVER);
         }
         totalDeposits = _totalDeposits + _assets;
     }
