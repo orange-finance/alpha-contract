@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
+import {OrangeBaseV1} from "./OrangeBaseV1.sol";
+
 //interafaces
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
@@ -15,47 +17,46 @@ import {ErrorsV1} from "./ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
-contract OrangeStrategyImplV1 {
+contract OrangeStrategyImplV1 is OrangeBaseV1 {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function rebalance(
-        int24 _currentLowerTick,
-        int24 _currentUpperTick,
         int24 _newLowerTick,
         int24 _newUpperTick,
         IOrangeVaultV1.Positions memory _targetPosition,
         uint128 _minNewLiquidity
     ) external {
-        if (!IOrangeVaultV1(address(this)).params().strategists(msg.sender)) {
+        if (!params.strategists(msg.sender)) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
 
+        int24 _currentLowerTick = lowerTick;
+        int24 _currentUpperTick = upperTick;
+
+        // Update storage of ranges
+        lowerTick = _newLowerTick;
+        upperTick = _newUpperTick;
+        hasPosition = true;
+
         //validation of tickSpacing
-        ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).validateTicks(
-            _newLowerTick,
-            _newUpperTick
-        );
+        ILiquidityPoolManager(liquidityPool).validateTicks(_newLowerTick, _newUpperTick);
 
         // 1. burn and collect fees
-        uint128 _liquidity = ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getCurrentLiquidity(
+        uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(
             _currentLowerTick,
             _currentUpperTick
         );
-        ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).burnAndCollect(
-            _currentLowerTick,
-            _currentUpperTick,
-            _liquidity
-        );
+        ILiquidityPoolManager(liquidityPool).burnAndCollect(_currentLowerTick, _currentUpperTick, _liquidity);
 
         // 2. get current position
         IOrangeVaultV1.Positions memory _currentPosition = IOrangeVaultV1.Positions(
-            ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).balanceOfCollateral(),
-            ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).balanceOfDebt(),
-            IOrangeVaultV1(address(this)).token0().balanceOf(address(this)),
-            IOrangeVaultV1(address(this)).token1().balanceOf(address(this))
+            ILendingPoolManager(lendingPool).balanceOfCollateral(),
+            ILendingPoolManager(lendingPool).balanceOfDebt(),
+            token0.balanceOf(address(this)),
+            token1.balanceOf(address(this))
         );
 
         // 4. execute hedge
@@ -66,7 +67,7 @@ contract OrangeStrategyImplV1 {
             _newLowerTick,
             _newUpperTick,
             _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
-            _targetPosition.token1Balance // amount of IOrangeVaultV1(address(this)).token1() to be added to Uniswap
+            _targetPosition.token1Balance // amount of token1 to be added to Uniswap
         );
         if (_targetLiquidity < _minNewLiquidity) {
             revert(ErrorsV1.LESS_LIQUIDITY);
@@ -76,29 +77,24 @@ contract OrangeStrategyImplV1 {
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE, msg.sender);
     }
 
-    function stoploss(int24) external {
-        if (!IOrangeVaultV1(address(this)).params().strategists(msg.sender)) {
+    function stoploss(int24 _inputTick) external {
+        if (!params.strategists(msg.sender)) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
+        _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
+
+        hasPosition = false;
 
         // 1. Remove liquidity
         // 2. Collect fees
-        uint128 liquidity = ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getCurrentLiquidity(
-            IOrangeVaultV1(address(this)).lowerTick(),
-            IOrangeVaultV1(address(this)).upperTick()
-        );
+        uint128 liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(lowerTick, upperTick);
         if (liquidity > 0) {
-            ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).burnAndCollect(
-                IOrangeVaultV1(address(this)).lowerTick(),
-                IOrangeVaultV1(address(this)).upperTick(),
-                liquidity
-            );
+            ILiquidityPoolManager(liquidityPool).burnAndCollect(lowerTick, upperTick, liquidity);
         }
 
-        uint256 _repayingDebt = ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).balanceOfDebt();
-        uint256 _balanceToken1 = IOrangeVaultV1(address(this)).token1().balanceOf(address(this));
-        uint256 _withdrawingCollateral = ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool())
-            .balanceOfCollateral();
+        uint256 _repayingDebt = ILendingPoolManager(lendingPool).balanceOfDebt();
+        uint256 _balanceToken1 = token1.balanceOf(address(this));
+        uint256 _withdrawingCollateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
 
         // Flashloan to borrow Repay Token1
         uint256 _flashBorrowToken1;
@@ -114,20 +110,21 @@ contract OrangeStrategyImplV1 {
             _repayingDebt,
             _withdrawingCollateral
         );
-        IBalancerVault(IOrangeVaultV1(address(this)).params().balancer()).makeFlashLoan(
+        flashloanHash = keccak256(_userData); //set stroage for callback
+        IBalancerVault(params.balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
-            IOrangeVaultV1(address(this)).token1(),
+            token1,
             _flashBorrowToken1,
             _userData
         );
 
         // swap remaining all Token1 to Token0
-        _balanceToken1 = IOrangeVaultV1(address(this)).token1().balanceOf(address(this));
+        _balanceToken1 = token1.balanceOf(address(this));
         if (_balanceToken1 > 0) {
-            ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountIn(
-                address(IOrangeVaultV1(address(this)).token0()),
-                address(IOrangeVaultV1(address(this)).token1()),
-                IOrangeVaultV1(address(this)).params().routerFee(),
+            ISwapRouter(params.router()).swapAmountIn(
+                address(token0),
+                address(token1),
+                params.routerFee(),
                 _balanceToken1
             );
         }
@@ -137,6 +134,15 @@ contract OrangeStrategyImplV1 {
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
+    ///@notice Check slippage by tick
+    function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
+        if (
+            _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
+            _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
+        ) {
+            revert("Errors.HIGH_SLIPPAGE");
+        }
+    }
 
     /// @notice execute hedge by changing collateral or debt amount
     /// @dev called by rebalance
@@ -167,18 +173,18 @@ contract OrangeStrategyImplV1 {
                 uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
                 if (_supply0 > _currentPosition.token0Balance) {
                     // swap (if necessary)
-                    ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountOut(
-                        address(IOrangeVaultV1(address(this)).token1()),
-                        address(IOrangeVaultV1(address(this)).token0()),
-                        IOrangeVaultV1(address(this)).params().routerFee(),
+                    ISwapRouter(params.router()).swapAmountOut(
+                        address(token1),
+                        address(token0),
+                        params.routerFee(),
                         _supply0 - _currentPosition.token0Balance //uncheckable
                     );
                 }
-                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply0);
+                ILendingPoolManager(lendingPool).supply(_supply0);
 
                 // borrow
                 uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
-                ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow1);
+                ILendingPoolManager(lendingPool).borrow(_borrow1);
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
                     // case2 repay
@@ -187,35 +193,35 @@ contract OrangeStrategyImplV1 {
 
                     // swap (if necessary)
                     if (_repay1 > _currentPosition.token1Balance) {
-                        ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountOut(
-                            address(IOrangeVaultV1(address(this)).token0()),
-                            address(IOrangeVaultV1(address(this)).token1()),
-                            IOrangeVaultV1(address(this)).params().routerFee(),
+                        ISwapRouter(params.router()).swapAmountOut(
+                            address(token0),
+                            address(token1),
+                            params.routerFee(),
                             _repay1 - _currentPosition.token1Balance //uncheckable
                         );
                     }
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).repay(_repay1);
+                    ILendingPoolManager(lendingPool).repay(_repay1);
 
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
                         // case2_1 repay and supply
                         console2.log("case2_1 repay and supply");
 
                         uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
-                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).supply(_supply0);
+                        ILendingPoolManager(lendingPool).supply(_supply0);
                     } else {
                         // case2_2 repay and withdraw
                         console2.log("case2_2 repay and withdraw");
                         uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
-                        ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw0);
+                        ILendingPoolManager(lendingPool).withdraw(_withdraw0);
                     }
                 } else {
                     // case3 borrow and withdraw
                     console2.log("case3 borrow and withdraw");
                     uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).borrow(_borrow1);
+                    ILendingPoolManager(lendingPool).borrow(_borrow1);
                     // withdraw should be the only option here.
                     uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
-                    ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_withdraw0);
+                    ILendingPoolManager(lendingPool).withdraw(_withdraw0);
                 }
             }
         }
@@ -229,8 +235,8 @@ contract OrangeStrategyImplV1 {
         uint256 _targetAmount0,
         uint256 _targetAmount1
     ) internal returns (uint128 targetLiquidity_) {
-        uint256 _balance0 = IOrangeVaultV1(address(this)).token0().balanceOf(address(this));
-        uint256 _balance1 = IOrangeVaultV1(address(this)).token1().balanceOf(address(this));
+        uint256 _balance0 = token0.balanceOf(address(this));
+        uint256 _balance1 = token1.balanceOf(address(this));
 
         //swap surplus amount
         if (_balance0 >= _targetAmount0 && _balance1 >= _targetAmount1) {
@@ -238,34 +244,30 @@ contract OrangeStrategyImplV1 {
         } else {
             unchecked {
                 if (_balance0 > _targetAmount0) {
-                    ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountIn(
-                        address(IOrangeVaultV1(address(this)).token0()),
-                        address(IOrangeVaultV1(address(this)).token1()),
-                        IOrangeVaultV1(address(this)).params().routerFee(),
+                    ISwapRouter(params.router()).swapAmountIn(
+                        address(token0),
+                        address(token1),
+                        params.routerFee(),
                         _balance0 - _targetAmount0
                     );
                 } else if (_balance1 > _targetAmount1) {
-                    ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountIn(
-                        address(IOrangeVaultV1(address(this)).token1()),
-                        address(IOrangeVaultV1(address(this)).token0()),
-                        IOrangeVaultV1(address(this)).params().routerFee(),
+                    ISwapRouter(params.router()).swapAmountIn(
+                        address(token1),
+                        address(token0),
+                        params.routerFee(),
                         _balance1 - _targetAmount1
                     );
                 }
             }
         }
 
-        targetLiquidity_ = ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).getLiquidityForAmounts(
+        targetLiquidity_ = ILiquidityPoolManager(liquidityPool).getLiquidityForAmounts(
             _lowerTick,
             _upperTick,
-            IOrangeVaultV1(address(this)).token0().balanceOf(address(this)),
-            IOrangeVaultV1(address(this)).token1().balanceOf(address(this))
+            token0.balanceOf(address(this)),
+            token1.balanceOf(address(this))
         );
-        ILiquidityPoolManager(IOrangeVaultV1(address(this)).liquidityPool()).mint(
-            _lowerTick,
-            _upperTick,
-            targetLiquidity_
-        );
+        ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -276,37 +278,33 @@ contract OrangeStrategyImplV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != IOrangeVaultV1(address(this)).params().balancer()) revert(ErrorsV1.ONLY_BALANCER_VAULT);
+        if (msg.sender != params.balancer()) revert(ErrorsV1.ONLY_BALANCER_VAULT);
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
             // Repay Token1
-            ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).repay(_amount1);
+            ILendingPoolManager(lendingPool).repay(_amount1);
             // Withdraw Token0 as collateral
-            ILendingPoolManager(IOrangeVaultV1(address(this)).lendingPool()).withdraw(_amount0);
+            ILendingPoolManager(lendingPool).withdraw(_amount0);
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
-                (address _tokenIn, address _tokenOut) = (address(_tokens[0]) ==
-                    address(IOrangeVaultV1(address(this)).token0()))
-                    ? (address(IOrangeVaultV1(address(this)).token1()), address(IOrangeVaultV1(address(this)).token0()))
-                    : (
-                        address(IOrangeVaultV1(address(this)).token0()),
-                        address(IOrangeVaultV1(address(this)).token1())
-                    );
+                (address _tokenIn, address _tokenOut) = (address(_tokens[0]) == address(token0))
+                    ? (address(token1), address(token0))
+                    : (address(token0), address(token1));
 
                 // swap Token0 to Token1 to repay flashloan
-                ISwapRouter(IOrangeVaultV1(address(this)).params().router()).swapAmountOut(
+                ISwapRouter(params.router()).swapAmountOut(
                     _tokenIn,
                     _tokenOut,
-                    IOrangeVaultV1(address(this)).params().routerFee(),
+                    params.routerFee(),
                     _amounts[0] //uncheckable
                 );
             }
         }
         //repay flashloan
-        IERC20(_tokens[0]).safeTransfer(IOrangeVaultV1(address(this)).params().balancer(), _amounts[0]);
+        IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
     }
 }

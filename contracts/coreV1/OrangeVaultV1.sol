@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 
@@ -15,6 +14,7 @@ import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
 //libraries
 import {Proxy} from "../libs/Proxy.sol";
 import {Errors} from "../libs/Errors.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
@@ -31,21 +31,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    /* ========== CONSTANTS ========== */
-
-    /* ========== STORAGES ========== */
-    int24 public lowerTick;
-    int24 public upperTick;
-    bool public hasPosition;
-    bytes32 flashloanHash; //tempolary use in flashloan
-
-    /* ========== PARAMETERS ========== */
-    address public immutable liquidityPool;
-    address public immutable lendingPool;
-    IERC20 public immutable token0; //collateral and deposited currency by users
-    IERC20 public immutable token1; //debt and hedge target token
-    IOrangeParametersV1 public immutable params;
-
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -55,7 +40,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         address _pool,
         address _aave,
         address _params
-    ) OrangeValidationChecker(_params) OrangeERC20(_name, _symbol) {
+    ) OrangeERC20(_name, _symbol) {
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
@@ -105,15 +90,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-    ///@notice Check slippage by tick
-    function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
-        if (
-            _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
-            _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
-        ) {
-            revert("Errors.HIGH_SLIPPAGE");
-        }
-    }
 
     ///@notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
@@ -426,26 +402,16 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     /* ========== EXTERNAL FUNCTIONS (Delegate call) ========== */
 
     /// @inheritdoc IOrangeVaultV1
-    function stoploss(int24 _inputTick) external {
+    function stoploss(int24) external {
         if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
-
-        _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
-
-        hasPosition = false;
-        flashloanHash = "FlashloanType.STOPLOSS"; //set flashloan storage for callback
 
         _delegate(params.strategyImpl());
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function rebalance(int24, int24, int24 _newLowerTick, int24 _newUpperTick, Positions memory, uint128) external {
+    function rebalance(int24, int24, Positions memory, uint128) external {
         console2.log("OrangeVaultV1: rebalance");
         if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
-
-        // Update storage of ranges
-        lowerTick = _newLowerTick;
-        upperTick = _newUpperTick;
-        hasPosition = true;
 
         _delegate(params.strategyImpl());
     }
@@ -460,15 +426,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     ) external {
         console2.log("receiveFlashLoan");
         if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
+        //hash check
+        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        flashloanHash = bytes32(0); //clear storage
+
         uint8 _flashloanType = abi.decode(_userData, (uint8));
 
         if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
             console2.log("FlashloanType.STOPLOSS");
-
-            //hash check
-            if (flashloanHash == bytes32(0) || flashloanHash != "FlashloanType.STOPLOSS")
-                revert(Errors.INVALID_FLASHLOAN_HASH);
-            flashloanHash = bytes32(0); //clear storage
 
             //delegate call
             _delegate(params.strategyImpl());
@@ -476,10 +441,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
         if (_flashloanType == uint8(FlashloanType.REDEEM)) {
             console2.log("FlashloanType.REDEEM");
-            //hash check
-            if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
-                revert(Errors.INVALID_FLASHLOAN_HASH);
-            flashloanHash = bytes32(0); //clear storage
 
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
 
@@ -498,10 +459,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             }
         } else {
             console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
-            //hash check
-            if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
-                revert(Errors.INVALID_FLASHLOAN_HASH);
-            flashloanHash = bytes32(0); //clear storage
 
             _depositInFlashloan(_flashloanType, _amounts[0], _userData);
         }

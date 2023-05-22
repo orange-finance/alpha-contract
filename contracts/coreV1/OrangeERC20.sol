@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
+import {OrangeBaseV1} from "./OrangeBaseV1.sol";
+
 interface IERC20Decimals {
     function decimals() external view returns (uint8);
 }
@@ -8,7 +10,7 @@ interface IERC20Decimals {
 /// @notice Modern and gas efficient ERC20 implementation.
 /// @author Modified from Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC20.sol)
 /// @dev Do not manually set balances without updating totalSupply, as the sum of all user balances must not exceed it.
-abstract contract OrangeERC20 is IERC20Decimals {
+abstract contract OrangeERC20 is IERC20Decimals, OrangeBaseV1 {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -16,24 +18,6 @@ abstract contract OrangeERC20 is IERC20Decimals {
     event Transfer(address indexed from, address indexed to, uint256 amount);
 
     event Approval(address indexed owner, address indexed spender, uint256 amount);
-
-    /*//////////////////////////////////////////////////////////////
-                            METADATA STORAGE
-    //////////////////////////////////////////////////////////////*/
-
-    string public name;
-
-    string public symbol;
-
-    /*//////////////////////////////////////////////////////////////
-                              ERC20 STORAGE
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 public totalSupply;
-
-    mapping(address => uint256) public balanceOf;
-
-    mapping(address => mapping(address => uint256)) public allowance;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
