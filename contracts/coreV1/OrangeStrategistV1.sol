@@ -79,14 +79,7 @@ contract OrangeStrategistV1 is IResolver {
             _hedgeRatio
         );
 
-        vault.rebalance(
-            vault.lowerTick(),
-            vault.upperTick(),
-            _newLowerTick,
-            _newUpperTick,
-            _targetPosition,
-            _minNewLiquidity
-        );
+        vault.rebalance(_newLowerTick, _newUpperTick, _targetPosition, _minNewLiquidity);
 
         //update storage
         stoplossLowerTick = _newStoplossLowerTick;

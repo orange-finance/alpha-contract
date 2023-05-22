@@ -111,18 +111,7 @@ interface IOrangeVaultV1 is IOrangeBaseV1 {
      */
     function stoploss(int24 inputTick) external;
 
-    /**
-     * @notice Change the range of underlying UniswapV3 position
-     * @param _currentLowerTick The current lower bound of the position's range
-     * @param _currentUpperTick The current upper bound of the position's range
-     * @param _newLowerTick The new lower bound of the position's range
-     * @param _newUpperTick The new upper bound of the position's range
-     * @param _targetPosition target position
-     * @param _minNewLiquidity minimum liqidiity
-     */
     function rebalance(
-        int24 _currentLowerTick,
-        int24 _currentUpperTick,
         int24 _newLowerTick,
         int24 _newUpperTick,
         Positions memory _targetPosition,

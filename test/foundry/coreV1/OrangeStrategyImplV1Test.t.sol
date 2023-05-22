@@ -24,7 +24,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     function test_rebalance_Revert1() public {
         vm.expectRevert(bytes(ErrorsV1.ONLY_STRATEGISTS));
         vm.prank(alice);
-        proxy.rebalance(0, 0, lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
+        proxy.rebalance(lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
     }
 
     function test_stoploss_SuccessZero() public {
@@ -220,7 +220,7 @@ contract ProxyMock is Proxy, OrangeBaseV1 {
         params = IOrangeParametersV1(_params);
     }
 
-    function rebalance(int24, int24, int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
+    function rebalance(int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
         _delegate(params.strategyImpl());
     }
 }

@@ -24,8 +24,6 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function rebalance(
-        int24 _currentLowerTick,
-        int24 _currentUpperTick,
         int24 _newLowerTick,
         int24 _newUpperTick,
         IOrangeVaultV1.Positions memory _targetPosition,
@@ -34,6 +32,14 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         if (!params.strategists(msg.sender)) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
+
+        int24 _currentLowerTick = lowerTick;
+        int24 _currentUpperTick = upperTick;
+
+        // Update storage of ranges
+        lowerTick = _newLowerTick;
+        upperTick = _newUpperTick;
+        hasPosition = true;
 
         //validation of tickSpacing
         ILiquidityPoolManager(liquidityPool).validateTicks(_newLowerTick, _newUpperTick);
@@ -71,10 +77,13 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE, msg.sender);
     }
 
-    function stoploss(int24) external {
+    function stoploss(int24 _inputTick) external {
         if (!params.strategists(msg.sender)) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
+        _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
+
+        hasPosition = false;
 
         // 1. Remove liquidity
         // 2. Collect fees
@@ -101,6 +110,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             _repayingDebt,
             _withdrawingCollateral
         );
+        flashloanHash = keccak256(_userData); //set stroage for callback
         IBalancerVault(params.balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
@@ -124,6 +134,15 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
+    ///@notice Check slippage by tick
+    function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
+        if (
+            _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
+            _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
+        ) {
+            revert("Errors.HIGH_SLIPPAGE");
+        }
+    }
 
     /// @notice execute hedge by changing collateral or debt amount
     /// @dev called by rebalance
