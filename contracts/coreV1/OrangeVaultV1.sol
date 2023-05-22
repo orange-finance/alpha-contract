@@ -58,12 +58,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
 
-        //create liquidity pool
+        //deploy liquidity pool manager
         liquidityPool = address(new UniswapV3LiquidityPoolManager(address(this), _token0, _token1, _pool));
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
-        //create lending pool
+        //deploy lending pool manager
         lendingPool = address(new AaveLendingPoolManager(address(this), _token0, _token1, _aave));
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
@@ -73,14 +73,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     }
 
     /* ========== VIEW FUNCTIONS ========== */
-
     function decimals() external view override returns (uint8) {
         return IERC20Decimals(address(token0)).decimals();
     }
 
     /// @inheritdoc IOrangeVaultV1
-    /// @dev share is propotion of liquidity. Caluculate hedge position and liquidity position except for hedge position.
-    function convertToShares(uint256 _assets) external view returns (uint256 shares_) {
+    function convertToShares(uint256 _assets) external view returns (uint256) {
         uint256 _supply = totalSupply; // Saves an extra SLOAD if totalSupply is non-zero.
         return _supply == 0 ? _assets : _supply.mulDiv(_assets, _totalAssets(lowerTick, upperTick));
     }
