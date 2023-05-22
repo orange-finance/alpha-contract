@@ -31,13 +31,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    /* ========== CONSTANTS ========== */
-
     /* ========== STORAGES ========== */
     int24 public lowerTick;
     int24 public upperTick;
     bool public hasPosition;
-    bytes32 flashloanHash; //tempolary use in flashloan
+    bytes32 private flashloanHash; //tempolary use in flashloan
 
     /* ========== PARAMETERS ========== */
     address public immutable liquidityPool;
