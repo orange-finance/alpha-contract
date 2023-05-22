@@ -5,9 +5,10 @@ import "../utils/BaseTest.sol";
 import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20, IERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
+import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 import {OrangeStrategistV1} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
+import {IERC20} from "../../../contracts/libs/BalancerFlashloan.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -60,11 +61,14 @@ contract OrangeVaultV1TestBase is BaseTest {
         balancerAddr = AddressHelperV1.addresses(block.chainid);
         balancer = IBalancerVault(balancerAddr.vaultAddr);
         params = new OrangeParametersV1();
+
+        params.setDepositCap(100_000 ether, 100_000 ether);
+        params.setMinDepositAmount(1e16);
+        params.setRouterFee(500);
         params.setRouter(address(router));
         params.setBalancer(address(balancer));
         params.setStrategist(address(this), true);
         params.setAllowlistEnabled(false);
-        params.setDepositCap(100_000 ether, 100_000 ether);
 
         _deploy();
         _dealAndApprove();
