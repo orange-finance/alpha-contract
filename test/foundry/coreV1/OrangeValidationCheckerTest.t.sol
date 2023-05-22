@@ -29,10 +29,6 @@ contract OrangeValidationCheckerTest is BaseTest {
         checker = new OrangeValidationCheckerMock(address(params));
     }
 
-    function test_constructor_Success() public {
-        assertEq(address(checker.parameters()), address(params));
-    }
-
     /* ========== FUNCTIONS ========== */
     function test_addDeposit_Revert1() public {
         //deposit cap over
@@ -85,7 +81,9 @@ contract OrangeValidationCheckerTest is BaseTest {
 }
 
 contract OrangeValidationCheckerMock is OrangeValidationChecker {
-    constructor(address _params) OrangeValidationChecker(_params) {}
+    constructor(address _params) {
+        params = OrangeParametersV1(_params);
+    }
 
     function execAllowlisted(bytes32[] calldata _merkleProof) external view Allowlisted(_merkleProof) returns (bool) {
         return true;

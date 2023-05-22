@@ -4,10 +4,11 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IOrangeParametersV1} from "./IOrangeParametersV1.sol";
+import {IOrangeBaseV1} from "./IOrangeBaseV1.sol";
 
 // import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-interface IOrangeVaultV1 {
+interface IOrangeVaultV1 is IOrangeBaseV1 {
     enum ActionType {
         MANUAL,
         DEPOSIT,
@@ -47,24 +48,6 @@ interface IOrangeVaultV1 {
     event Action(ActionType indexed actionType, address indexed caller, uint256 totalAssets, uint256 totalSupply);
 
     /* ========== VIEW FUNCTIONS ========== */
-
-    function lowerTick() external view returns (int24);
-
-    function upperTick() external view returns (int24);
-
-    /// @notice Get the token1 address
-    function token0() external view returns (IERC20 token0);
-
-    /// @notice Get the token1 address
-    function token1() external view returns (IERC20 token1);
-
-    function liquidityPool() external view returns (address);
-
-    function lendingPool() external view returns (address);
-
-    function params() external view returns (IOrangeParametersV1);
-
-    function hasPosition() external view returns (bool);
 
     /**
      * @notice convert assets to shares(shares is the amount of vault token)

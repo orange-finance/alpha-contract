@@ -45,9 +45,18 @@ contract OrangeStrategistV1 is IResolver {
         token1 = address(vault.token1());
         liquidityPool = vault.liquidityPool();
         params = IOrangeParametersV1(vault.params());
+        _setOperator(msg.sender, true);
     }
 
     /* ========== WRITE FUNCTIONS ========== */
+    function setOperator(address _operator, bool _status) external onlyOperator {
+        _setOperator(_operator, _status);
+    }
+
+    function _setOperator(address _operator, bool _status) internal {
+        operators[_operator] = _status;
+    }
+
     function rebalance(
         int24 _newLowerTick,
         int24 _newUpperTick,

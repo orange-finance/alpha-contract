@@ -4,7 +4,6 @@ pragma solidity 0.8.16;
 //interafaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 
@@ -15,6 +14,7 @@ import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
 //libraries
 import {Proxy} from "../libs/Proxy.sol";
 import {Errors} from "../libs/Errors.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
@@ -31,21 +31,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    /* ========== CONSTANTS ========== */
-
-    /* ========== STORAGES ========== */
-    int24 public lowerTick;
-    int24 public upperTick;
-    bool public hasPosition;
-    bytes32 flashloanHash; //tempolary use in flashloan
-
-    /* ========== PARAMETERS ========== */
-    address public immutable liquidityPool;
-    address public immutable lendingPool;
-    IERC20 public immutable token0; //collateral and deposited currency by users
-    IERC20 public immutable token1; //debt and hedge target token
-    IOrangeParametersV1 public immutable params;
-
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -55,7 +40,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         address _pool,
         address _aave,
         address _params
-    ) OrangeValidationChecker(_params) OrangeERC20(_name, _symbol) {
+    ) OrangeERC20(_name, _symbol) {
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);

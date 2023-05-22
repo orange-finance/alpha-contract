@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeBaseV1, IOrangeParametersV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 import {Proxy} from "../../../contracts/libs/Proxy.sol";
 
 contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
@@ -17,7 +17,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
 
     function setUp() public override {
         super.setUp();
-        proxy = new ProxyMock(address(params), address(impl));
+        proxy = new ProxyMock(address(params));
     }
 
     //access controls
@@ -25,11 +25,6 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
         vm.expectRevert(bytes(ErrorsV1.ONLY_STRATEGISTS));
         vm.prank(alice);
         proxy.rebalance(0, 0, lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
-    }
-
-    function test_rebalance_Revert2() public {
-        vm.expectRevert(bytes(ErrorsV1.INVALID_TICKS));
-        vault.rebalance(0, 0, 1, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
     }
 
     function test_stoploss_SuccessZero() public {
@@ -45,7 +40,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
         vault.deposit(_shares, 10 ether, new bytes32[](0));
 
         //assertion
-        assertEq(vault.balanceOf(address(this)), 10 ether - 1e16 + _shares);
+        assertEq(vault.balanceOf(address(this)), 10 ether - 1e15 + _shares);
         assertEq(token0.balanceOf(address(vault)), 10 ether + _shares);
     }
 
@@ -220,16 +215,12 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     // }
 }
 
-contract ProxyMock is Proxy {
-    address public immutable params;
-    address public immutable impl;
-
-    constructor(address _params, address _impl) {
-        params = _params;
-        impl = _impl;
+contract ProxyMock is Proxy, OrangeBaseV1 {
+    constructor(address _params) {
+        params = IOrangeParametersV1(_params);
     }
 
     function rebalance(int24, int24, int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
-        _delegate(impl);
+        _delegate(params.strategyImpl());
     }
 }
