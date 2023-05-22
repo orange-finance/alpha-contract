@@ -31,22 +31,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-<<<<<<< HEAD
-    /* ========== STORAGES ========== */
-    int24 public lowerTick;
-    int24 public upperTick;
-    bool public hasPosition;
-    bytes32 private flashloanHash; //tempolary use in flashloan
-
-    /* ========== PARAMETERS ========== */
-    address public immutable liquidityPool;
-    address public immutable lendingPool;
-    IERC20 public immutable token0; //collateral and deposited currency by users
-    IERC20 public immutable token1; //debt and hedge target token
-    IOrangeParametersV1 public immutable params;
-
-=======
->>>>>>> refs/remotes/origin/fix/vaultV1
     /* ========== CONSTRUCTOR ========== */
     constructor(
         string memory _name,
@@ -105,7 +89,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
 
-    ///@notice internal function of totalAssets
+    /// @notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_lowerTick, _upperTick);
         uint256 amount0Collateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
@@ -202,18 +186,19 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
         _addDepositCap(_maxAssets);
 
-        //initial deposit
+        //Case1: first depositor
         if (totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
-            uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 1000);
+            uint256 _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 1000);
             _mint(msg.sender, _maxAssets - _initialBurnedBalance);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
             return _maxAssets - _initialBurnedBalance;
         }
 
+        //Case2: from second depositor.
         //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
         uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(lowerTick, upperTick);
@@ -337,8 +322,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         );
 
         // `_redeemedBalances` are currently hold balances in this vault and will transfer to receiver
-        uint _redeemableToken0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
-        uint _redeemableToken1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
+        uint256 _redeemableToken0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
+        uint256 _redeemableToken1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
         uint256 _flashBorrowToken1;
         if (_redeemPosition.debtAmount1 >= _redeemableToken1) {
@@ -500,8 +485,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         ILendingPoolManager(lendingPool).borrow(_positions.debtAmount1);
 
         //Add Liquidity (#3 and #4)
-        uint _additionalLiquidityAmount0;
-        uint _additionalLiquidityAmount1;
+        uint256 _additionalLiquidityAmount0;
+        uint256 _additionalLiquidityAmount1;
         if (_additionalLiquidity > 0) {
             (_additionalLiquidityAmount0, _additionalLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).mint(
                 lowerTick,
@@ -510,7 +495,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
             );
         }
 
-        uint _actualUsedAmountToken0;
+        uint256 _actualUsedAmountToken0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
             // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
             uint256 _surplusAmountToken1 = _positions.debtAmount1 -
