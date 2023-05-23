@@ -440,16 +440,15 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
             //delegate call
             _delegate(params.strategyImpl());
-        }
-
-        if (_flashloanType == uint8(FlashloanType.REDEEM)) {
+        } else if (_flashloanType == uint8(FlashloanType.REDEEM)) {
             console2.log("FlashloanType.REDEEM");
 
-            (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
+            (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256)); // (, debt, collateral)
 
-            // Repay Token1
+            // repay debt
             ILendingPoolManager(lendingPool).repay(_amount1);
-            // Withdraw Token0 as collateral
+
+            // withdraw collateral
             ILendingPoolManager(lendingPool).withdraw(_amount0);
 
             //swap to repay flashloan

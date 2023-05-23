@@ -25,12 +25,12 @@ contract AaveLendingPoolManager is ILendingPoolManager {
     /* ========== STORAGES ========== */
 
     /* ========== PARAMETERS ========== */
-    IAaveV3Pool public aave;
-    IERC20 public token0;
-    IERC20 public token1;
-    IERC20 public aToken0;
-    IERC20 public debtToken1;
-    address public operator;
+    IAaveV3Pool public immutable aave;
+    IERC20 public immutable token0;
+    IERC20 public immutable token1;
+    IERC20 public immutable aToken0;
+    IERC20 public immutable debtToken1;
+    address public immutable operator;
 
     /* ========== MODIFIER ========== */
     modifier onlyOperator() {
@@ -63,28 +63,28 @@ contract AaveLendingPoolManager is ILendingPoolManager {
         return debtToken1.balanceOf(address(this));
     }
 
-    function supply(uint256 amount) external onlyOperator {
-        if (amount > 0) {
-            token0.safeTransferFrom(operator, address(this), amount);
+    function supply(uint256 _amount0) external onlyOperator {
+        if (_amount0 > 0) {
+            token0.safeTransferFrom(operator, address(this), _amount0);
         }
-        aave.safeSupply(address(token0), amount, address(this), AAVE_REFERRAL_NONE);
+        aave.safeSupply(address(token0), _amount0, address(this), AAVE_REFERRAL_NONE);
     }
 
-    function withdraw(uint256 amount) external onlyOperator {
-        aave.safeWithdraw(address(token0), amount, operator);
+    function withdraw(uint256 _amount0) external onlyOperator {
+        aave.safeWithdraw(address(token0), _amount0, operator);
     }
 
-    function borrow(uint256 amount) external onlyOperator {
-        aave.safeBorrow(address(token1), amount, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
-        if (amount > 0) {
-            token1.safeTransfer(operator, amount);
+    function borrow(uint256 _amount1) external onlyOperator {
+        aave.safeBorrow(address(token1), _amount1, AAVE_VARIABLE_INTEREST, AAVE_REFERRAL_NONE, address(this));
+        if (_amount1 > 0) {
+            token1.safeTransfer(operator, _amount1);
         }
     }
 
-    function repay(uint256 amount) external onlyOperator {
-        if (amount > 0) {
-            token1.safeTransferFrom(operator, address(this), amount);
+    function repay(uint256 _amount1) external onlyOperator {
+        if (_amount1 > 0) {
+            token1.safeTransferFrom(operator, address(this), _amount1);
         }
-        aave.safeRepay(address(token1), amount, AAVE_VARIABLE_INTEREST, address(this));
+        aave.safeRepay(address(token1), _amount1, AAVE_VARIABLE_INTEREST, address(this));
     }
 }
