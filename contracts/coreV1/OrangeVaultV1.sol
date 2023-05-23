@@ -469,7 +469,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
     }
 
-    function _depositInFlashloan(uint8 _flashloanType, uint256 borrowFlashloanAmount, bytes memory _userData) internal {
+    function _depositInFlashloan(uint8 _flashloanType, uint256 flashloanAmount, bytes memory _userData) internal {
         console2.log("depositInFlashloan");
         (, Positions memory _positions, uint128 _additionalLiquidity, uint256 _maxAssets, address _receiver) = abi
             .decode(_userData, (uint8, Positions, uint128, uint256, address));
@@ -500,24 +500,26 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         uint256 _actualUsedAmount0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
+            // Token0 is flashLoaned.
             // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
             uint256 _surplusAmount1 = _positions.debtAmount1 - (_additionalLiquidityAmount1 + _positions.token1Balance);
             uint256 _amountOutFromSurplusToken1Sale = ISwapRouter(params.router()).swapAmountIn(
-                address(token0),
-                address(token1),
+                address(token0), //In
+                address(token1), //Out
                 params.routerFee(),
                 _surplusAmount1
             );
 
-            _actualUsedAmount0 = borrowFlashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
+            _actualUsedAmount0 = flashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
+            // Token1 is flashLoaned.
             // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token1 for #5)
             uint256 token1AmountToSwap = _additionalLiquidityAmount1 +
                 _positions.token1Balance -
                 _positions.debtAmount1;
             uint256 token0AmtUsedForToken1 = ISwapRouter(params.router()).swapAmountOut(
-                address(token1),
-                address(token0),
+                address(token1), //In
+                address(token0), //Out
                 params.routerFee(),
                 token1AmountToSwap
             );
