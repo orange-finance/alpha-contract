@@ -30,9 +30,9 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     IUniswapV3Pool public pool;
     // IERC20 public immutable token0;
     // IERC20 public immutable token1;
-    uint24 public fee;
-    bool public reversed; //if baseToken > targetToken of Vault, true
-    address public operator;
+    uint24 public immutable fee;
+    bool public immutable reversed; //if baseToken > targetToken of Vault, true
+    address public immutable operator;
 
     /* ========== MODIFIER ========== */
     modifier onlyOperator() {
@@ -43,9 +43,8 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     /* ========== Initializable ========== */
     constructor(address _operator, address _token0, address _token1, address _pool) {
         operator = _operator;
-        if (_token0 > _token1) {
-            reversed = true;
-        }
+        reversed = _token0 > _token1 ? true : false;
+
         pool = IUniswapV3Pool(_pool);
         fee = pool.fee();
     }
