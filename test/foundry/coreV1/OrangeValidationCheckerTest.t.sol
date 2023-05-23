@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 import {OrangeValidationChecker, ErrorsV1} from "../../../contracts/coreV1/OrangeValidationChecker.sol";
+import {OrangeERC20} from "../../../contracts/coreV1/OrangeERC20.sol";
 import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
 
 contract OrangeValidationCheckerTest is BaseTest {
@@ -81,7 +82,7 @@ contract OrangeValidationCheckerTest is BaseTest {
 }
 
 contract OrangeValidationCheckerMock is OrangeValidationChecker {
-    constructor(address _params) {
+    constructor(address _params) OrangeERC20("OrangeStrategyImplV1", "OrangeStrategyImplV1") {
         params = OrangeParametersV1(_params);
     }
 
@@ -95,5 +96,9 @@ contract OrangeValidationCheckerMock is OrangeValidationChecker {
 
     function reduceDepositCap(uint256 _assets) external {
         super._reduceDepositCap(_assets);
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 18;
     }
 }

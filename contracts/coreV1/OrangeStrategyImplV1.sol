@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeBaseV1} from "./OrangeBaseV1.sol";
+import {OrangeBaseV1, OrangeERC20} from "./OrangeBaseV1.sol";
 
 //interafaces
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
@@ -21,6 +21,8 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
+
+    constructor() OrangeERC20("OrangeStrategyImplV1", "OrangeStrategyImplV1") {}
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function rebalance(
@@ -131,6 +133,10 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
 
         // emit event
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
+    }
+
+    function decimals() external pure override returns (uint8) {
+        return 18;
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
