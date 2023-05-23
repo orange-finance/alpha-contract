@@ -361,10 +361,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         returnAssets_ = token0.balanceOf(address(this)) - _unRedeemableBalance0;
 
-        // Transfer Token0 from Vault to Receiver
+        // check redemption has done as expected
         if (returnAssets_ < _minAssets) {
             revert(Errors.LESS_AMOUNT);
         }
+
+        // complete redemption
         token0.safeTransfer(msg.sender, returnAssets_);
         _reduceDepositCap(returnAssets_);
 
