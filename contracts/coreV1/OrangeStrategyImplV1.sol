@@ -89,47 +89,42 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
 
         hasPosition = false;
 
-        // 1. Remove liquidity
-        // 2. Collect fees
+        // 1. Remove liquidity & Collect Fees
         uint128 liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(lowerTick, upperTick);
         if (liquidity > 0) {
             ILiquidityPoolManager(liquidityPool).burnAndCollect(lowerTick, upperTick, liquidity);
         }
 
-        uint256 _repayingDebt = ILendingPoolManager(lendingPool).balanceOfDebt();
-        uint256 _balanceToken1 = token1.balanceOf(address(this));
-        uint256 _withdrawingCollateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
+        uint256 _withdrawingToken0 = ILendingPoolManager(lendingPool).balanceOfCollateral();
+        uint256 _repayingToken1 = ILendingPoolManager(lendingPool).balanceOfDebt();
+        uint256 _vaultAmount1 = token1.balanceOf(address(this));
 
-        // Flashloan to borrow Repay Token1
-        uint256 _flashBorrowToken1;
-        if (_repayingDebt > _balanceToken1) {
+        // 2. Flashloan token1 to repay the Debt (Token1)
+        uint256 _flashLoanAmount1;
+        if (_repayingToken1 > _vaultAmount1) {
             unchecked {
-                _flashBorrowToken1 = _repayingDebt - _balanceToken1;
+                _flashLoanAmount1 = _repayingToken1 - _vaultAmount1;
             }
         }
 
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
-        bytes memory _userData = abi.encode(
-            IOrangeVaultV1.FlashloanType.STOPLOSS,
-            _repayingDebt,
-            _withdrawingCollateral
-        );
+        bytes memory _userData = abi.encode(IOrangeVaultV1.FlashloanType.STOPLOSS, _repayingToken1, _withdrawingToken0);
         flashloanHash = keccak256(_userData); //set stroage for callback
         IBalancerVault(params.balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
-            _flashBorrowToken1,
+            _flashLoanAmount1,
             _userData
         );
 
-        // swap remaining all Token1 to Token0
-        _balanceToken1 = token1.balanceOf(address(this));
-        if (_balanceToken1 > 0) {
+        // 3. Swap remaining all Token1 for Token0
+        _vaultAmount1 = token1.balanceOf(address(this));
+        if (_vaultAmount1 > 0) {
             ISwapRouter(params.router()).swapAmountIn(
-                address(token0),
-                address(token1),
+                address(token1), //In
+                address(token0), //Out
                 params.routerFee(),
-                _balanceToken1
+                _vaultAmount1
             );
         }
 
@@ -148,7 +143,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
             _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
         ) {
-            revert("Errors.HIGH_SLIPPAGE");
+            revert(ErrorsV1.HIGH_SLIPPAGE);
         }
     }
 
@@ -306,16 +301,15 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             // Withdraw Token0 as collateral
             ILendingPoolManager(lendingPool).withdraw(_amount0);
 
-            //swap to repay flashloan
+            // Swap to repay the flashloaned token
             if (_amounts[0] > 0) {
-                (address _tokenIn, address _tokenOut) = (address(_tokens[0]) == address(token0))
+                (address _tokenAnother, address _tokenFlashLoaned) = (address(_tokens[0]) == address(token0))
                     ? (address(token1), address(token0))
                     : (address(token0), address(token1));
 
-                // swap Token0 to Token1 to repay flashloan
                 ISwapRouter(params.router()).swapAmountOut(
-                    _tokenIn,
-                    _tokenOut,
+                    _tokenAnother,
+                    _tokenFlashLoaned,
                     params.routerFee(),
                     _amounts[0] //uncheckable
                 );

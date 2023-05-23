@@ -453,11 +453,16 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
             //swap to repay flashloan
             if (_amounts[0] > 0) {
-                (address _tokenIn, address _tokenOut) = (address(_tokens[0]) == address(token0))
+                (address _tokenAnother, address _tokenFlashLoaned) = (address(_tokens[0]) == address(token0))
                     ? (address(token1), address(token0))
                     : (address(token0), address(token1));
-                // swap Token0 to Token1 to repay flashloan
-                ISwapRouter(params.router()).swapAmountOut(_tokenIn, _tokenOut, params.routerFee(), _amounts[0]);
+                // Swap to repay the flashloaned token
+                ISwapRouter(params.router()).swapAmountOut(
+                    _tokenAnother, //In
+                    _tokenFlashLoaned, //Out
+                    params.routerFee(),
+                    _amounts[0]
+                );
             }
         } else {
             console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
