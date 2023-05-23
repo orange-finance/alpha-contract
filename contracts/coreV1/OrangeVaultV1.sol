@@ -327,10 +327,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint256 _redeemableAmount0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
         uint256 _redeemableAmount1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
-        uint256 _flashBorrowToken1;
+        uint256 _flashBorrowAmount1;
         if (_redeemPosition.debtAmount1 >= _redeemableAmount1) {
             unchecked {
-                _flashBorrowToken1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
+                _flashBorrowAmount1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
             }
         } else {
             // swap surplus Token1 to return receiver as Token0
@@ -355,7 +355,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         IBalancerVault(params.balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
-            _flashBorrowToken1,
+            _flashBorrowAmount1,
             _userData
         );
 
@@ -497,22 +497,18 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             );
         }
 
-        uint256 _actualUsedAmountToken0;
+        uint256 _actualUsedAmount0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
             // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
-            uint256 _surplusAmountToken1 = _positions.debtAmount1 -
-                (_additionalLiquidityAmount1 + _positions.token1Balance);
+            uint256 _surplusAmount1 = _positions.debtAmount1 - (_additionalLiquidityAmount1 + _positions.token1Balance);
             uint256 _amountOutFromSurplusToken1Sale = ISwapRouter(params.router()).swapAmountIn(
                 address(token0),
                 address(token1),
                 params.routerFee(),
-                _surplusAmountToken1
+                _surplusAmount1
             );
 
-            _actualUsedAmountToken0 =
-                borrowFlashloanAmount +
-                _positions.token0Balance -
-                _amountOutFromSurplusToken1Sale;
+            _actualUsedAmount0 = borrowFlashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
             // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token1 for #5)
             uint256 token1AmountToSwap = _additionalLiquidityAmount1 +
@@ -525,7 +521,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 token1AmountToSwap
             );
 
-            _actualUsedAmountToken0 =
+            _actualUsedAmount0 =
                 _positions.collateralAmount0 +
                 _additionalLiquidityAmount0 +
                 _positions.token0Balance +
@@ -533,11 +529,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         }
 
         //Refund the unspent Token0 (Leave some Token0 for #6)
-        // console2.log(_maxAssets, _actualUsedAmountToken0);
-        if (_maxAssets < _actualUsedAmountToken0) revert(Errors.LESS_MAX_ASSETS);
+        // console2.log(_maxAssets, _actualUsedAmount0);
+        if (_maxAssets < _actualUsedAmount0) revert(Errors.LESS_MAX_ASSETS);
         unchecked {
-            uint256 _refundAmountToken0 = _maxAssets - _actualUsedAmountToken0;
-            if (_refundAmountToken0 > 0) token0.safeTransfer(_receiver, _refundAmountToken0);
+            uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
+            if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);
         }
     }
 }
