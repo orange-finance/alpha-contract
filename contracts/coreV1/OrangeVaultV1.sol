@@ -429,9 +429,9 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     ) external {
         console2.log("receiveFlashLoan");
         if (msg.sender != params.balancer()) revert(Errors.ONLY_BALANCER_VAULT);
-        //hash check
+        //check validity
         if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
-        flashloanHash = bytes32(0); //clear storage
+        flashloanHash = bytes32(0); //clear cache
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
 
