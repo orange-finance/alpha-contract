@@ -5,19 +5,13 @@ import "forge-std/console2.sol";
 import {IERC20} from "../libs/BalancerFlashloan.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeBaseV1} from "../interfaces/IOrangeBaseV1.sol";
+import {OrangeERC20} from "./OrangeERC20.sol";
 
-abstract contract OrangeBaseV1 is IOrangeBaseV1 {
+abstract contract OrangeBaseV1 is IOrangeBaseV1, OrangeERC20 {
     struct DepositType {
         uint256 assets;
         uint40 timestamp;
     }
-
-    //ERC20
-    string public name;
-    string public symbol;
-    uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
 
     //OrangeVault
     int24 public lowerTick;

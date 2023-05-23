@@ -25,7 +25,7 @@ import {AaveLendingPoolManager} from "../poolManager/AaveLendingPoolManager.sol"
 
 import "forge-std/console2.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC20, OrangeValidationChecker, Proxy {
+contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
     using UniswapRouterSwapper for ISwapRouter;

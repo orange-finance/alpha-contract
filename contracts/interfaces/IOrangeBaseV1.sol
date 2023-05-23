@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {IOrangeParametersV1} from "./IOrangeParametersV1.sol";
-
-// import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IERC20} from "../libs/BalancerFlashloan.sol";
 
 interface IOrangeBaseV1 {
     /* ========== VIEW FUNCTIONS ========== */
