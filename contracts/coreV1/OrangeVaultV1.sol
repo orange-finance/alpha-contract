@@ -342,7 +342,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             );
         }
 
-        // memorize balance of token1 to be remained in vault
+        // memorize balance of token0 to be remained in vault
         uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableAmount0;
 
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
