@@ -323,7 +323,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             _totalSupply
         );
 
-        // `_redeemedBalances` are currently hold balances in this vault and will transfer to receiver
+        // `_redeemableAmount0/1` are currently hold balances in this vault and will transfer to receiver
         uint256 _redeemableAmount0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
         uint256 _redeemableAmount1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
