@@ -216,13 +216,13 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         //calculate additional amounts based on liquidity by shares
         uint128 _additionalLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, totalSupply));
 
-        //transfer Token0 to this contract
+        //transfer the base token (token0) to this contract
         token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
 
         //append position
         _depositFlashloan(
-            _additionalPosition, //Aave & Contract Balances
-            _additionalLiquidity, //Uni
+            _additionalPosition, //Additional Hedge Position and Token remains in the vault.
+            _additionalLiquidity, //Additional Liquidity for AMM.
             _maxAssets //Token0 from User
         );
 
@@ -233,6 +233,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         return _shares;
     }
 
+    /// @notice flashloan Token0 or 1 from Balancer to construct position smoothly.
+    /// @dev Balancer.makeFlashLoan() callbacks receiveFlashLoan()
     function _depositFlashloan(
         Positions memory _additionalPosition,
         uint128 _additionalLiquidity,

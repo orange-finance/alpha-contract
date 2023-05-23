@@ -79,7 +79,7 @@ interface IOrangeVaultV1 is IOrangeBaseV1 {
     /**
      * @notice deposit assets and get vault token
      * @param _shares amount of vault token
-     * @param _maxAssets maximum amount of assets
+     * @param _maxAssets maximum amount of assets. excess amount will be transfer back to the msg.sender
      * @param _merkleProof merkle proof
      * @return shares
      * @dev increase all position propotionally. e.g. when share = totalSupply, the Vault is doubling up the all position.
