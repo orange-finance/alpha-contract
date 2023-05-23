@@ -38,12 +38,12 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         int24 _currentLowerTick = lowerTick;
         int24 _currentUpperTick = upperTick;
 
-        // Update storage of ranges
+        // update storage of ranges
         lowerTick = _newLowerTick;
         upperTick = _newUpperTick;
         hasPosition = true;
 
-        //validation of tickSpacing
+        // validation of tickSpacing
         ILiquidityPoolManager(liquidityPool).validateTicks(_newLowerTick, _newUpperTick);
 
         // 1. burn and collect fees
@@ -64,7 +64,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         // 4. execute hedge
         _executeHedgeRebalance(_currentPosition, _targetPosition);
 
-        // 5. Add liquidity
+        // 5. add liquidity
         uint128 _targetLiquidity = _addLiquidityInRebalance(
             _newLowerTick,
             _newUpperTick,
@@ -151,16 +151,13 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
     }
 
     /// @notice execute hedge by changing collateral or debt amount
-    /// @dev called by rebalance
+    /// @dev called by rebalance.
+    /// @dev currently, rebalance doesn't support flashloan, so this may swap multiple times.
     function _executeHedgeRebalance(
         IOrangeVaultV1.Positions memory _currentPosition,
         IOrangeVaultV1.Positions memory _targetPosition
     ) internal {
-        /**memo
-         * what if current.collateral == target.collateral. both borrow or repay can come after.
-         * We should code special case when one of collateral or debt is equal. But this is one in a million case, so we can wait a few second and execute rebalance again.
-         * Maybe, we can revert when one of them is equal.
-         */
+        // skip special situation below to keep the code simple.
         if (
             _currentPosition.collateralAmount0 == _targetPosition.collateralAmount0 ||
             _currentPosition.debtAmount1 == _targetPosition.debtAmount1
@@ -169,64 +166,76 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             if (_currentPosition.collateralAmount0 == 0) return;
             revert(ErrorsV1.EQUAL_COLLATERAL_OR_DEBT);
         }
+
+        // start rebalance.
         unchecked {
             if (
                 _currentPosition.collateralAmount0 < _targetPosition.collateralAmount0 &&
                 _currentPosition.debtAmount1 < _targetPosition.debtAmount1
             ) {
-                // case1 supply and borrow
+                // Case1: Supply & Borrow
+
+                // 1.supply
                 console2.log("case1 supply and borrow");
-                uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
+                uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0;
+
+                // swap (if necessary)
                 if (_supply0 > _currentPosition.token0Balance) {
-                    // swap (if necessary)
                     ISwapRouter(params.router()).swapAmountOut(
                         address(token1),
                         address(token0),
                         params.routerFee(),
-                        _supply0 - _currentPosition.token0Balance //uncheckable
+                        _supply0 - _currentPosition.token0Balance
                     );
                 }
+
                 ILendingPoolManager(lendingPool).supply(_supply0);
 
-                // borrow
-                uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable
+                // 2.borrow
+                uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1;
                 ILendingPoolManager(lendingPool).borrow(_borrow1);
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
-                    // case2 repay
+                    // Case2: Repay & (Supply or Withdraw)
                     console2.log("case2 repay");
-                    uint256 _repay1 = _currentPosition.debtAmount1 - _targetPosition.debtAmount1; //uncheckable
+
+                    // 1. Repay
+                    uint256 _repay1 = _currentPosition.debtAmount1 - _targetPosition.debtAmount1;
 
                     // swap (if necessary)
                     if (_repay1 > _currentPosition.token1Balance) {
                         ISwapRouter(params.router()).swapAmountOut(
-                            address(token0),
-                            address(token1),
+                            address(token0), //In
+                            address(token1), //Out
                             params.routerFee(),
-                            _repay1 - _currentPosition.token1Balance //uncheckable
+                            _repay1 - _currentPosition.token1Balance
                         );
                     }
                     ILendingPoolManager(lendingPool).repay(_repay1);
 
+                    // check which of supply or withdraw comes after
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
-                        // case2_1 repay and supply
+                        // 2. Supply
                         console2.log("case2_1 repay and supply");
 
-                        uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0; //uncheckable
+                        uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0;
                         ILendingPoolManager(lendingPool).supply(_supply0);
                     } else {
-                        // case2_2 repay and withdraw
+                        // 2. Withdraw
                         console2.log("case2_2 repay and withdraw");
-                        uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //uncheckable. //possibly, equal
+                        uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0;
                         ILendingPoolManager(lendingPool).withdraw(_withdraw0);
                     }
                 } else {
-                    // case3 borrow and withdraw
+                    // Case3: Borrow and Withdraw
                     console2.log("case3 borrow and withdraw");
-                    uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1; //uncheckable. //possibly, equal
+
+                    // 1. borrow
+                    uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1;
                     ILendingPoolManager(lendingPool).borrow(_borrow1);
-                    // withdraw should be the only option here.
-                    uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0; //should be uncheckable. //possibly, equal
+
+                    // 2. withdraw
+                    uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0;
                     ILendingPoolManager(lendingPool).withdraw(_withdraw0);
                 }
             }
