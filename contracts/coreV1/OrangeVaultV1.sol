@@ -501,11 +501,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint256 _actualUsedAmount0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
             // Token0 is flashLoaned.
-            // Calculate the amount of surplus Token1 and swap to Token0 (Leave some Token1 for #5)
+            // Calculate the amount of surplus Token1 and swap for Token0 (Leave some Token1 to achieve #5)
             uint256 _surplusAmount1 = _positions.debtAmount1 - (_additionalLiquidityAmount1 + _positions.token1Balance);
             uint256 _amountOutFromSurplusToken1Sale = ISwapRouter(params.router()).swapAmountIn(
-                address(token0), //In
-                address(token1), //Out
+                address(token1), //In
+                address(token0), //Out
                 params.routerFee(),
                 _surplusAmount1
             );
@@ -513,22 +513,22 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             _actualUsedAmount0 = flashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
             // Token1 is flashLoaned.
-            // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token1 for #5)
-            uint256 token1AmountToSwap = _additionalLiquidityAmount1 +
+            // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token0 for Token1 to achieve #5)
+            uint256 amount1ToBeSwapped = _additionalLiquidityAmount1 +
                 _positions.token1Balance -
                 _positions.debtAmount1;
-            uint256 token0AmtUsedForToken1 = ISwapRouter(params.router()).swapAmountOut(
-                address(token1), //In
-                address(token0), //Out
+            uint256 amount0UsedForToken1 = ISwapRouter(params.router()).swapAmountOut(
+                address(token0), //In
+                address(token1), //Out
                 params.routerFee(),
-                token1AmountToSwap
+                amount1ToBeSwapped
             );
 
             _actualUsedAmount0 =
                 _positions.collateralAmount0 +
                 _additionalLiquidityAmount0 +
                 _positions.token0Balance +
-                token0AmtUsedForToken1;
+                amount0UsedForToken1;
         }
 
         //Refund the unspent Token0 (Leave some Token0 for #6)
