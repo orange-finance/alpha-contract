@@ -118,10 +118,10 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         uint256 amount0Balance = _underlyingAssets.liquidityAmount0 +
             _underlyingAssets.accruedFees0 +
-            _underlyingAssets.token0Balance;
+            _underlyingAssets.vaultAmount0;
         uint256 amount1Balance = _underlyingAssets.liquidityAmount1 +
             _underlyingAssets.accruedFees1 +
-            _underlyingAssets.token1Balance;
+            _underlyingAssets.vaultAmount1;
         return _alignTotalAsset(_ticks, amount0Balance, amount1Balance, amount0Debt, amount1Supply);
     }
 
@@ -325,8 +325,8 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         Positions memory _additionalPosition = _computeTargetPositionByShares(
             debtToken0.balanceOf(address(this)),
             aToken1.balanceOf(address(this)),
-            _underlyingAssets.token0Balance + _underlyingAssets.accruedFees0, //including pending fees
-            _underlyingAssets.token1Balance + _underlyingAssets.accruedFees1, //including pending fees
+            _underlyingAssets.vaultAmount0 + _underlyingAssets.accruedFees0, //including pending fees
+            _underlyingAssets.vaultAmount1 + _underlyingAssets.accruedFees1, //including pending fees
             _shares,
             totalSupply
         );

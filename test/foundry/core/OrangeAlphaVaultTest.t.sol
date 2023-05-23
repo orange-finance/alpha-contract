@@ -153,8 +153,8 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertEq(_underlyingAssets.liquidityAmount1, 0);
         assertEq(_underlyingAssets.accruedFees0, 0);
         assertEq(_underlyingAssets.accruedFees1, 0);
-        assertEq(_underlyingAssets.token0Balance, 0);
-        assertEq(_underlyingAssets.token1Balance, 0);
+        assertEq(_underlyingAssets.vaultAmount0, 0);
+        assertEq(_underlyingAssets.vaultAmount1, 0);
     }
 
     function test_getUnderlyingBalances_Success1() public {
@@ -167,8 +167,8 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertGt(_underlyingAssets.liquidityAmount0, 0);
         assertGt(_underlyingAssets.liquidityAmount1, 0);
         //Greater than or equial 0
-        assertGe(_underlyingAssets.token0Balance, 0);
-        assertGe(_underlyingAssets.token1Balance, 0);
+        assertGe(_underlyingAssets.vaultAmount0, 0);
+        assertGe(_underlyingAssets.vaultAmount1, 0);
     }
 
     function test_getUnderlyingBalances_Success2() public {
@@ -185,8 +185,8 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         assertGt(_underlyingAssets.accruedFees0, 0);
         assertGt(_underlyingAssets.accruedFees1, 0);
         //Greater than or equial 0
-        assertGe(_underlyingAssets.token0Balance, 0);
-        assertGe(_underlyingAssets.token1Balance, 0);
+        assertGe(_underlyingAssets.vaultAmount0, 0);
+        assertGe(_underlyingAssets.vaultAmount1, 0);
     }
 
     function test_computeTargetPositionByShares_Success() public {

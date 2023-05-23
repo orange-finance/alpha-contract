@@ -37,8 +37,8 @@ interface IOrangeVaultV1 is IOrangeBaseV1 {
         uint256 liquidityAmount1; //liquidity amount of token1 on Uniswap
         uint256 accruedFees0; //fees of token0 on Uniswap
         uint256 accruedFees1; //fees of token1 on Uniswap
-        uint256 token0Balance; //balance of token0
-        uint256 token1Balance; //balance of token1
+        uint256 vaultAmount0; //balance of token0 in the vault
+        uint256 vaultAmount1; //balance of token1 in the vault
     }
 
     /* ========== EVENTS ========== */

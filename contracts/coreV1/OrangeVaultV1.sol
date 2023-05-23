@@ -97,10 +97,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
 
         uint256 amount0Balance = _underlyingAssets.liquidityAmount0 +
             _underlyingAssets.accruedFees0 +
-            _underlyingAssets.token0Balance;
+            _underlyingAssets.vaultAmount0;
         uint256 amount1Balance = _underlyingAssets.liquidityAmount1 +
             _underlyingAssets.accruedFees1 +
-            _underlyingAssets.token1Balance;
+            _underlyingAssets.vaultAmount1;
         return _alignTotalAsset(amount0Balance, amount1Balance, amount0Collateral, amount1Debt);
     }
 
@@ -153,8 +153,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         (underlyingAssets.accruedFees0, underlyingAssets.accruedFees1) = ILiquidityPoolManager(liquidityPool)
             .getFeesEarned(_lowerTick, _upperTick);
 
-        underlyingAssets.token0Balance = token0.balanceOf(address(this));
-        underlyingAssets.token1Balance = token1.balanceOf(address(this));
+        underlyingAssets.vaultAmount0 = token0.balanceOf(address(this));
+        underlyingAssets.vaultAmount1 = token1.balanceOf(address(this));
     }
 
     ///@notice Compute target position by shares
@@ -207,8 +207,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
         Positions memory _additionalPosition = _computeTargetPositionByShares(
             ILendingPoolManager(lendingPool).balanceOfCollateral(),
             ILendingPoolManager(lendingPool).balanceOfDebt(),
-            _underlyingAssets.token0Balance + _underlyingAssets.accruedFees0, //including pending fees
-            _underlyingAssets.token1Balance + _underlyingAssets.accruedFees1, //including pending fees
+            _underlyingAssets.vaultAmount0 + _underlyingAssets.accruedFees0, //including pending fees
+            _underlyingAssets.vaultAmount1 + _underlyingAssets.accruedFees1, //including pending fees
             _shares,
             totalSupply
         );
@@ -247,7 +247,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeERC
                 .getAmountsForLiquidity(lowerTick, upperTick, _additionalLiquidity);
         }
 
-        //The case of overhedge (debtToken1 > liqToken1 + balanceToken1)
+        //Case1: Overhedge. (Debt Token1 > Liquidity Token1 + Vault Token1)
         if (_additionalPosition.debtAmount1 > _additionalLiquidityAmount1 + _additionalPosition.token1Balance) {
             /**
              * Overhedge
