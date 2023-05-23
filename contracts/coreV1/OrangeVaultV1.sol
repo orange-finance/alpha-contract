@@ -324,26 +324,26 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         );
 
         // `_redeemedBalances` are currently hold balances in this vault and will transfer to receiver
-        uint256 _redeemableToken0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
-        uint256 _redeemableToken1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
+        uint256 _redeemableAmount0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
+        uint256 _redeemableAmount1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
         uint256 _flashBorrowToken1;
-        if (_redeemPosition.debtAmount1 >= _redeemableToken1) {
+        if (_redeemPosition.debtAmount1 >= _redeemableAmount1) {
             unchecked {
-                _flashBorrowToken1 = _redeemPosition.debtAmount1 - _redeemableToken1;
+                _flashBorrowToken1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
             }
         } else {
             // swap surplus Token1 to return receiver as Token0
-            _redeemableToken0 += ISwapRouter(params.router()).swapAmountIn(
+            _redeemableAmount0 += ISwapRouter(params.router()).swapAmountIn(
                 address(token0),
                 address(token1),
                 params.routerFee(),
-                _redeemableToken1 - _redeemPosition.debtAmount1
+                _redeemableAmount1 - _redeemPosition.debtAmount1
             );
         }
 
         // memorize balance of token1 to be remained in vault
-        uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableToken0;
+        uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableAmount0;
 
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
         bytes memory _userData = abi.encode(
