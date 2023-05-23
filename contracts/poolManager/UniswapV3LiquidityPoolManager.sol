@@ -78,7 +78,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         uint128 liquidity
     ) external view returns (uint256, uint256) {
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint amount0, uint amount1) = LiquidityAmounts.getAmountsForLiquidity(
+        (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
             _sqrtRatioX96,
             lowerTick.getSqrtRatioAtTick(),
             upperTick.getSqrtRatioAtTick(),
@@ -94,7 +94,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         uint256 amount1
     ) external view returns (uint128 liquidity) {
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint _amount0, uint _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
+        (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
 
         return
             LiquidityAmounts.getLiquidityForAmounts(
@@ -123,9 +123,9 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
             uint128 tokensOwed0,
             uint128 tokensOwed1
         ) = pool.positions(keccak256(abi.encodePacked(address(this), lowerTick, upperTick)));
-        uint _fee0 = _computeFeesEarned(pool.token0(), feeGrowthInside0Last, liquidity, lowerTick, upperTick) +
+        uint256 _fee0 = _computeFeesEarned(pool.token0(), feeGrowthInside0Last, liquidity, lowerTick, upperTick) +
             uint256(tokensOwed0);
-        uint _fee1 = _computeFeesEarned(pool.token1(), feeGrowthInside1Last, liquidity, lowerTick, upperTick) +
+        uint256 _fee1 = _computeFeesEarned(pool.token1(), feeGrowthInside1Last, liquidity, lowerTick, upperTick) +
             uint256(tokensOwed1);
 
         return reversed ? (_fee1, _fee0) : (_fee0, _fee1);
@@ -213,7 +213,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 upperTick,
         uint128 liquidity
     ) external onlyOperator returns (uint256, uint256) {
-        (uint _burn0, uint _burn1) = pool.burn(lowerTick, upperTick, liquidity);
+        (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
 
@@ -222,8 +222,8 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 upperTick,
         uint128 liquidity
     ) external onlyOperator returns (uint256, uint256) {
-        uint _burn0;
-        uint _burn1;
+        uint256 _burn0;
+        uint256 _burn1;
         if (liquidity > 0) {
             (_burn0, _burn1) = pool.burn(lowerTick, upperTick, liquidity);
         }
