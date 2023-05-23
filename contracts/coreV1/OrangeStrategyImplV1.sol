@@ -61,16 +61,18 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             token1.balanceOf(address(this))
         );
 
-        // 4. execute hedge
+        // 3. execute hedge
         _executeHedgeRebalance(_currentPosition, _targetPosition);
 
-        // 5. add liquidity
+        // 4. add liquidity
         uint128 _targetLiquidity = _addLiquidityInRebalance(
             _newLowerTick,
             _newUpperTick,
             _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
             _targetPosition.token1Balance // amount of token1 to be added to Uniswap
         );
+
+        // check if rebalance has done as expected or not
         if (_targetLiquidity < _minNewLiquidity) {
             revert(ErrorsV1.LESS_LIQUIDITY);
         }
