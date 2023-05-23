@@ -327,10 +327,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint256 _redeemableAmount0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
         uint256 _redeemableAmount1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
 
-        uint256 _flashBorrowAmount1;
+        uint256 _flashLoanAmount1;
         if (_redeemPosition.debtAmount1 >= _redeemableAmount1) {
             unchecked {
-                _flashBorrowAmount1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
+                _flashLoanAmount1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
             }
         } else {
             // swap surplus Token1 to return receiver as Token0
@@ -355,7 +355,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         IBalancerVault(params.balancer()).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
-            _flashBorrowAmount1,
+            _flashLoanAmount1,
             _userData
         );
 
