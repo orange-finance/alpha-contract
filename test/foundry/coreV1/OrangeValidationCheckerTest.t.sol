@@ -97,8 +97,4 @@ contract OrangeValidationCheckerMock is OrangeValidationChecker {
     function reduceDepositCap(uint256 _assets) external {
         super._reduceDepositCap(_assets);
     }
-
-    function decimals() public pure override returns (uint8) {
-        return 18;
-    }
 }

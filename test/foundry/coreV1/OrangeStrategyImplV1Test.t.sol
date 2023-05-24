@@ -223,8 +223,4 @@ contract ProxyMock is Proxy, OrangeBaseV1 {
     function rebalance(int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
         _delegate(params.strategyImpl());
     }
-
-    function decimals() public pure override returns (uint8) {
-        return 18;
-    }
 }

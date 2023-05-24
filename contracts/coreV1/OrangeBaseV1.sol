@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 import {IERC20} from "../libs/BalancerFlashloan.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeBaseV1} from "../interfaces/IOrangeBaseV1.sol";
-import {OrangeERC20} from "./OrangeERC20.sol";
+import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
 
 abstract contract OrangeBaseV1 is IOrangeBaseV1, OrangeERC20 {
     struct DepositType {
@@ -29,4 +29,8 @@ abstract contract OrangeBaseV1 is IOrangeBaseV1, OrangeERC20 {
     IERC20 public token0; //collateral and deposited currency by users
     IERC20 public token1; //debt and hedge target token
     IOrangeParametersV1 public params;
+
+    function decimals() public view override returns (uint8) {
+        return IERC20Decimals(address(token0)).decimals();
+    }
 }

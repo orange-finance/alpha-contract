@@ -135,10 +135,6 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
     }
 
-    function decimals() external pure override returns (uint8) {
-        return 18;
-    }
-
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
     ///@notice Check slippage by tick
     function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
@@ -273,7 +269,9 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             token0.balanceOf(address(this)),
             token1.balanceOf(address(this))
         );
-        ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
+        if (targetLiquidity_ > 0) {
+            ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
+        }
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */

@@ -9,7 +9,7 @@ import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
 
 //extends
 import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
-import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
+import {OrangeERC20} from "./OrangeERC20.sol";
 
 //libraries
 import {Proxy} from "../libs/Proxy.sol";
@@ -60,10 +60,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     }
 
     /* ========== VIEW FUNCTIONS ========== */
-
-    function decimals() external view override returns (uint8) {
-        return IERC20Decimals(address(token0)).decimals();
-    }
 
     /// @inheritdoc IOrangeVaultV1
     /// @dev share is propotion of liquidity. Caluculate hedge position and liquidity position except for hedge position.
@@ -194,7 +190,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 revert(Errors.INVALID_DEPOSIT_AMOUNT);
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
-            uint _initialBurnedBalance = (10 ** IERC20Decimals(address(token0)).decimals() / 1000);
+            uint _initialBurnedBalance = (10 ** decimals() / 1000);
             _mint(msg.sender, _maxAssets - _initialBurnedBalance);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
             return _maxAssets - _initialBurnedBalance;
