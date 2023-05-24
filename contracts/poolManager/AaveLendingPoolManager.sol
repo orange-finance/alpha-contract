@@ -45,14 +45,24 @@ contract AaveLendingPoolManager is ILendingPoolManager {
 
         token0 = IERC20(_token0);
         DataTypes.ReserveData memory reserveDataBase = aave.getReserveData(_token0);
+        if (reserveDataBase.aTokenAddress == address(0)) {
+            revert("INVALID_TOKEN0");
+        }
         aToken0 = IERC20(reserveDataBase.aTokenAddress);
 
         token1 = IERC20(_token1);
         DataTypes.ReserveData memory reserveDataTarget = aave.getReserveData(_token1);
+        if (reserveDataTarget.variableDebtTokenAddress == address(0)) {
+            revert("INVALID_TOKEN1");
+        }
         debtToken1 = IERC20(reserveDataTarget.variableDebtTokenAddress);
 
         token0.safeApprove(address(aave), type(uint256).max);
         token1.safeApprove(address(aave), type(uint256).max);
+    }
+
+    function balances() external view returns (uint256, uint256) {
+        return (aToken0.balanceOf(address(this)), debtToken1.balanceOf(address(this)));
     }
 
     function balanceOfCollateral() external view returns (uint256) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeBaseV1, OrangeERC20} from "./OrangeBaseV1.sol";
+import {OrangeStorageV1, OrangeERC20} from "./OrangeStorageV1.sol";
 
 //interafaces
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
@@ -17,7 +17,7 @@ import {ErrorsV1} from "./ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
-contract OrangeStrategyImplV1 is OrangeBaseV1 {
+contract OrangeStrategyImplV1 is OrangeStorageV1 {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
@@ -65,7 +65,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         _executeHedgeRebalance(_currentPosition, _targetPosition);
 
         // 4. add liquidity
-        uint128 _targetLiquidity = _addLiquidityInRebalance(
+        uint128 _addedLiquidity = _addLiquidityInRebalance(
             _newLowerTick,
             _newUpperTick,
             _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
@@ -73,7 +73,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         );
 
         // check if rebalance has done as expected or not
-        if (_targetLiquidity < _minNewLiquidity) {
+        if (_addedLiquidity < _minNewLiquidity) {
             revert(ErrorsV1.LESS_LIQUIDITY);
         }
 
@@ -95,8 +95,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             ILiquidityPoolManager(liquidityPool).burnAndCollect(lowerTick, upperTick, liquidity);
         }
 
-        uint256 _withdrawingToken0 = ILendingPoolManager(lendingPool).balanceOfCollateral();
-        uint256 _repayingToken1 = ILendingPoolManager(lendingPool).balanceOfDebt();
+        (uint256 _withdrawingToken0, uint256 _repayingToken1) = ILendingPoolManager(lendingPool).balances();
         uint256 _vaultAmount1 = token1.balanceOf(address(this));
 
         // 2. Flashloan token1 to repay the Debt (Token1)
@@ -110,7 +109,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
         bytes memory _userData = abi.encode(IOrangeVaultV1.FlashloanType.STOPLOSS, _repayingToken1, _withdrawingToken0);
         flashloanHash = keccak256(_userData); //set stroage for callback
-        IBalancerVault(params.balancer()).makeFlashLoan(
+        IBalancerVault(balancer).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
             _flashLoanAmount1,
@@ -120,20 +119,16 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         // 3. Swap remaining all Token1 for Token0
         _vaultAmount1 = token1.balanceOf(address(this));
         if (_vaultAmount1 > 0) {
-            ISwapRouter(params.router()).swapAmountIn(
+            ISwapRouter(router).swapAmountIn(
                 address(token1), //In
                 address(token0), //Out
-                params.routerFee(),
+                routerFee,
                 _vaultAmount1
             );
         }
 
         // emit event
         IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
-    }
-
-    function decimals() external pure override returns (uint8) {
-        return 18;
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -178,10 +173,10 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
 
                 // swap (if necessary)
                 if (_supply0 > _currentPosition.token0Balance) {
-                    ISwapRouter(params.router()).swapAmountOut(
+                    ISwapRouter(router).swapAmountOut(
                         address(token1),
                         address(token0),
-                        params.routerFee(),
+                        routerFee,
                         _supply0 - _currentPosition.token0Balance
                     );
                 }
@@ -201,10 +196,10 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
 
                     // swap (if necessary)
                     if (_repay1 > _currentPosition.token1Balance) {
-                        ISwapRouter(params.router()).swapAmountOut(
+                        ISwapRouter(router).swapAmountOut(
                             address(token0), //In
                             address(token1), //Out
-                            params.routerFee(),
+                            routerFee,
                             _repay1 - _currentPosition.token1Balance
                         );
                     }
@@ -256,17 +251,17 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         } else {
             unchecked {
                 if (_balance0 > _targetAmount0) {
-                    ISwapRouter(params.router()).swapAmountIn(
+                    ISwapRouter(router).swapAmountIn(
                         address(token0),
                         address(token1),
-                        params.routerFee(),
+                        routerFee,
                         _balance0 - _targetAmount0
                     );
                 } else if (_balance1 > _targetAmount1) {
-                    ISwapRouter(params.router()).swapAmountIn(
+                    ISwapRouter(router).swapAmountIn(
                         address(token1),
                         address(token0),
-                        params.routerFee(),
+                        routerFee,
                         _balance1 - _targetAmount1
                     );
                 }
@@ -279,7 +274,9 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
             token0.balanceOf(address(this)),
             token1.balanceOf(address(this))
         );
-        ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
+        if (targetLiquidity_ > 0) {
+            ILiquidityPoolManager(liquidityPool).mint(_lowerTick, _upperTick, targetLiquidity_);
+        }
     }
 
     /* ========== FLASHLOAN CALLBACK ========== */
@@ -290,7 +287,7 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != params.balancer()) revert(ErrorsV1.ONLY_BALANCER_VAULT);
+        if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
@@ -307,15 +304,15 @@ contract OrangeStrategyImplV1 is OrangeBaseV1 {
                     ? (address(token1), address(token0))
                     : (address(token0), address(token1));
 
-                ISwapRouter(params.router()).swapAmountOut(
+                ISwapRouter(router).swapAmountOut(
                     _tokenAnother,
                     _tokenFlashLoaned,
-                    params.routerFee(),
+                    routerFee,
                     _amounts[0] //uncheckable
                 );
             }
         }
         //repay flashloan
-        IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
+        IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
     }
 }

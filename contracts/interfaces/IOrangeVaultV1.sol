@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IOrangeParametersV1} from "./IOrangeParametersV1.sol";
-import {IOrangeBaseV1} from "./IOrangeBaseV1.sol";
+import {IOrangeStorageV1} from "./IOrangeStorageV1.sol";
 
 // import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-interface IOrangeVaultV1 is IOrangeBaseV1 {
+interface IOrangeVaultV1 is IOrangeStorageV1 {
     enum ActionType {
         MANUAL,
         DEPOSIT,

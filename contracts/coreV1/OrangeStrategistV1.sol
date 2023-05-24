@@ -12,9 +12,13 @@ import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
+import "forge-std/console2.sol";
+import {Ints} from "../mocks/Ints.sol";
+
 contract OrangeStrategistV1 is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
+    using Ints for int24;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
@@ -22,7 +26,7 @@ contract OrangeStrategistV1 is IResolver {
     /* ========== STORAGE ========== */
     int24 public stoplossLowerTick;
     int24 public stoplossUpperTick;
-    mapping(address => bool) operators;
+    mapping(address => bool) public operators;
 
     /* ========== PARAMETERS ========== */
     IOrangeVaultV1 public immutable vault;
@@ -65,10 +69,6 @@ contract OrangeStrategistV1 is IResolver {
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
     ) external onlyOperator {
-        if (!params.strategists(msg.sender)) {
-            revert("Errors.ONLY_STRATEGISTS");
-        }
-
         // compute target position
         uint256 _ltv = _getLtvByRange(_newStoplossUpperTick);
         IOrangeVaultV1.Positions memory _targetPosition = _computeRebalancePosition(
@@ -96,6 +96,11 @@ contract OrangeStrategistV1 is IResolver {
         if (vault.hasPosition()) {
             (, int24 _currentTick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
             int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
+            // console2.log("currentTick: ", _currentTick.toString());
+            // console2.log("twap: ", _twap.toString());
+            // console2.log("stoplossLowerTick: ", stoplossLowerTick.toString());
+            // console2.log("stoplossUpperTick: ", stoplossUpperTick.toString());
+
             if (
                 _isOutOfRange(_currentTick, stoplossLowerTick, stoplossUpperTick) &&
                 _isOutOfRange(_twap, stoplossLowerTick, stoplossUpperTick)
