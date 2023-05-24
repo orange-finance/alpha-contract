@@ -15,7 +15,7 @@ import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 import "forge-std/console2.sol";
 import {Ints} from "../mocks/Ints.sol";
 
-contract OrangeStrategistV1 is IResolver {
+contract OrangeStrategyHelperV1 is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
     using Ints for int24;
@@ -26,7 +26,7 @@ contract OrangeStrategistV1 is IResolver {
     /* ========== STORAGE ========== */
     int24 public stoplossLowerTick;
     int24 public stoplossUpperTick;
-    mapping(address => bool) public operators;
+    mapping(address => bool) public strategists;
 
     /* ========== PARAMETERS ========== */
     IOrangeVaultV1 public immutable vault;
@@ -36,8 +36,8 @@ contract OrangeStrategistV1 is IResolver {
     IOrangeParametersV1 public immutable params;
 
     /* ========== MODIFIER ========== */
-    modifier onlyOperator() {
-        require(operators[msg.sender], "ONLY_OPERATOR");
+    modifier onlyStrategist() {
+        require(strategists[msg.sender], "ONLY_STRATEGIST");
         _;
     }
 
@@ -49,16 +49,16 @@ contract OrangeStrategistV1 is IResolver {
         token1 = address(vault.token1());
         liquidityPool = vault.liquidityPool();
         params = IOrangeParametersV1(vault.params());
-        _setOperator(msg.sender, true);
+        _setStrategist(msg.sender, true);
     }
 
     /* ========== WRITE FUNCTIONS ========== */
-    function setOperator(address _operator, bool _status) external onlyOperator {
-        _setOperator(_operator, _status);
+    function setStrategist(address _strategist, bool _status) external onlyStrategist {
+        _setStrategist(_strategist, _status);
     }
 
-    function _setOperator(address _operator, bool _status) internal {
-        operators[_operator] = _status;
+    function _setStrategist(address _strategist, bool _status) internal {
+        strategists[_strategist] = _status;
     }
 
     function rebalance(
@@ -68,7 +68,7 @@ contract OrangeStrategistV1 is IResolver {
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio,
         uint128 _minNewLiquidity
-    ) external onlyOperator {
+    ) external onlyStrategist {
         // compute target position
         uint256 _ltv = _getLtvByRange(_newStoplossUpperTick);
         IOrangeVaultV1.Positions memory _targetPosition = _computeRebalancePosition(
@@ -86,7 +86,7 @@ contract OrangeStrategistV1 is IResolver {
         stoplossUpperTick = _newStoplossUpperTick;
     }
 
-    function stoploss(int24 _inputTick) external onlyOperator {
+    function stoploss(int24 _inputTick) external onlyStrategist {
         vault.stoploss(_inputTick);
     }
 

@@ -71,19 +71,19 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     }
 
     function test_onlyOperator_Revert() public {
-        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
         liquidityPool.mint(lowerTick, upperTick, 0);
 
-        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
         liquidityPool.collect(lowerTick, upperTick);
 
-        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
         liquidityPool.burn(lowerTick, upperTick, 0);
 
-        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
         liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
 

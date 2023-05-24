@@ -30,7 +30,7 @@ interface IOrangeParametersV1 {
     function minDepositAmount() external view returns (uint256 minDepositAmount);
 
     /// @notice Get true/false of strategist
-    function strategists(address) external view returns (bool);
+    function helper() external view returns (address);
 
     /// @notice Get the strategy implementation contract
     function strategyImpl() external view returns (address);

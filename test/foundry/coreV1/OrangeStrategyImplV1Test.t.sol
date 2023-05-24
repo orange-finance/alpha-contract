@@ -13,10 +13,14 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using Ints for int256;
 
     uint256 constant HEDGE_RATIO = 100e6; //100%
+    OrangeStrategyHelperV1 public helper;
     ProxyMock proxy;
 
     function setUp() public override {
         super.setUp();
+        helper = new OrangeStrategyHelperV1(address(vault));
+        params.setHelper(address(helper));
+
         proxy = new ProxyMock(address(params));
     }
 
@@ -28,7 +32,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     }
 
     function test_stoploss_SuccessZero() public {
-        vault.stoploss(currentTick);
+        helper.stoploss(currentTick);
     }
 
     //TODO move to OrangeVaultV1Test
@@ -46,7 +50,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
 
     function test_deposit_Success2() public {
         vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         console2.log(address(router));
         consoleCurrentPosition();
 
@@ -62,12 +66,12 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
 
     function test_stoploss_Success1() public {
         vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
         console2.log(address(router));
         consoleCurrentPosition();
 
         skip(1);
-        vault.stoploss(currentTick);
+        helper.stoploss(currentTick);
         consoleCurrentPosition();
         consoleUnderlyingAssets();
     }

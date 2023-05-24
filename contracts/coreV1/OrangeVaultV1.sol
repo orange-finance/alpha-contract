@@ -404,7 +404,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
     /// @inheritdoc IOrangeVaultV1
     function stoploss(int24) external {
-        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+        if (msg.sender != params.helper()) revert("Errors.NOT_AUTHORIZED");
 
         _delegate(params.strategyImpl());
     }
@@ -412,7 +412,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     /// @inheritdoc IOrangeVaultV1
     function rebalance(int24, int24, Positions memory, uint128) external {
         console2.log("OrangeVaultV1: rebalance");
-        if (!params.strategists(msg.sender)) revert("Errors.NOT_AUTHORIZED");
+        if (msg.sender != params.helper()) revert("Errors.NOT_AUTHORIZED");
 
         _delegate(params.strategyImpl());
     }

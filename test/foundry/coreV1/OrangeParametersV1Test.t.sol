@@ -39,7 +39,7 @@ contract OrangeParametersV1Test is BaseTest {
         vm.expectRevert("Ownable");
         params.setMinDepositAmount(1);
         vm.expectRevert("Ownable");
-        params.setStrategist(address(this), true);
+        params.setHelper(address(this));
         vm.expectRevert("Ownable");
         params.setStrategyImpl(address(this));
     }
@@ -77,8 +77,8 @@ contract OrangeParametersV1Test is BaseTest {
         params.setMinDepositAmount(1);
         assertEq(params.minDepositAmount(), 1);
 
-        params.setStrategist(alice, true);
-        assertEq(params.strategists(alice), true);
+        params.setHelper(alice);
+        assertEq(params.helper(), alice);
 
         params.setStrategyImpl(address(this));
         assertEq(params.strategyImpl(), address(this));

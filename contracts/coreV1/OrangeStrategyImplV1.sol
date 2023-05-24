@@ -31,7 +31,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         IOrangeVaultV1.Positions memory _targetPosition,
         uint128 _minNewLiquidity
     ) external {
-        if (!params.strategists(msg.sender)) {
+        if (msg.sender != params.helper()) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
 
@@ -82,7 +82,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
     }
 
     function stoploss(int24 _inputTick) external {
-        if (!params.strategists(msg.sender)) {
+        if (msg.sender != params.helper()) {
             revert(ErrorsV1.ONLY_STRATEGISTS);
         }
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);

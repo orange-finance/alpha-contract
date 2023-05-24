@@ -7,7 +7,7 @@ import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/Unis
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
 import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
-import {OrangeStrategistV1} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
+import {OrangeStrategyHelperV1} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
 import {IERC20} from "../../../contracts/libs/BalancerFlashloan.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -39,7 +39,6 @@ contract OrangeVaultV1TestBase is BaseTest {
     IERC20 public debtToken1;
     OrangeParametersV1 public params;
     OrangeStrategyImplV1 public impl;
-    OrangeStrategistV1 public strategist;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -64,7 +63,7 @@ contract OrangeVaultV1TestBase is BaseTest {
 
         params.setDepositCap(100_000 ether, 100_000 ether);
         params.setMinDepositAmount(1e16);
-        params.setStrategist(address(this), true);
+        params.setHelper(address(this));
         params.setAllowlistEnabled(false);
 
         _deploy();
@@ -89,8 +88,6 @@ contract OrangeVaultV1TestBase is BaseTest {
         //strategy impl
         impl = new OrangeStrategyImplV1();
         params.setStrategyImpl(address(impl));
-        strategist = new OrangeStrategistV1(address(vault));
-        params.setStrategist(address(strategist), true);
     }
 
     function _dealAndApprove() internal virtual {

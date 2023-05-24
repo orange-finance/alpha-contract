@@ -20,7 +20,7 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     uint256 public depositCap;
     uint256 public totalDepositCap;
     uint256 public minDepositAmount;
-    mapping(address => bool) public strategists;
+    address public helper;
     address public strategyImpl;
 
     /* ========== CONSTRUCTOR ========== */
@@ -103,11 +103,10 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
 
     /**
      * @notice Set parameters of Rebalancer
-     * @param _strategist Strategist
-     * @param _is true or false
+     * @param _helper Helper
      */
-    function setStrategist(address _strategist, bool _is) external onlyOwner {
-        strategists[_strategist] = _is;
+    function setHelper(address _helper) external onlyOwner {
+        helper = _helper;
     }
 
     /**

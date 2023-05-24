@@ -32,17 +32,17 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     // IERC20 public immutable token1;
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
-    address public immutable operator;
+    address public immutable vault;
 
     /* ========== MODIFIER ========== */
-    modifier onlyOperator() {
-        if (msg.sender != operator) revert("ONLY_OPERATOR");
+    modifier onlyVault() {
+        if (msg.sender != vault) revert("ONLY_VAULT");
         _;
     }
 
     /* ========== Initializable ========== */
-    constructor(address _operator, address _token0, address _token1, address _pool) {
-        operator = _operator;
+    constructor(address _vault, address _token0, address _token1, address _pool) {
+        vault = _vault;
         reversed = _token0 > _token1 ? true : false;
 
         pool = IUniswapV3Pool(_pool);
@@ -185,18 +185,14 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     /* ========== WRITE FUNCTIONS ========== */
 
-    function mint(
-        int24 lowerTick,
-        int24 upperTick,
-        uint128 liquidity
-    ) external onlyOperator returns (uint256, uint256) {
+    function mint(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
         bytes memory data = abi.encode(msg.sender);
 
         (uint256 amount0, uint256 amount1) = pool.mint(address(this), lowerTick, upperTick, liquidity, data);
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
-    function collect(int24 lowerTick, int24 upperTick) external onlyOperator returns (uint128, uint128) {
+    function collect(int24 lowerTick, int24 upperTick) external onlyVault returns (uint128, uint128) {
         (uint128 _amount0, uint128 _amount1) = pool.collect(
             msg.sender,
             lowerTick,
@@ -207,11 +203,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         return reversed ? (_amount1, _amount0) : (_amount0, _amount1);
     }
 
-    function burn(
-        int24 lowerTick,
-        int24 upperTick,
-        uint128 liquidity
-    ) external onlyOperator returns (uint256, uint256) {
+    function burn(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
         (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
@@ -220,7 +212,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
-    ) external onlyOperator returns (uint256, uint256) {
+    ) external onlyVault returns (uint256, uint256) {
         uint256 _burn0;
         uint256 _burn1;
         if (liquidity > 0) {
