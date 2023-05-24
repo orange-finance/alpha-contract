@@ -5,8 +5,9 @@ import "../utils/BaseTest.sol";
 import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
 import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, Errors, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
-import {OrangeStrategyImplV1} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, ErrorsV1, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
+import {OrangeVaultV1Mock} from "../../../contracts/mocks/OrangeVaultV1Mock.sol";
+import {OrangeStrategyImplV1Mock} from "../../../contracts/mocks/OrangeStrategyImplV1Mock.sol";
 import {OrangeStrategyHelperV1} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
 import {IERC20} from "../../../contracts/libs/BalancerFlashloan.sol";
 
@@ -28,7 +29,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     AddressHelper.UniswapAddr public uniswapAddr;
     AddressHelperV1.BalancerAddr public balancerAddr;
 
-    OrangeVaultV1 public vault;
+    OrangeVaultV1Mock public vault;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
     IBalancerVault public balancer;
@@ -38,7 +39,9 @@ contract OrangeVaultV1TestBase is BaseTest {
     IERC20 public collateralToken0;
     IERC20 public debtToken1;
     OrangeParametersV1 public params;
-    OrangeStrategyImplV1 public impl;
+    OrangeStrategyImplV1Mock public impl;
+    UniswapV3LiquidityPoolManager public liquidityPool;
+    AaveLendingPoolManager public lendingPool;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -72,8 +75,8 @@ contract OrangeVaultV1TestBase is BaseTest {
 
     function _deploy() internal virtual {
         //vault
-        vault = new OrangeVaultV1(
-            "OrangeVaultV1",
+        vault = new OrangeVaultV1Mock(
+            "OrangeVaultV1Mock",
             "ORANGE_VAULT_V1",
             address(token0),
             address(token1),
@@ -86,8 +89,10 @@ contract OrangeVaultV1TestBase is BaseTest {
         );
 
         //strategy impl
-        impl = new OrangeStrategyImplV1();
+        impl = new OrangeStrategyImplV1Mock();
         params.setStrategyImpl(address(impl));
+        liquidityPool = UniswapV3LiquidityPoolManager(vault.liquidityPool());
+        lendingPool = AaveLendingPoolManager(vault.lendingPool());
     }
 
     function _dealAndApprove() internal virtual {

@@ -28,8 +28,6 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     /* ========== PARAMETERS ========== */
     IUniswapV3Pool public pool;
-    // IERC20 public immutable token0;
-    // IERC20 public immutable token1;
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public immutable vault;

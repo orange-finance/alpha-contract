@@ -32,7 +32,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         uint128 _minNewLiquidity
     ) external {
         if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_STRATEGISTS);
+            revert(ErrorsV1.ONLY_HELPER);
         }
 
         int24 _currentLowerTick = lowerTick;
@@ -83,7 +83,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
 
     function stoploss(int24 _inputTick) external {
         if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_STRATEGISTS);
+            revert(ErrorsV1.ONLY_HELPER);
         }
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 
@@ -135,8 +135,8 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
     ///@notice Check slippage by tick
     function _checkTickSlippage(int24 _currentTick, int24 _inputTick) internal view {
         if (
-            _currentTick > _inputTick + int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS()) ||
-            _currentTick < _inputTick - int24(IOrangeVaultV1(address(this)).params().tickSlippageBPS())
+            _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
+            _currentTick < _inputTick - int24(params.tickSlippageBPS())
         ) {
             revert(ErrorsV1.HIGH_SLIPPAGE);
         }

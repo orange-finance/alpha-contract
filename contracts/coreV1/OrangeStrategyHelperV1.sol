@@ -191,7 +191,7 @@ contract OrangeStrategyHelperV1 is IResolver {
         uint256 _amount1ValueInToken0 = _quoteCurrent(uint128(_amount1), token1, token0);
 
         if (_hedgeRatio == 0) {
-            position_.token1Balance = (_amount1ValueInToken0 + _amount0 == 0)
+            position_.token0Balance = (_amount1ValueInToken0 + _amount0 == 0)
                 ? 0
                 : _assets0.mulDiv(_amount0, (_amount1ValueInToken0 + _amount0));
             position_.token1Balance = (_amount0 == 0) ? 0 : position_.token0Balance.mulDiv(_amount1, _amount0);

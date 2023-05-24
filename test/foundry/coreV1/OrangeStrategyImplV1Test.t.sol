@@ -12,6 +12,12 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     using Ints for int24;
     using Ints for int256;
 
+    // int24 public lowerTick = -205680;
+    // int24 public upperTick = -203760;
+    // int24 public stoplossLowerTick = -206280;
+    // int24 public stoplossUpperTick = -203160;
+    // currentTick = -204714;
+
     uint256 constant HEDGE_RATIO = 100e6; //100%
     OrangeStrategyHelperV1 public helper;
     ProxyMock proxy;
@@ -26,197 +32,415 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
 
     //access controls
     function test_rebalance_Revert1() public {
-        vm.expectRevert(bytes(ErrorsV1.ONLY_STRATEGISTS));
+        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
         vm.prank(alice);
         proxy.rebalance(lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
+        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
+        vm.prank(alice);
+        proxy.stoploss(0);
     }
 
-    function test_stoploss_SuccessZero() public {
-        helper.stoploss(currentTick);
-    }
-
-    //TODO move to OrangeVaultV1Test
-    function test_deposit_Success1() public {
-        // second depositing without liquidity (_additionalLiquidity = 0)
-        // underhedge
-        vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-        vault.deposit(_shares, 10 ether, new bytes32[](0));
-
-        //assertion
-        assertEq(vault.balanceOf(address(this)), 10 ether - 1e15 + _shares);
-        assertEq(token0.balanceOf(address(vault)), 10 ether + _shares);
-    }
-
-    function test_deposit_Success2() public {
-        vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
-        console2.log(address(router));
-        consoleCurrentPosition();
-
-        uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-        vault.deposit(_shares, 10 ether, new bytes32[](0));
-        consoleCurrentPosition();
-
-        skip(1);
-        console2.log("vault.balance", vault.balanceOf(address(this)));
-        vault.redeem(vault.balanceOf(address(this)), 0);
-        consoleCurrentPosition();
+    function test_checkTickSlippage_Success1() public {
+        vm.expectRevert(bytes(ErrorsV1.HIGH_SLIPPAGE));
+        helper.stoploss(0);
+        vm.expectRevert(bytes(ErrorsV1.HIGH_SLIPPAGE));
+        helper.stoploss(-204800);
     }
 
     function test_stoploss_Success1() public {
-        vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
-        console2.log(address(router));
-        consoleCurrentPosition();
-
-        skip(1);
         helper.stoploss(currentTick);
-        consoleCurrentPosition();
-        consoleUnderlyingAssets();
+        assertEq(vault.hasPosition(), false);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, 0);
+        assertEq(lendingPool.balanceOfDebt(), 0);
+        assertEq(lendingPool.balanceOfCollateral(), 0);
+        assertEq(token0.balanceOf(address(vault)), 0);
+        assertEq(token1.balanceOf(address(vault)), 0);
     }
 
-    // function test_computeHedge_SuccessCase1() public {
-    //     //price 2,944
-    //     int24 _tick = -196445;
-    //     // console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
+    function test_stoploss_Success2WithoutPosition() public {
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        skip(1);
+        (, int24 _tick, , , , , ) = pool.slot0();
+        helper.stoploss(_tick);
+        //assertion
+        assertEq(vault.hasPosition(), false);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, 0);
+        assertEq(lendingPool.balanceOfDebt(), 0);
+        assertEq(lendingPool.balanceOfCollateral(), 0);
+        assertApproxEqRel(token0.balanceOf(address(vault)), 10 ether, 1e16);
+        assertEq(token1.balanceOf(address(vault)), 0);
+    }
 
-    //     _testComputeRebalancePosition(10 ether, _tick, -197040, -195850, 72913000, 127200000);
-    // }
+    function test_stoploss_Success3() public {
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        skip(1);
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        skip(1);
 
-    // function test_computeHedge_SuccessCase2() public {
-    //     //price 2,911
-    //     int24 _tick = -196558;
-    //     console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
+        (, int24 _tick, , , , , ) = pool.slot0();
+        helper.stoploss(_tick);
+        skip(1);
+        (, _tick, , , , , ) = pool.slot0();
+        helper.stoploss(_tick);
+        //assertion
+        assertEq(vault.hasPosition(), false);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, 0);
+        assertEq(lendingPool.balanceOfDebt(), 0);
+        assertEq(lendingPool.balanceOfCollateral(), 0);
+        assertApproxEqRel(token0.balanceOf(address(vault)), 10 ether, 1e16);
+        assertEq(token1.balanceOf(address(vault)), 0);
+    }
 
-    //     _testComputeRebalancePosition(10 ether, _tick, -197040, -195909, 72089000, 158760000);
-    // }
+    function test_rebalance_RevertOnlyStrategists() public {
+        IOrangeVaultV1.Positions memory _currentPosition = IOrangeVaultV1.Positions(0, 0, 0, 0);
+        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
+        vm.startPrank(alice);
+        proxy.rebalance(0, 0, _currentPosition, 0);
+    }
 
-    // function test_computeHedge_SuccessCase3() public {
-    //     //price 1,886
-    //     int24 _tick = -200900;
-    //     console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
+    function test_rebalance_RevertTickSpacing() public {
+        uint256 _hedgeRatio = 100e6;
+        vm.expectRevert(bytes("INVALID_TICKS"));
+        helper.rebalance(-1, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+    }
 
-    //     _testComputeRebalancePosition(10 ether, _tick, -200940, -199646, 62_764_000, 103_290_000);
-    // }
+    function test_rebalance_RevertNewLiquidity() public {
+        uint256 _hedgeRatio = 100e6;
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
 
-    // function test_computeHedge_SuccessCase4() public {
-    //     //price 2,619
-    //     int24 _tick = -197613;
-    //     console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
+        uint128 _liquidity = helper.getRebalancedLiquidity(
+            lowerTick,
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        );
 
-    //     _testComputeRebalancePosition(10 ether, _tick, -198296, -197013, 72_948_000, 46_220_000);
-    // }
+        vm.expectRevert(bytes(ErrorsV1.LESS_LIQUIDITY));
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
+    }
 
-    // function test_computeRebalancePosition_SuccessHedgeRatioZero() public {
-    //     uint _ltv = 80e6;
+    function test_rebalance_Success0() public {
+        uint256 _hedgeRatio = 100e6;
+        //totalSupply is zero
+        int24 _newLowerTick = -207540;
+        int24 _newUpperTick = -205680;
+        int24 _newStoplossLowerTick = -208740;
+        int24 _newStoplossUpperTick = -204480;
+        helper.rebalance(_newLowerTick, _newUpperTick, _newStoplossLowerTick, _newStoplossUpperTick, _hedgeRatio, 0);
+        assertEq(vault.lowerTick(), _newLowerTick);
+        assertEq(vault.upperTick(), _newUpperTick);
+        assertEq(vault.hasPosition(), true);
+    }
 
-    //     IOrangeVaultV1.Positions memory _position = vault.computeRebalancePosition(
-    //         10 ether,
-    //         currentTick,
-    //         lowerTick,
-    //         upperTick,
-    //         _ltv,
-    //         0
-    //     );
-    //     console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-    //     console.log(_position.collateralAmount0, "collateralAmount0");
-    //     console.log(_position.debtAmount1, "debtAmount1");
-    //     console.log(_position.token0Balance, "token0Balance");
-    //     console.log(_position.token1Balance, "token1Balance");
-    //     console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
+    function test_rebalance_SuccessHedgeRatioZero() public {
+        uint _ltv = 80e6;
+        uint256 _hedgeRatio = 0;
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        skip(1);
 
-    //     //assertion
-    //     assertEq(_position.collateralAmount0, 0);
-    //     assertEq(_position.debtAmount1, 0);
-    //     //total amount
-    //     uint _added0 = OracleLibrary.getQuoteAtTick(
-    //         currentTick,
-    //         uint128(_position.token0Balance),
-    //         address(token1),
-    //         address(token0)
-    //     );
-    //     uint _total = _position.token0Balance + _added0;
-    //     assertApproxEqRel(_total, 10 ether, 1e16);
-    // }
+        int24 _newLowerTick = -207540;
+        int24 _newUpperTick = -205680;
+        uint128 _liquidity = helper.getRebalancedLiquidity(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        );
+        helper.rebalance(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio,
+            (_liquidity * 9900) / MAGIC_SCALE_1E4
+        );
 
-    // function test_computeRebalancePosition_SuccessHedgeRatio() public {
-    //     uint _ltv = 80e6;
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, _ltv, 100e6);
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, _ltv, 200e6);
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, _ltv, 50e6);
-    // }
+        uint128 _newLiquidity = liquidityPool.getCurrentLiquidity(_newLowerTick, _newUpperTick);
+        assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
+    }
 
-    // function test_computeRebalancePosition_SuccessRange() public {
-    //     uint256 _hedgeRatio = 100e6;
-    //     uint _ltv = 80e6;
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, _ltv, _hedgeRatio);
-    //     _testComputeRebalancePosition(10 ether, lowerTick - 600, upperTick, _ltv, _hedgeRatio);
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick + 600, _ltv, _hedgeRatio);
-    // }
+    function test_rebalance_Success1() public {
+        uint256 _hedgeRatio = 100e6;
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
 
-    // function test_computeRebalancePosition_SuccessLtv() public {
-    //     uint256 _hedgeRatio = 100e6;
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, 80e6, _hedgeRatio);
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, 60e6, _hedgeRatio);
-    //     _testComputeRebalancePosition(10 ether, lowerTick, upperTick, 40e6, _hedgeRatio);
-    // }
+        skip(1);
 
-    // function _testComputeRebalancePosition(
-    //     uint256 _assets0,
-    //     int24 _lowerTick,
-    //     int24 _upperTick,
-    //     uint256 _ltv,
-    //     uint256 _hedgeRatio
-    // ) internal {
-    //     IOrangeVaultV1.Positions memory _position = strategy.computeRebalancePosition(
-    //         _assets0,
-    //         _lowerTick,
-    //         _upperTick,
-    //         _ltv,
-    //         _hedgeRatio
-    //     );
-    //     console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-    //     console.log(_position.collateralAmount0, "collateralAmount0");
-    //     console.log(_position.debtAmount1, "debtAmount1");
-    //     console.log(_position.token0Balance, "token0Balance");
-    //     console.log(_position.token1Balance, "token1Balance");
-    //     console2.log("++++++++++++++++++++++++++++++++++++++++++++++++");
-    //     //assertion
-    //     //total amount
-    //     uint _total = _position.collateralAmount0 + _position.token0Balance;
-    //     if (_position.debtAmount1 > _position.token1Balance) {
-    //         uint _debtToken0 = OracleLibrary.getQuoteAtTick(
-    //             currentTick,
-    //             uint128(_position.debtAmount1 - _position.token1Balance),
-    //             address(token1),
-    //             address(token0)
-    //         );
-    //         _total -= _debtToken0;
-    //     } else {
-    //         uint _addedToken0 = OracleLibrary.getQuoteAtTick(
-    //             currentTick,
-    //             uint128(_position.token1Balance - _position.debtAmount1),
-    //             address(token1),
-    //             address(token0)
-    //         );
-    //         _total += _addedToken0;
-    //     }
-    //     assertApproxEqRel(_total, _assets0, 1e16);
-    //     //ltv
-    //     uint256 _debt0 = OracleLibrary.getQuoteAtTick(
-    //         currentTick,
-    //         uint128(_position.debtAmount1),
-    //         address(token1),
-    //         address(token0)
-    //     );
-    //     uint256 _computedLtv = (_debt0 * MAGIC_SCALE_1E8) / _position.collateralAmount0;
-    //     assertApproxEqRel(_computedLtv, _ltv, 1e16);
-    //     //hedge ratio
-    //     uint256 _computedHedgeRatio = (_position.debtAmount1 * MAGIC_SCALE_1E8) / _position.token1Balance;
-    //     // console2.log(_computedHedgeRatio, "computedHedgeRatio");
-    //     assertApproxEqRel(_computedHedgeRatio, _hedgeRatio, 1e16);
-    // }
+        //rebalance
+        uint128 _liquidity = (helper.getRebalancedLiquidity(
+            lowerTick,
+            upperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        ) * 9900) / MAGIC_SCALE_1E4;
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
+
+        // uint128 _newLiquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        // assertApproxEqRel(_liquidity, _newLiquidity, 1e16);
+
+        assertEq(vault.hasPosition(), true);
+        assertEq(vault.lowerTick(), lowerTick);
+        assertEq(vault.upperTick(), upperTick);
+    }
+
+    function test_rebalance_Success2UnderRange() public {
+        uint256 _hedgeRatio = 100e6;
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        skip(1);
+        swapByCarol(true, 1000 ether); //current price under lowerPrice
+        skip(1 days);
+
+        //rebalance
+        int24 _newLowerTick = -207540;
+        int24 _newUpperTick = -205680;
+        uint128 _minLiquidity = (helper.getRebalancedLiquidity(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        ) * 9990) / MAGIC_SCALE_1E4;
+        _rebalance(_newLowerTick, _newUpperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _minLiquidity);
+
+        uint128 _newLiquidity = liquidityPool.getCurrentLiquidity(_newLowerTick, _newUpperTick);
+        assertApproxEqRel(_minLiquidity, _newLiquidity, 1e16);
+    }
+
+    function test_rebalance_Success3OverRange() public {
+        uint256 _hedgeRatio = 100e6;
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        skip(1);
+        swapByCarol(false, 1_000_000 * 1e6); //current price over upperPrice
+        skip(1 days);
+
+        //rebalance
+        int24 _newLowerTick = -204600;
+        int24 _newUpperTick = -202500;
+        uint128 _minLiquidity = (helper.getRebalancedLiquidity(
+            _newLowerTick,
+            _newUpperTick,
+            stoplossLowerTick,
+            stoplossUpperTick,
+            _hedgeRatio
+        ) * 9990) / MAGIC_SCALE_1E4;
+        _rebalance(_newLowerTick, _newUpperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _minLiquidity);
+
+        uint128 _newLiquidity = liquidityPool.getCurrentLiquidity(_newLowerTick, _newUpperTick);
+        assertApproxEqRel(_minLiquidity, _newLiquidity, 1e16);
+    }
+
+    //Supply and Borrow
+    function test_rebalance_SuccessCase1() public {
+        //deposit
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        (, currentTick, , , , , ) = pool.slot0();
+        uint256 _hedgeRatio = 100e6;
+        _consolecomputeRebalancePosition(
+            10 ether,
+            currentTick,
+            lowerTick,
+            upperTick,
+            helper.getLtvByRange(stoplossUpperTick),
+            _hedgeRatio
+        );
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+    }
+
+    //Repay and Withdraw
+    function test_rebalance_SuccessCase2() public {
+        uint256 _hedgeRatio = 100e6;
+        //deposit
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+
+        _hedgeRatio = 50e6;
+        // (, currentTick, , , , , ) = pool.slot0();
+        // _consolecomputeRebalancePosition(
+        //     10 ether,
+        //     currentTick,
+        //     lowerTick,
+        //     upperTick,
+        //     helper.getLtvByRange(stoplossUpperTick),
+        //     _hedgeRatio
+        // );
+        // return;
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+    }
+
+    //Repay and Supply
+    function test_rebalance_SuccessCase3() public {
+        uint256 _hedgeRatio = 100e6;
+        //deposit
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+
+        // lowerTick = -205020;
+        // int24 public lowerTick = -205680;
+        // int24 public upperTick = -203760;
+        // int24 public stoplossLowerTick = -206280;
+        // int24 public stoplossUpperTick = -203160;
+        // currentTick = -204714;
+
+        _hedgeRatio = 100e6;
+        // upperTick = -204000;
+        // stoplossUpperTick = -203400;
+        stoplossUpperTick = -201060;
+
+        // (, currentTick, , , , , ) = pool.slot0();
+        // _consolecomputeRebalancePosition(
+        //     10 ether,
+        //     currentTick,
+        //     lowerTick,
+        //     upperTick,
+        //     helper.getLtvByRange(stoplossUpperTick),
+        //     _hedgeRatio
+        // );
+        // return;
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+    }
+
+    //Borrow and Withdraw
+    function test_rebalance_SuccessCase4() public {
+        uint256 _hedgeRatio = 100e6;
+        //deposit
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+
+        stoplossUpperTick = -200160;
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+
+        _hedgeRatio = 95e6;
+        upperTick = -204000;
+        stoplossUpperTick = -203880;
+        // (, currentTick, , , , , ) = pool.slot0();
+        // _consolecomputeRebalancePosition(
+        //     10 ether,
+        //     currentTick,
+        //     lowerTick,
+        //     upperTick,
+        //     helper.getLtvByRange(stoplossUpperTick),
+        //     _hedgeRatio
+        // );
+        // return;
+
+        skip(1);
+        _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
+    }
+
+    function _rebalance(
+        int24 lowerTick,
+        int24 upperTick,
+        int24 stoplossLowerTick,
+        int24 stoplossUpperTick,
+        uint256 _hedgeRatio,
+        uint128 _minNewLiquidity
+    ) internal {
+        uint _beforeAssets = vault.totalAssets();
+
+        //rebalance
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _minNewLiquidity);
+
+        // consoleUnderlyingAssets();
+        consoleCurrentPosition();
+
+        (, currentTick, , , , , ) = pool.slot0(); //retrieve current tick
+
+        //assertions
+        //ltv
+        uint256 _ltv = helper.getLtvByRange(stoplossUpperTick);
+        uint256 _collateral = lendingPool.balanceOfCollateral();
+        uint256 _debt = lendingPool.balanceOfDebt();
+        uint256 _debtAligned = OracleLibrary.getQuoteAtTick(
+            currentTick,
+            uint128(_debt),
+            address(token1),
+            address(token0)
+        );
+        uint256 _computedLtv = (_debtAligned * MAGIC_SCALE_1E8) / _collateral;
+        // console.log("computedLtv", _computedLtv);
+        // console.log("ltv", _ltv);
+        assertApproxEqRel(_computedLtv, _ltv, 1e16);
+
+        //hedge ratio
+        IOrangeVaultV1.UnderlyingAssets memory _underlyingAssets = vault.getUnderlyingBalances();
+        uint256 _hedgeRatioComputed = (_debt * MAGIC_SCALE_1E8) / _underlyingAssets.liquidityAmount1;
+        // console.log("hedgeRatioComputed", _hedgeRatioComputed);
+        assertApproxEqRel(_hedgeRatioComputed, _hedgeRatio, 1e16);
+
+        //total balance
+        //after assets
+        uint _afterAssets = vault.totalAssets();
+        // console.log("beforeAssets", _beforeAssets);
+        // console.log("afterAssets", _afterAssets);
+        assertApproxEqRel(_afterAssets, _beforeAssets, 1e16);
+    }
+
+    function test_addLiquidityInRebalance_Success0() public {
+        //no need to swap
+        token0.transfer(address(vault), 10 ether);
+        token1.transfer(address(vault), 10000 * 1e6);
+        vault.addLiquidityInRebalance(lowerTick, upperTick, 10 ether, 10000 * 1e6);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertGt(_liquidity, 0);
+    }
+
+    function test_addLiquidityInRebalance_Success1() public {
+        //swap 0 to 1
+        token0.transfer(address(vault), 10 ether);
+        token1.transfer(address(vault), 5000 * 1e6);
+        vault.addLiquidityInRebalance(lowerTick, upperTick, 5 ether, 10000 * 1e6);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertGt(_liquidity, 0);
+    }
+
+    function test_addLiquidityInRebalance_Success2() public {
+        //swap 1 to 0
+        token0.transfer(address(vault), 3 ether);
+        token1.transfer(address(vault), 20000 * 1e6);
+        vault.addLiquidityInRebalance(lowerTick, upperTick, 5 ether, 10000 * 1e6);
+        uint128 _liquidity = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertGt(_liquidity, 0);
+    }
+
+    function _consolecomputeRebalancePosition(
+        uint256 _assets,
+        int24 _currentTick,
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint256 _ltv,
+        uint256 _hedgeRatio
+    ) private view {
+        IOrangeVaultV1.Positions memory _position = helper.computeRebalancePosition(
+            _assets,
+            _lowerTick,
+            _upperTick,
+            _ltv,
+            _hedgeRatio
+        );
+        console.log("++++++++ _consolecomputeRebalancePosition ++++++++");
+        console.log(_position.collateralAmount0, "collateralAmount0");
+        console.log(_position.debtAmount1, "debtAmount1");
+        console.log(_position.token0Balance, "token0Balance");
+        console.log(_position.token1Balance, "token1Balance");
+    }
 }
 
 contract ProxyMock is Proxy, OrangeStorageV1 {
@@ -225,6 +449,19 @@ contract ProxyMock is Proxy, OrangeStorageV1 {
     }
 
     function rebalance(int24, int24, IOrangeVaultV1.Positions memory, uint128) external {
+        _delegate(params.strategyImpl());
+    }
+
+    function stoploss(int24) external {
+        _delegate(params.strategyImpl());
+    }
+
+    function addLiquidityInRebalance(
+        int24 _lowerTick,
+        int24 _upperTick,
+        uint256 _targetAmount0,
+        uint256 _targetAmount1
+    ) external {
         _delegate(params.strategyImpl());
     }
 }

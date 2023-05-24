@@ -13,7 +13,7 @@ import {OrangeERC20} from "./OrangeERC20.sol";
 
 //libraries
 import {Proxy} from "../libs/Proxy.sol";
-import {Errors} from "../libs/Errors.sol";
+import {ErrorsV1} from "./ErrorsV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
@@ -186,12 +186,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         bytes32[] calldata _merkleProof
     ) external Allowlisted(_merkleProof) returns (uint256) {
         //validation check
-        if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
+        if (_shares == 0 || _maxAssets == 0) revert(ErrorsV1.INVALID_AMOUNT);
 
         //Case1: first depositor
         if (totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
-                revert(Errors.INVALID_DEPOSIT_AMOUNT);
+                revert(ErrorsV1.INVALID_DEPOSIT_AMOUNT);
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
             uint _initialBurnedBalance = (10 ** decimals() / 1000);
@@ -299,7 +299,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     function redeem(uint256 _shares, uint256 _minAssets) external returns (uint256 returnAssets_) {
         //validation
         if (_shares == 0) {
-            revert(Errors.INVALID_AMOUNT);
+            revert(ErrorsV1.INVALID_AMOUNT);
         }
 
         uint256 _totalSupply = totalSupply;
@@ -339,8 +339,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         } else {
             // swap surplus Token1 to return receiver as Token0
             _redeemableAmount0 += ISwapRouter(router).swapAmountIn(
-                address(token0),
                 address(token1),
+                address(token0),
                 routerFee,
                 _redeemableAmount1 - _redeemPosition.debtAmount1
             );
@@ -367,7 +367,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         // check if redemption has done as expected or not
         if (returnAssets_ < _minAssets) {
-            revert(Errors.LESS_AMOUNT);
+            revert(ErrorsV1.LESS_AMOUNT);
         }
 
         // complete redemption
@@ -404,7 +404,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
     /// @inheritdoc IOrangeVaultV1
     function stoploss(int24) external {
-        if (msg.sender != params.helper()) revert("Errors.NOT_AUTHORIZED");
+        if (msg.sender != params.helper()) revert(ErrorsV1.ONLY_HELPER);
 
         _delegate(params.strategyImpl());
     }
@@ -412,7 +412,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     /// @inheritdoc IOrangeVaultV1
     function rebalance(int24, int24, Positions memory, uint128) external {
         console2.log("OrangeVaultV1: rebalance");
-        if (msg.sender != params.helper()) revert("Errors.NOT_AUTHORIZED");
+        if (msg.sender != params.helper()) revert(ErrorsV1.ONLY_HELPER);
 
         _delegate(params.strategyImpl());
     }
@@ -426,9 +426,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         bytes memory _userData
     ) external {
         console2.log("receiveFlashLoan");
-        if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
+        if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
         //check validity
-        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
+            revert(ErrorsV1.INVALID_FLASHLOAN_HASH);
         flashloanHash = bytes32(0); //clear cache
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
@@ -473,7 +474,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     }
 
     function _depositInFlashloan(uint8 _flashloanType, uint256 flashloanAmount, bytes memory _userData) internal {
-        console2.log("depositInFlashloan");
         (, Positions memory _positions, uint128 _additionalLiquidity, uint256 _maxAssets, address _receiver) = abi
             .decode(_userData, (uint8, Positions, uint128, uint256, address));
         /**
@@ -503,6 +503,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         uint256 _actualUsedAmount0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
+            console2.log("FlashloanType.DEPOSIT_OVERHEDGE");
             // Token0 is flashLoaned.
             // Calculate the amount of surplus Token1 and swap for Token0 (Leave some Token1 to achieve #5)
             uint256 _surplusAmount1 = _positions.debtAmount1 - (_additionalLiquidityAmount1 + _positions.token1Balance);
@@ -515,6 +516,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
             _actualUsedAmount0 = flashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
+            console2.log("FlashloanType.DEPOSIT_UNDERHEDGE");
             // Token1 is flashLoaned.
             // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token0 for Token1 to achieve #5)
             uint256 amount1ToBeSwapped = _additionalLiquidityAmount1 +
@@ -535,8 +537,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         }
 
         //Refund the unspent Token0 (Leave some Token0 for #6)
-        // console2.log(_maxAssets, _actualUsedAmount0);
-        if (_maxAssets < _actualUsedAmount0) revert(Errors.LESS_MAX_ASSETS);
+        if (_maxAssets < _actualUsedAmount0) revert(ErrorsV1.LESS_MAX_ASSETS);
         unchecked {
             uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
             if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);

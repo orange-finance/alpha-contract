@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 
 library ErrorsV1 {
     //OrangeAlphaVault
-    string public constant ONLY_PERIPHERY = "101";
+    string public constant ONLY_HELPER = "101";
     string public constant ONLY_STRATEGISTS = "103";
     string public constant ONLY_CALLBACK_CALLER = "104";
     string public constant INVALID_TICKS = "105";
