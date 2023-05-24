@@ -2,20 +2,106 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategistV1} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
+import {OrangeStrategistV1, ILiquidityPoolManager} from "../../../contracts/coreV1/OrangeStrategistV1.sol";
+import {UniswapV3Twap, IUniswapV3Pool} from "../../../contracts/libs/UniswapV3Twap.sol";
 
 contract OrangeStrategistV1Test is OrangeVaultV1TestBase {
+    using UniswapV3Twap for IUniswapV3Pool;
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
     using Ints for int24;
     using Ints for int256;
 
-    OrangeStrategistV1 strategy;
-
     function setUp() public override {
         super.setUp();
-        // strategy = new OrangeStrategistV1();
+        params.setStrategist(address(strategist), true);
+    }
+
+    function test_constructor_Success() public {
+        assertEq(address(strategist.vault()), address(vault));
+        assertEq(strategist.token0(), address(token0));
+        assertEq(strategist.token1(), address(token1));
+        assertEq(strategist.liquidityPool(), address(vault.liquidityPool()));
+        assertEq(address(strategist.params()), address(params));
+        assertEq(strategist.operators(address(this)), true);
+    }
+
+    function test_onlyOperator_Revert() public {
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        strategist.setOperator(alice, false);
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
+        vm.expectRevert(bytes("ONLY_OPERATOR"));
+        vm.prank(alice);
+        strategist.stoploss(currentTick);
+    }
+
+    function test_setOperator_Success() public {
+        strategist.setOperator(alice, true);
+        assertEq(strategist.operators(alice), true);
+    }
+
+    function test_rebalance_Success() public {
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
+        assertEq(strategist.stoplossLowerTick(), stoplossLowerTick);
+        assertEq(strategist.stoplossUpperTick(), stoplossUpperTick);
+    }
+
+    function test_stoploss_Success() public {
+        strategist.stoploss(currentTick);
+    }
+
+    function test_checker_Success1() public {
+        //position
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
+
+        (, int24 _currentTick, , , , , ) = pool.slot0();
+        int24 _twap = pool.getTwap();
+        // console2.log("currentTick", _currentTick.toString());
+        // console2.log("twap", _twap.toString());
+
+        (bool canExec, ) = strategist.checker();
+        assertEq(canExec, true);
+    }
+
+    function test_checker_Success2False() public {
+        //no position
+        (bool canExec, bytes memory execPayload) = strategist.checker();
+        assertEq(canExec, false);
+
+        //position
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
+
+        (, int24 _currentTick, , , , , ) = pool.slot0();
+        int24 _twap = pool.getTwap();
+        console2.log("currentTick", _currentTick.toString());
+        console2.log("twap", _twap.toString());
+        //currentTick -204714
+        //twap -204714
+
+        //both in range
+        strategist.rebalance(lowerTick, upperTick, -206280, -203160, 0, 0);
+        (canExec, execPayload) = strategist.checker();
+        assertEq(canExec, false);
+
+        swapByCarol(false, 1_000_000 * 1e6);
+        console2.log("currentTick", ILiquidityPoolManager(vault.liquidityPool()).getCurrentTick().toString());
+
+        //current is in and twap is out
+        strategist.rebalance(lowerTick, upperTick, -204510, -204500, 0, 0);
+        (canExec, execPayload) = strategist.checker();
+        assertEq(canExec, false);
+
+        // current is out and twap is in
+        strategist.rebalance(lowerTick, upperTick, -204730, -204710, 0, 0);
+        (canExec, execPayload) = strategist.checker();
+        assertEq(canExec, false);
     }
 
     // function test_computeHedge_SuccessCase1() public {
@@ -111,7 +197,7 @@ contract OrangeStrategistV1Test is OrangeVaultV1TestBase {
     //     uint256 _ltv,
     //     uint256 _hedgeRatio
     // ) internal {
-    //     IOrangeVaultV1.Positions memory _position = strategy.computeRebalancePosition(
+    //     IOrangeVaultV1.Positions memory _position = strategist.computeRebalancePosition(
     //         _assets0,
     //         _lowerTick,
     //         _upperTick,
