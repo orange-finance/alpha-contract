@@ -159,8 +159,8 @@ contract OrangeVaultV1TestBase is BaseTest {
         console2.log(_underlyingAssets.liquidityAmount1, "liquidityAmount1");
         console2.log(_underlyingAssets.accruedFees0, "accruedFees0");
         console2.log(_underlyingAssets.accruedFees1, "accruedFees1");
-        console2.log(_underlyingAssets.token0Balance, "token0Balance");
-        console2.log(_underlyingAssets.token1Balance, "token1Balance");
+        console2.log(_underlyingAssets.vaultAmount0, "token0Balance");
+        console2.log(_underlyingAssets.vaultAmount1, "token1Balance");
         console2.log("++++++++++++++++consoleUnderlyingAssets++++++++++++++++");
     }
 
