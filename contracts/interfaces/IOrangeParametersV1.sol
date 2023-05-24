@@ -32,15 +32,6 @@ interface IOrangeParametersV1 {
     /// @notice Get true/false of strategist
     function strategists(address) external view returns (bool);
 
-    /// @notice Get router fee
-    function routerFee() external view returns (uint24);
-
-    /// @notice Get the router contract
-    function router() external view returns (address);
-
-    /// @notice Get the balancer contract
-    function balancer() external view returns (address);
-
     /// @notice Get the strategy implementation contract
     function strategyImpl() external view returns (address);
 }

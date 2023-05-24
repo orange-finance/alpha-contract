@@ -110,7 +110,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
         bytes memory _userData = abi.encode(IOrangeVaultV1.FlashloanType.STOPLOSS, _repayingToken1, _withdrawingToken0);
         flashloanHash = keccak256(_userData); //set stroage for callback
-        IBalancerVault(params.balancer()).makeFlashLoan(
+        IBalancerVault(balancer).makeFlashLoan(
             IBalancerFlashLoanRecipient(address(this)),
             token1,
             _flashLoanAmount1,
@@ -120,10 +120,10 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         // 3. Swap remaining all Token1 for Token0
         _vaultAmount1 = token1.balanceOf(address(this));
         if (_vaultAmount1 > 0) {
-            ISwapRouter(params.router()).swapAmountIn(
+            ISwapRouter(router).swapAmountIn(
                 address(token1), //In
                 address(token0), //Out
-                params.routerFee(),
+                routerFee,
                 _vaultAmount1
             );
         }
@@ -174,10 +174,10 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
 
                 // swap (if necessary)
                 if (_supply0 > _currentPosition.token0Balance) {
-                    ISwapRouter(params.router()).swapAmountOut(
+                    ISwapRouter(router).swapAmountOut(
                         address(token1),
                         address(token0),
-                        params.routerFee(),
+                        routerFee,
                         _supply0 - _currentPosition.token0Balance
                     );
                 }
@@ -197,10 +197,10 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
 
                     // swap (if necessary)
                     if (_repay1 > _currentPosition.token1Balance) {
-                        ISwapRouter(params.router()).swapAmountOut(
+                        ISwapRouter(router).swapAmountOut(
                             address(token0), //In
                             address(token1), //Out
-                            params.routerFee(),
+                            routerFee,
                             _repay1 - _currentPosition.token1Balance
                         );
                     }
@@ -252,17 +252,17 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         } else {
             unchecked {
                 if (_balance0 > _targetAmount0) {
-                    ISwapRouter(params.router()).swapAmountIn(
+                    ISwapRouter(router).swapAmountIn(
                         address(token0),
                         address(token1),
-                        params.routerFee(),
+                        routerFee,
                         _balance0 - _targetAmount0
                     );
                 } else if (_balance1 > _targetAmount1) {
-                    ISwapRouter(params.router()).swapAmountIn(
+                    ISwapRouter(router).swapAmountIn(
                         address(token1),
                         address(token0),
-                        params.routerFee(),
+                        routerFee,
                         _balance1 - _targetAmount1
                     );
                 }
@@ -288,7 +288,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != params.balancer()) revert(ErrorsV1.ONLY_BALANCER_VAULT);
+        if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
@@ -305,15 +305,15 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
                     ? (address(token1), address(token0))
                     : (address(token0), address(token1));
 
-                ISwapRouter(params.router()).swapAmountOut(
+                ISwapRouter(router).swapAmountOut(
                     _tokenAnother,
                     _tokenFlashLoaned,
-                    params.routerFee(),
+                    routerFee,
                     _amounts[0] //uncheckable
                 );
             }
         }
         //repay flashloan
-        IERC20(_tokens[0]).safeTransfer(params.balancer(), _amounts[0]);
+        IERC20(_tokens[0]).safeTransfer(balancer, _amounts[0]);
     }
 }

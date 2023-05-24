@@ -22,4 +22,13 @@ interface IOrangeStorageV1 {
     function params() external view returns (IOrangeParametersV1);
 
     function hasPosition() external view returns (bool);
+
+    /// @notice Get router fee
+    function routerFee() external view returns (uint24);
+
+    /// @notice Get the router contract
+    function router() external view returns (address);
+
+    /// @notice Get the balancer contract
+    function balancer() external view returns (address);
 }

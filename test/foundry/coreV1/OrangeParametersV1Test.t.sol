@@ -41,12 +41,6 @@ contract OrangeParametersV1Test is BaseTest {
         vm.expectRevert("Ownable");
         params.setStrategist(address(this), true);
         vm.expectRevert("Ownable");
-        params.setRouterFee(1);
-        vm.expectRevert("Ownable");
-        params.setRouter(address(this));
-        vm.expectRevert("Ownable");
-        params.setBalancer(address(this));
-        vm.expectRevert("Ownable");
         params.setStrategyImpl(address(this));
     }
 
@@ -85,15 +79,6 @@ contract OrangeParametersV1Test is BaseTest {
 
         params.setStrategist(alice, true);
         assertEq(params.strategists(alice), true);
-
-        params.setRouterFee(1);
-        assertEq(params.routerFee(), 1);
-
-        params.setRouter(address(this));
-        assertEq(params.router(), address(this));
-
-        params.setBalancer(address(this));
-        assertEq(params.balancer(), address(this));
 
         params.setStrategyImpl(address(this));
         assertEq(params.strategyImpl(), address(this));

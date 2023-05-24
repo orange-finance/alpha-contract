@@ -64,9 +64,6 @@ contract OrangeVaultV1TestBase is BaseTest {
 
         params.setDepositCap(100_000 ether, 100_000 ether);
         params.setMinDepositAmount(1e16);
-        params.setRouterFee(500);
-        params.setRouter(address(router));
-        params.setBalancer(address(balancer));
         params.setStrategist(address(this), true);
         params.setAllowlistEnabled(false);
 
@@ -83,7 +80,10 @@ contract OrangeVaultV1TestBase is BaseTest {
             address(token1),
             address(pool),
             address(aave),
-            address(params)
+            address(params),
+            address(router),
+            500,
+            address(balancer)
         );
 
         //strategy impl

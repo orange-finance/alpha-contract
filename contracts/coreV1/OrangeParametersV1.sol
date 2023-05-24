@@ -21,9 +21,6 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     uint256 public totalDepositCap;
     uint256 public minDepositAmount;
     mapping(address => bool) public strategists;
-    uint24 public routerFee;
-    address public router;
-    address public balancer;
     address public strategyImpl;
 
     /* ========== CONSTRUCTOR ========== */
@@ -111,30 +108,6 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      */
     function setStrategist(address _strategist, bool _is) external onlyOwner {
         strategists[_strategist] = _is;
-    }
-
-    /**
-     * @notice Set parameters of router fee
-     * @param _routerFee router fee
-     */
-    function setRouterFee(uint24 _routerFee) external onlyOwner {
-        routerFee = _routerFee;
-    }
-
-    /**
-     * @notice Set parameters of router
-     * @param _router router
-     */
-    function setRouter(address _router) external onlyOwner {
-        router = _router;
-    }
-
-    /**
-     * @notice Set parameters of balancer
-     * @param _balancer balancer
-     */
-    function setBalancer(address _balancer) external onlyOwner {
-        balancer = _balancer;
     }
 
     /**

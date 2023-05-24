@@ -29,6 +29,9 @@ abstract contract OrangeStorageV1 is IOrangeStorageV1, OrangeERC20 {
     IERC20 public token0; //collateral and deposited currency by users
     IERC20 public token1; //debt and hedge target token
     IOrangeParametersV1 public params;
+    address public router;
+    uint24 public routerFee;
+    address public balancer;
 
     function decimals() public view override returns (uint8) {
         return IERC20Decimals(address(token0)).decimals();
