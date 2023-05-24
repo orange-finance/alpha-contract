@@ -58,12 +58,12 @@ contract OrangeStrategistV1Test is OrangeVaultV1TestBase {
     function test_checker_Success1() public {
         //position
         vault.deposit(10 ether, 10 ether, new bytes32[](0));
-        strategist.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
+        strategist.rebalance(lowerTick, upperTick, -204620, -204600, 0, 0);
 
         (, int24 _currentTick, , , , , ) = pool.slot0();
         int24 _twap = pool.getTwap();
-        // console2.log("currentTick", _currentTick.toString());
-        // console2.log("twap", _twap.toString());
+        console2.log("currentTick", _currentTick.toString());
+        console2.log("twap", _twap.toString());
 
         (bool canExec, ) = strategist.checker();
         assertEq(canExec, true);

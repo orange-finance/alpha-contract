@@ -181,8 +181,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
 
-        _addDepositCap(_maxAssets);
-
         //Case1: first depositor
         if (totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
@@ -190,9 +188,11 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             }
             token0.safeTransferFrom(msg.sender, address(this), _maxAssets);
             uint _initialBurnedBalance = (10 ** decimals() / 1000);
-            _mint(msg.sender, _maxAssets - _initialBurnedBalance);
+            uint _actualDepositAmount = _maxAssets - _initialBurnedBalance;
+            _mint(msg.sender, _actualDepositAmount);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
-            return _maxAssets - _initialBurnedBalance;
+            _addDepositCap(_actualDepositAmount);
+            return _actualDepositAmount;
         }
 
         //Case2: from second depositor.
@@ -540,5 +540,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
             if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);
         }
+        _addDepositCap(_actualUsedAmount0);
     }
 }
