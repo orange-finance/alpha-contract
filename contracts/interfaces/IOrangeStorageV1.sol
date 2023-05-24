@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {IOrangeParametersV1} from "./IOrangeParametersV1.sol";
 import {IERC20} from "../libs/BalancerFlashloan.sol";
 
-interface IOrangeBaseV1 {
+interface IOrangeStorageV1 {
     /* ========== VIEW FUNCTIONS ========== */
 
     function lowerTick() external view returns (int24);

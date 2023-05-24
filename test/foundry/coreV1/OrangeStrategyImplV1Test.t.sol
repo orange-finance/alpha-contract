@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeBaseV1, IOrangeParametersV1, OrangeERC20} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeStorageV1, IOrangeParametersV1, OrangeERC20} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 import {Proxy} from "../../../contracts/libs/Proxy.sol";
 
 contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
@@ -215,7 +215,7 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     // }
 }
 
-contract ProxyMock is Proxy, OrangeBaseV1 {
+contract ProxyMock is Proxy, OrangeStorageV1 {
     constructor(address _params) OrangeERC20("OrangeStrategyImplV1", "OrangeStrategyImplV1") {
         params = IOrangeParametersV1(_params);
     }

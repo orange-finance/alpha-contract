@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeBaseV1, OrangeERC20} from "./OrangeBaseV1.sol";
+import {OrangeStorageV1, OrangeERC20} from "./OrangeStorageV1.sol";
 
 //interafaces
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
@@ -17,7 +17,7 @@ import {ErrorsV1} from "./ErrorsV1.sol";
 
 import "forge-std/console2.sol";
 
-contract OrangeStrategyImplV1 is OrangeBaseV1 {
+contract OrangeStrategyImplV1 is OrangeStorageV1 {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;

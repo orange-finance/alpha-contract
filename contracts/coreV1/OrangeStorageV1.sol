@@ -4,10 +4,10 @@ pragma solidity 0.8.16;
 import "forge-std/console2.sol";
 import {IERC20} from "../libs/BalancerFlashloan.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {IOrangeBaseV1} from "../interfaces/IOrangeBaseV1.sol";
+import {IOrangeStorageV1} from "../interfaces/IOrangeStorageV1.sol";
 import {OrangeERC20, IERC20Decimals} from "./OrangeERC20.sol";
 
-abstract contract OrangeBaseV1 is IOrangeBaseV1, OrangeERC20 {
+abstract contract OrangeStorageV1 is IOrangeStorageV1, OrangeERC20 {
     struct DepositType {
         uint256 assets;
         uint40 timestamp;
