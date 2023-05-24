@@ -290,13 +290,6 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
         skip(1);
         _rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
 
-        // lowerTick = -205020;
-        // int24 public lowerTick = -205680;
-        // int24 public upperTick = -203760;
-        // int24 public stoplossLowerTick = -206280;
-        // int24 public stoplossUpperTick = -203160;
-        // currentTick = -204714;
-
         _hedgeRatio = 100e6;
         // upperTick = -204000;
         // stoplossUpperTick = -203400;

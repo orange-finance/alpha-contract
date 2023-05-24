@@ -195,35 +195,6 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
         assertEq(_position.token1Balance, (400 * 1e6) / 4);
     }
 
-    /* ========== EXTERNAL FUNCTIONS ========== */
-    // function test_deposit_Success1() public {
-    //     // second depositing without liquidity (_additionalLiquidity = 0)
-    //     // underhedge
-    //     vault.deposit(10 ether, 10 ether, new bytes32[](0));
-    //     uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-    //     vault.deposit(_shares, 10 ether, new bytes32[](0));
-
-    //     //assertion
-    //     assertEq(vault.balanceOf(address(this)), 10 ether - 1e15 + _shares);
-    //     assertEq(token0.balanceOf(address(vault)), 10 ether + _shares);
-    // }
-
-    // function test_deposit_Success2() public {
-    //     vault.deposit(10 ether, 10 ether, new bytes32[](0));
-    //     helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
-    //     console2.log(address(router));
-    //     consoleCurrentPosition();
-
-    //     uint256 _shares = (vault.convertToShares(10 ether) * 9900) / MAGIC_SCALE_1E4;
-    //     vault.deposit(_shares, 10 ether, new bytes32[](0));
-    //     consoleCurrentPosition();
-
-    //     skip(1);
-    //     console2.log("vault.balance", vault.balanceOf(address(this)));
-    //     vault.redeem(vault.balanceOf(address(this)), 0);
-    //     consoleCurrentPosition();
-    // }
-
     /* ========== DEPOSIT ========== */
 
     function test_deposit_Revert1() public {
