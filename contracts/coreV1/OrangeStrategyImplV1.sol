@@ -65,7 +65,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         _executeHedgeRebalance(_currentPosition, _targetPosition);
 
         // 4. add liquidity
-        uint128 _targetLiquidity = _addLiquidityInRebalance(
+        uint128 _addedLiquidity = _addLiquidityInRebalance(
             _newLowerTick,
             _newUpperTick,
             _targetPosition.token0Balance, // amount of token0 to be added to Uniswap
@@ -73,7 +73,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         );
 
         // check if rebalance has done as expected or not
-        if (_targetLiquidity < _minNewLiquidity) {
+        if (_addedLiquidity < _minNewLiquidity) {
             revert(ErrorsV1.LESS_LIQUIDITY);
         }
 
