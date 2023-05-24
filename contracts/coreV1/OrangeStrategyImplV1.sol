@@ -95,8 +95,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
             ILiquidityPoolManager(liquidityPool).burnAndCollect(lowerTick, upperTick, liquidity);
         }
 
-        uint256 _withdrawingToken0 = ILendingPoolManager(lendingPool).balanceOfCollateral();
-        uint256 _repayingToken1 = ILendingPoolManager(lendingPool).balanceOfDebt();
+        (uint256 _withdrawingToken0, uint256 _repayingToken1) = ILendingPoolManager(lendingPool).balances();
         uint256 _vaultAmount1 = token1.balanceOf(address(this));
 
         // 2. Flashloan token1 to repay the Debt (Token1)

@@ -55,6 +55,10 @@ contract AaveLendingPoolManager is ILendingPoolManager {
         token1.safeApprove(address(aave), type(uint256).max);
     }
 
+    function balances() external view returns (uint256, uint256) {
+        return (aToken0.balanceOf(address(this)), debtToken1.balanceOf(address(this)));
+    }
+
     function balanceOfCollateral() external view returns (uint256) {
         return aToken0.balanceOf(address(this));
     }

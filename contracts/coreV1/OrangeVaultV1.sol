@@ -97,8 +97,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     /// @notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_lowerTick, _upperTick);
-        uint256 amount0Collateral = ILendingPoolManager(lendingPool).balanceOfCollateral();
-        uint256 amount1Debt = ILendingPoolManager(lendingPool).balanceOfDebt();
+        (uint256 amount0Collateral, uint256 amount1Debt) = ILendingPoolManager(lendingPool).balances();
 
         uint256 amount0Balance = _underlyingAssets.liquidityAmount0 +
             _underlyingAssets.accruedFees0 +
