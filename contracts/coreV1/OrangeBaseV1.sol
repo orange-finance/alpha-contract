@@ -17,7 +17,7 @@ abstract contract OrangeBaseV1 is IOrangeBaseV1, OrangeERC20 {
     int24 public lowerTick;
     int24 public upperTick;
     bool public hasPosition;
-    bytes32 public flashloanHash; //tempolary use in flashloan
+    bytes32 public flashloanHash; //cache flashloan hash to check validity
 
     //Checker
     mapping(address => DepositType) public deposits;
