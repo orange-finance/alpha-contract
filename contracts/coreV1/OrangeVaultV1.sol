@@ -93,7 +93,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     }
 
     /* ========== VIEW FUNCTIONS(INTERNAL) ========== */
-
     /// @notice internal function of totalAssets
     function _totalAssets(int24 _lowerTick, int24 _upperTick) internal view returns (uint256 totalAssets_) {
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(_lowerTick, _upperTick);
@@ -198,7 +197,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             uint _actualDepositAmount = _maxAssets - _initialBurnedBalance;
             _mint(msg.sender, _actualDepositAmount);
             _mint(address(0), _initialBurnedBalance); // for manipulation resistance
-            _addDepositCap(_actualDepositAmount);
+            _checkDepositCap();
             return _actualDepositAmount;
         }
 
@@ -232,6 +231,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         // mint share to receiver
         _mint(msg.sender, _shares);
+        _checkDepositCap();
 
         emitAction(ActionType.DEPOSIT, msg.sender);
         return _shares;
@@ -372,7 +372,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         // complete redemption
         token0.safeTransfer(msg.sender, returnAssets_);
-        _reduceDepositCap(returnAssets_);
 
         emitAction(ActionType.REDEEM, msg.sender);
     }
@@ -398,6 +397,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     /// @inheritdoc IOrangeVaultV1
     function emitAction(ActionType _actionType, address _caller) public {
         emit Action(_actionType, _caller, _totalAssets(lowerTick, upperTick), totalSupply);
+    }
+
+    function _checkDepositCap() internal {
+        if (_totalAssets(lowerTick, upperTick) > params.depositCap()) {
+            revert(ErrorsV1.CAPOVER);
+        }
     }
 
     /* ========== EXTERNAL FUNCTIONS (Delegate call) ========== */
@@ -542,6 +547,5 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
             if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);
         }
-        _addDepositCap(_actualUsedAmount0);
     }
 }

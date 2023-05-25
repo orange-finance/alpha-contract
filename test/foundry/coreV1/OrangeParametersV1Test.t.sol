@@ -35,7 +35,7 @@ contract OrangeParametersV1Test is BaseTest {
         vm.expectRevert("Ownable");
         params.setMerkleRoot(0x0);
         vm.expectRevert("Ownable");
-        params.setDepositCap(1, 1);
+        params.setDepositCap(1);
         vm.expectRevert("Ownable");
         params.setMinDepositAmount(1);
         vm.expectRevert("Ownable");
@@ -49,8 +49,6 @@ contract OrangeParametersV1Test is BaseTest {
         params.setSlippage(10001, 1);
         vm.expectRevert(bytes(ErrorsV1.INVALID_PARAM));
         params.setMaxLtv(100000001);
-        vm.expectRevert(bytes(ErrorsV1.INVALID_PARAM));
-        params.setDepositCap(1, 0);
     }
 
     function test_Success() public {
@@ -70,9 +68,8 @@ contract OrangeParametersV1Test is BaseTest {
         params.setMerkleRoot(0x0);
         assertEq(params.merkleRoot(), 0x0);
 
-        params.setDepositCap(1, 1);
+        params.setDepositCap(1);
         assertEq(params.depositCap(), 1);
-        assertEq(params.totalDepositCap(), 1);
 
         params.setMinDepositAmount(1);
         assertEq(params.minDepositAmount(), 1);

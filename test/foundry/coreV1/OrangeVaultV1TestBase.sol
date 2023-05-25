@@ -65,7 +65,7 @@ contract OrangeVaultV1TestBase is BaseTest {
         balancer = IBalancerVault(balancerAddr.vaultAddr);
         params = new OrangeParametersV1();
 
-        params.setDepositCap(100_000 ether, 100_000 ether);
+        params.setDepositCap(9_000 ether);
         params.setMinDepositAmount(1e16);
         params.setHelper(address(this));
         params.setAllowlistEnabled(false);

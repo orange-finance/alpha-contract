@@ -213,6 +213,18 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
         vault.deposit(10 ether, 5_000 * 1e6, new bytes32[](0));
     }
 
+    function test_addDeposit_Revert4Cap() public {
+        //deposit cap over
+        vm.expectRevert(bytes(ErrorsV1.CAPOVER));
+        vault.deposit(9_001 ether, 9_001 ether, new bytes32[](0));
+
+        vault.deposit(10 ether, 10 ether, new bytes32[](0));
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+        params.setDepositCap(10 ether);
+        vm.expectRevert(bytes(ErrorsV1.CAPOVER));
+        vault.deposit(20 ether, 21 ether, new bytes32[](0));
+    }
+
     function test_deposit_Success0() public {
         //initial depositing
         uint256 _initialBalance = token0.balanceOf(address(this));

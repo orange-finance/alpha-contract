@@ -24,35 +24,4 @@ abstract contract OrangeValidationChecker is OrangeStorageV1 {
             }
         }
     }
-
-    function _addDepositCap(uint256 _assets) internal {
-        if (deposits[msg.sender].assets + _assets > params.depositCap()) {
-            revert(ErrorsV1.CAPOVER);
-        }
-        deposits[msg.sender].assets += _assets;
-        deposits[msg.sender].timestamp = uint40(block.timestamp);
-        uint256 _totalDeposits = totalDeposits;
-        if (_totalDeposits + _assets > params.totalDepositCap()) {
-            revert(ErrorsV1.CAPOVER);
-        }
-        totalDeposits = _totalDeposits + _assets;
-    }
-
-    function _reduceDepositCap(uint256 _assets) internal {
-        uint256 _deposited = deposits[msg.sender].assets;
-        if (_deposited < _assets) {
-            deposits[msg.sender].assets = 0;
-        } else {
-            unchecked {
-                deposits[msg.sender].assets -= _assets;
-            }
-        }
-        if (totalDeposits < _assets) {
-            totalDeposits = 0;
-        } else {
-            unchecked {
-                totalDeposits -= _assets;
-            }
-        }
-    }
 }

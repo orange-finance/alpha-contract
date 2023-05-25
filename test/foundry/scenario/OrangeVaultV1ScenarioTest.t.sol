@@ -16,7 +16,6 @@ contract OrangeVaultV1ScenarioTest is OrangeVaultV1TestBase {
 
     function setUp() public override {
         super.setUp();
-        params.setDepositCap(1000 ether, 1000 ether);
         params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
 
         //set Ticks for testing

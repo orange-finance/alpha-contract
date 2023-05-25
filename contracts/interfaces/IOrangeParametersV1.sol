@@ -23,9 +23,6 @@ interface IOrangeParametersV1 {
     /// @notice Get the total amount of USDC deposited by the user
     function depositCap() external view returns (uint256 assets);
 
-    /// @notice Get the total amount of USDC deposited by all users
-    function totalDepositCap() external view returns (uint256 assets);
-
     /// @notice Get the minimum amount of USDC to deposit at only initial deposit
     function minDepositAmount() external view returns (uint256 minDepositAmount);
 

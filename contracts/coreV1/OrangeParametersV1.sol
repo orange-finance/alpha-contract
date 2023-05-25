@@ -18,7 +18,6 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     bool public allowlistEnabled;
     bytes32 public merkleRoot;
     uint256 public depositCap;
-    uint256 public totalDepositCap;
     uint256 public minDepositAmount;
     address public helper;
     address public strategyImpl;
@@ -83,14 +82,9 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     /**
      * @notice Set parameters of depositCap
      * @param _depositCap Deposit cap of each accounts
-     * @param _totalDepositCap Total deposit cap
      */
-    function setDepositCap(uint256 _depositCap, uint256 _totalDepositCap) external onlyOwner {
-        if (_depositCap > _totalDepositCap) {
-            revert(ErrorsV1.INVALID_PARAM);
-        }
+    function setDepositCap(uint256 _depositCap) external onlyOwner {
         depositCap = _depositCap;
-        totalDepositCap = _totalDepositCap;
     }
 
     /**
