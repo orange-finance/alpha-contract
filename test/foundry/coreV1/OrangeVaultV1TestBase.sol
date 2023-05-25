@@ -42,6 +42,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     OrangeStrategyImplV1Mock public impl;
     UniswapV3LiquidityPoolManager public liquidityPool;
     AaveLendingPoolManager public lendingPool;
+    OrangeStrategyHelperV1 public helper;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -88,11 +89,12 @@ contract OrangeVaultV1TestBase is BaseTest {
             address(balancer)
         );
 
-        //strategy impl
         impl = new OrangeStrategyImplV1Mock();
         params.setStrategyImpl(address(impl));
         liquidityPool = UniswapV3LiquidityPoolManager(vault.liquidityPool());
         lendingPool = AaveLendingPoolManager(vault.lendingPool());
+        helper = new OrangeStrategyHelperV1(address(vault));
+        params.setHelper(address(helper));
     }
 
     function _dealAndApprove() internal virtual {

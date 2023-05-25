@@ -19,14 +19,10 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     // currentTick = -204714;
 
     uint256 constant HEDGE_RATIO = 100e6; //100%
-    OrangeStrategyHelperV1 public helper;
     ProxyMock proxy;
 
     function setUp() public override {
         super.setUp();
-        helper = new OrangeStrategyHelperV1(address(vault));
-        params.setHelper(address(helper));
-
         proxy = new ProxyMock(address(params));
     }
 

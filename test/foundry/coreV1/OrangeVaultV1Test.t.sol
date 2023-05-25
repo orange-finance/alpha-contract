@@ -14,12 +14,9 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
     using Ints for int256;
 
     uint256 constant HEDGE_RATIO = 100e6; //100%
-    OrangeStrategyHelperV1 public helper;
 
     function setUp() public override {
         super.setUp();
-        helper = new OrangeStrategyHelperV1(address(vault));
-        params.setHelper(address(helper));
     }
 
     /* ========== CONSTRUCTOR ========== */

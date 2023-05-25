@@ -13,12 +13,8 @@ contract OrangeStrategyHelperV1Test is OrangeVaultV1TestBase {
     using Ints for int24;
     using Ints for int256;
 
-    OrangeStrategyHelperV1 public helper;
-
     function setUp() public override {
         super.setUp();
-        helper = new OrangeStrategyHelperV1(address(vault));
-        params.setHelper(address(helper));
     }
 
     function test_constructor_Success() public {
