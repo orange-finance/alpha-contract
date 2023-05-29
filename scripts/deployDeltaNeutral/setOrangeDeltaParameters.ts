@@ -19,6 +19,9 @@ async function main() {
 
   const tx3 = await params.setGelato(a.Owner);
   console.log(tx3);
+
+  const tx4 = await params.setStrategist(a.Strategist, true);
+  console.log(tx4);
 }
 
 main().catch((error) => {
