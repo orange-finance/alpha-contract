@@ -117,3 +117,17 @@ library AddressHelperV1 {
         }
     }
 }
+
+library AddressHelperV2 {
+    uint256 constant ARB_ID = 42161;
+
+    struct CamelotAddr {
+        address wethUsdcPoolAddr;
+    }
+
+    function addresses(uint256 _chainid) internal pure returns (CamelotAddr memory camelotAddr_) {
+        if (_chainid == ARB_ID) {
+            camelotAddr_ = CamelotAddr({wethUsdcPoolAddr: 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f});
+        }
+    }
+}
