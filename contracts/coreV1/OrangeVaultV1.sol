@@ -439,11 +439,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
 
-        if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
-            console2.log("FlashloanType.STOPLOSS");
-
-            //delegate call
-            _delegate(params.strategyImpl());
+        if (
+            _flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE) ||
+            _flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)
+        ) {
+            console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
+            _depositInFlashloan(_flashloanType, _amounts[0], _userData);
         } else if (_flashloanType == uint8(FlashloanType.REDEEM)) {
             console2.log("FlashloanType.REDEEM");
 
@@ -469,9 +470,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 );
             }
         } else {
-            console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
+            console2.log("FlashloanType.STOPLOSS");
 
-            _depositInFlashloan(_flashloanType, _amounts[0], _userData);
+            //delegate call
+            _delegate(params.strategyImpl());
         }
 
         //repay flashloan
