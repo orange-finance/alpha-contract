@@ -31,10 +31,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         IOrangeVaultV1.Positions memory _targetPosition,
         uint128 _minNewLiquidity
     ) external {
-        if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_HELPER);
-        }
-
         int24 _currentLowerTick = lowerTick;
         int24 _currentUpperTick = upperTick;
 
@@ -82,9 +78,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
     }
 
     function stoploss(int24 _inputTick) external {
-        if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_HELPER);
-        }
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 
         hasPosition = false;
@@ -287,8 +280,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
-
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));
