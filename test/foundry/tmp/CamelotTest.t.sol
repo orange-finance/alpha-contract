@@ -5,6 +5,7 @@ import "../utils/BaseTest.sol";
 import {AddressHelperV2} from "../utils/AddressHelper.sol";
 
 import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
+import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraMintCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
 
@@ -22,6 +23,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
     AddressHelperV2.CamelotAddr camelotAddr;
 
     IAlgebraPool pool;
+    IDataStorageOperator dataStorage;
     IERC20 weth;
     IERC20 usdc;
 
@@ -33,6 +35,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         (camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
         pool = IAlgebraPool(camelotAddr.wethUsdcPoolAddr);
+        dataStorage = IDataStorageOperator(camelotAddr.wethUsdcDataStorageAddr);
         weth = IERC20(tokenAddr.wethAddr);
         usdc = IERC20(tokenAddr.usdcAddr);
 
@@ -262,6 +265,21 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         console2.log("weth", weth.balanceOf(address(this)));
         console2.log("usdc", usdc.balanceOf(address(this)));
         assertEq(usdc.balanceOf(address(this)), 10_000_000 * 1e6 - uint256(swapAmount));
+    }
+
+    function test_twap() public {
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = 5 minutes;
+        secondsAgo[1] = 0;
+        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        require(tickCumulatives.length == 2, "array len");
+        int24 avgTick;
+        unchecked {
+            avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
+        }
+        console2.log(avgTick.toString(), "avgTick");
+        (, int24 _currentTick, , , , , ) = pool.globalState();
+        console2.log(_currentTick.toString(), "_currentTick");
     }
 
     /// @notice Uniswap V3 callback fn, called back on pool.mint

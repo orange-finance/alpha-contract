@@ -6,6 +6,7 @@ import "../utils/BaseTest.sol";
 import {CamelotV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
 
 import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
+import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -27,6 +28,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
 
     CamelotV3LiquidityPoolManager public liquidityPool;
     IAlgebraPool public pool;
+    IDataStorageOperator public dataStorage;
     ISwapRouter public router;
     IERC20 public token0;
     IERC20 public token1;
@@ -43,6 +45,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
         (camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
         pool = IAlgebraPool(camelotAddr.wethUsdcPoolAddr);
+        dataStorage = IDataStorageOperator(camelotAddr.wethUsdcDataStorageAddr);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
@@ -51,7 +54,8 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token0),
             address(token1),
-            address(pool)
+            address(pool),
+            address(dataStorage)
         );
 
         //set Ticks for testing
@@ -102,20 +106,21 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token1),
             address(token0),
-            address(pool)
+            address(pool),
+            address(dataStorage)
         );
         assertEq(liquidityPool.reversed(), true);
     }
 
-    // function test_getTwap_Success() public {
-    //     int24 _twap = liquidityPool.getTwap(5 minutes);
-    //     uint32[] memory secondsAgo = new uint32[](2);
-    //     secondsAgo[0] = 5 minutes;
-    //     secondsAgo[1] = 0;
-    //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-    //     int24 avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
-    //     assertEq(avgTick, _twap);
-    // }
+    function test_getTwap_Success() public {
+        int24 _twap = liquidityPool.getTwap(5 minutes);
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = 5 minutes;
+        secondsAgo[1] = 0;
+        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        int24 avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
+        assertEq(avgTick, _twap);
+    }
 
     function test_validateTicks_Revert() public {
         vm.expectRevert(bytes("INVALID_TICKS"));
@@ -175,7 +180,8 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token1),
             address(token0),
-            address(pool)
+            address(pool),
+            address(dataStorage)
         );
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);

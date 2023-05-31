@@ -123,11 +123,15 @@ library AddressHelperV2 {
 
     struct CamelotAddr {
         address wethUsdcPoolAddr;
+        address wethUsdcDataStorageAddr;
     }
 
     function addresses(uint256 _chainid) internal pure returns (CamelotAddr memory camelotAddr_) {
         if (_chainid == ARB_ID) {
-            camelotAddr_ = CamelotAddr({wethUsdcPoolAddr: 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f});
+            camelotAddr_ = CamelotAddr({
+                wethUsdcPoolAddr: 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f,
+                wethUsdcDataStorageAddr: 0x77E975dcCD14b23dd05d5798DbC8f68bDDC0b3bf
+            });
         }
     }
 }

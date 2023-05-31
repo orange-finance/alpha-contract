@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IAlgebraPool} from "../vendor/algebra/IAlgebraPool.sol";
+import {IDataStorageOperator} from "../vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraMintCallback} from "../vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -26,6 +27,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
 
     /* ========== PARAMETERS ========== */
     IAlgebraPool public pool;
+    IDataStorageOperator public dataStorage;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public immutable vault;
 
@@ -36,23 +38,24 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     }
 
     /* ========== Initializable ========== */
-    constructor(address _vault, address _token0, address _token1, address _pool) {
+    constructor(address _vault, address _token0, address _token1, address _pool, address _dataStorage) {
         vault = _vault;
         reversed = _token0 > _token1 ? true : false;
 
         pool = IAlgebraPool(_pool);
+        dataStorage = IDataStorageOperator(_dataStorage);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
     function getTwap(uint32 _minute) external view returns (int24 avgTick) {
-        //     uint32[] memory secondsAgo = new uint32[](2);
-        //     secondsAgo[0] = _minute;
-        //     secondsAgo[1] = 0;
-        //     (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-        //     require(tickCumulatives.length == 2, "array len");
-        //     unchecked {
-        //         avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
-        //     }
+        uint32[] memory secondsAgo = new uint32[](2);
+        secondsAgo[0] = _minute;
+        secondsAgo[1] = 0;
+        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        require(tickCumulatives.length == 2, "array len");
+        unchecked {
+            avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
+        }
     }
 
     function getCurrentTick() external view returns (int24 tick) {
