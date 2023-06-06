@@ -10,8 +10,6 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 //libraries
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import "forge-std/console2.sol";
-
 contract AaveLendingPoolManager is ILendingPoolManager {
     using SafeERC20 for IERC20;
     using SafeAavePool for IAaveV3Pool;

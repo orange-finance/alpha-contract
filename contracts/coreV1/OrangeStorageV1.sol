@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import "forge-std/console2.sol";
 import {IERC20} from "../libs/BalancerFlashloan.sol";
 import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeStorageV1} from "../interfaces/IOrangeStorageV1.sol";
