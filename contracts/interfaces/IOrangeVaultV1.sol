@@ -45,7 +45,19 @@ interface IOrangeVaultV1 is IOrangeStorageV1 {
 
     event BurnAndCollectFees(uint256 burn0, uint256 burn1, uint256 fee0, uint256 fee1);
 
-    event Action(ActionType indexed actionType, address indexed caller, uint256 totalAssets, uint256 totalSupply);
+    event Action(
+        ActionType indexed actionType,
+        address indexed caller,
+        uint256 collateralAmount0,
+        uint256 debtAmount1,
+        uint256 liquidityAmount0,
+        uint256 liquidityAmount1,
+        uint256 accruedFees0,
+        uint256 accruedFees1,
+        uint256 vaultAmount0,
+        uint256 vaultAmount1,
+        uint256 totalSupply
+    );
 
     /* ========== VIEW FUNCTIONS ========== */
 
@@ -121,5 +133,5 @@ interface IOrangeVaultV1 is IOrangeStorageV1 {
     /**
      * @notice emit action event
      */
-    function emitAction(ActionType _actionType, address _caller) external;
+    function emitAction(ActionType _actionType) external;
 }

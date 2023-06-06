@@ -74,7 +74,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         }
 
         // emit event
-        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE, msg.sender);
+        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE);
     }
 
     function stoploss(int24 _inputTick) external {
@@ -121,7 +121,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         }
 
         // emit event
-        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
+        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */

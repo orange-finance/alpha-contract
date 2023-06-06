@@ -233,7 +233,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         _mint(msg.sender, _shares);
         _checkDepositCap();
 
-        emitAction(ActionType.DEPOSIT, msg.sender);
+        emitAction(ActionType.DEPOSIT);
         return _shares;
     }
 
@@ -373,7 +373,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         // complete redemption
         token0.safeTransfer(msg.sender, returnAssets_);
 
-        emitAction(ActionType.REDEEM, msg.sender);
+        emitAction(ActionType.REDEEM);
     }
 
     ///@notice remove liquidity by share ratio and collect all fees
@@ -395,11 +395,25 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function emitAction(ActionType _actionType, address _caller) public {
-        emit Action(_actionType, _caller, _totalAssets(lowerTick, upperTick), totalSupply);
+    function emitAction(ActionType _actionType) public {
+        (uint256 _amount0Collateral, uint256 _amount1Debt) = ILendingPoolManager(lendingPool).balances();
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
+        emit Action(
+            _actionType,
+            msg.sender,
+            _amount0Collateral,
+            _amount1Debt,
+            _underlyingAssets.liquidityAmount0,
+            _underlyingAssets.liquidityAmount1,
+            _underlyingAssets.accruedFees0,
+            _underlyingAssets.accruedFees1,
+            _underlyingAssets.vaultAmount0,
+            _underlyingAssets.vaultAmount1,
+            totalSupply
+        );
     }
 
-    function _checkDepositCap() internal {
+    function _checkDepositCap() internal view {
         if (_totalAssets(lowerTick, upperTick) > params.depositCap()) {
             revert(ErrorsV1.CAPOVER);
         }

@@ -510,4 +510,10 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
         assertEq(vault.balanceOf(address(this)), 0);
         assertApproxEqRel(token0.balanceOf(address(this)), _beforeBalance0, 1e16);
     }
+
+    function test_emitAction_Success() public {
+        vm.expectEmit(true, true, true, true);
+        emit Action(IOrangeVaultV1.ActionType.MANUAL, address(this), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        vault.emitAction(IOrangeVaultV1.ActionType.MANUAL);
+    }
 }
