@@ -21,6 +21,20 @@ import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/Liquid
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract OrangeVaultV1TestBase is BaseTest {
+    event Action(
+        IOrangeVaultV1.ActionType indexed actionType,
+        address indexed caller,
+        uint256 collateralAmount0,
+        uint256 debtAmount1,
+        uint256 liquidityAmount0,
+        uint256 liquidityAmount1,
+        uint256 accruedFees0,
+        uint256 accruedFees1,
+        uint256 vaultAmount0,
+        uint256 vaultAmount1,
+        uint256 totalSupply
+    );
+
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
     uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
 

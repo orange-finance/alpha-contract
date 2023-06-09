@@ -15,8 +15,6 @@ import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.so
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
 import {ErrorsV1} from "./ErrorsV1.sol";
 
-import "forge-std/console2.sol";
-
 contract OrangeStrategyImplV1 is OrangeStorageV1 {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
@@ -31,10 +29,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         IOrangeVaultV1.Positions memory _targetPosition,
         uint128 _minNewLiquidity
     ) external {
-        if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_HELPER);
-        }
-
         int24 _currentLowerTick = lowerTick;
         int24 _currentUpperTick = upperTick;
 
@@ -78,13 +72,10 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         }
 
         // emit event
-        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE, msg.sender);
+        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.REBALANCE);
     }
 
     function stoploss(int24 _inputTick) external {
-        if (msg.sender != params.helper()) {
-            revert(ErrorsV1.ONLY_HELPER);
-        }
         _checkTickSlippage(ILiquidityPoolManager(liquidityPool).getCurrentTick(), _inputTick);
 
         hasPosition = false;
@@ -128,7 +119,7 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         }
 
         // emit event
-        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS, msg.sender);
+        IOrangeVaultV1(address(this)).emitAction(IOrangeVaultV1.ActionType.STOPLOSS);
     }
 
     /* ========== WRITE FUNCTIONS(INTERNAL) ========== */
@@ -168,7 +159,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
                 // Case1: Supply & Borrow
 
                 // 1.supply
-                console2.log("case1 supply and borrow");
                 uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0;
 
                 // swap (if necessary)
@@ -189,7 +179,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
             } else {
                 if (_currentPosition.debtAmount1 > _targetPosition.debtAmount1) {
                     // Case2: Repay & (Supply or Withdraw)
-                    console2.log("case2 repay");
 
                     // 1. Repay
                     uint256 _repay1 = _currentPosition.debtAmount1 - _targetPosition.debtAmount1;
@@ -208,19 +197,16 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
                     // check which of supply or withdraw comes after
                     if (_currentPosition.collateralAmount0 < _targetPosition.collateralAmount0) {
                         // 2. Supply
-                        console2.log("case2_1 repay and supply");
 
                         uint256 _supply0 = _targetPosition.collateralAmount0 - _currentPosition.collateralAmount0;
                         ILendingPoolManager(lendingPool).supply(_supply0);
                     } else {
                         // 2. Withdraw
-                        console2.log("case2_2 repay and withdraw");
                         uint256 _withdraw0 = _currentPosition.collateralAmount0 - _targetPosition.collateralAmount0;
                         ILendingPoolManager(lendingPool).withdraw(_withdraw0);
                     }
                 } else {
                     // Case3: Borrow and Withdraw
-                    console2.log("case3 borrow and withdraw");
 
                     // 1. borrow
                     uint256 _borrow1 = _targetPosition.debtAmount1 - _currentPosition.debtAmount1;
@@ -287,8 +273,6 @@ contract OrangeStrategyImplV1 is OrangeStorageV1 {
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
-
         uint8 _flashloanType = abi.decode(_userData, (uint8));
         if (_flashloanType == uint8(IOrangeVaultV1.FlashloanType.STOPLOSS)) {
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256));

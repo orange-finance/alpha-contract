@@ -12,13 +12,9 @@ import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-import "forge-std/console2.sol";
-import {Ints} from "../mocks/Ints.sol";
-
 contract OrangeStrategyHelperV1 is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
-    using Ints for int24;
 
     /* ========== CONSTANTS ========== */
     uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
@@ -96,10 +92,6 @@ contract OrangeStrategyHelperV1 is IResolver {
         if (vault.hasPosition()) {
             (, int24 _currentTick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
             int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
-            // console2.log("currentTick: ", _currentTick.toString());
-            // console2.log("twap: ", _twap.toString());
-            // console2.log("stoplossLowerTick: ", stoplossLowerTick.toString());
-            // console2.log("stoplossUpperTick: ", stoplossUpperTick.toString());
 
             if (
                 _isOutOfRange(_currentTick, stoplossLowerTick, stoplossUpperTick) &&

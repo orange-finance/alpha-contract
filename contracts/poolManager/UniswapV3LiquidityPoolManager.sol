@@ -13,8 +13,6 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
-import "forge-std/console2.sol";
-
 contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
@@ -230,17 +228,9 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         address sender = abi.decode(_data, (address));
 
         if (amount0Owed > 0) {
-            if (amount0Owed > IERC20(pool.token0()).balanceOf(sender)) {
-                console2.log("uniswapV3MintCallback amount0 > balance");
-                console2.log(amount0Owed, IERC20(pool.token0()).balanceOf(sender));
-            }
             IERC20(pool.token0()).safeTransferFrom(sender, msg.sender, amount0Owed);
         }
         if (amount1Owed > 0) {
-            if (amount1Owed > IERC20(pool.token1()).balanceOf(sender)) {
-                console2.log("uniswapV3MintCallback amount1 > balance");
-                console2.log(amount1Owed, IERC20(pool.token1()).balanceOf(sender));
-            }
             IERC20(pool.token1()).safeTransferFrom(sender, msg.sender, amount1Owed);
         }
     }

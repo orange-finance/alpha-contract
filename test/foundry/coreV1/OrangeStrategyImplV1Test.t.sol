@@ -26,16 +26,6 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
         proxy = new ProxyMock(address(params));
     }
 
-    //access controls
-    function test_rebalance_Revert1() public {
-        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
-        vm.prank(alice);
-        proxy.rebalance(lowerTick, upperTick, IOrangeVaultV1.Positions(0, 0, 0, 0), 0);
-        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
-        vm.prank(alice);
-        proxy.stoploss(0);
-    }
-
     function test_checkTickSlippage_Success1() public {
         vm.expectRevert(bytes(ErrorsV1.HIGH_SLIPPAGE));
         helper.stoploss(0);
@@ -88,13 +78,6 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
         assertEq(lendingPool.balanceOfCollateral(), 0);
         assertApproxEqRel(token0.balanceOf(address(vault)), 10 ether, 1e16);
         assertEq(token1.balanceOf(address(vault)), 0);
-    }
-
-    function test_rebalance_RevertOnlyStrategists() public {
-        IOrangeVaultV1.Positions memory _currentPosition = IOrangeVaultV1.Positions(0, 0, 0, 0);
-        vm.expectRevert(bytes(ErrorsV1.ONLY_HELPER));
-        vm.startPrank(alice);
-        proxy.rebalance(0, 0, _currentPosition, 0);
     }
 
     function test_rebalance_RevertTickSpacing() public {

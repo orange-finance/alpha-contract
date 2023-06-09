@@ -23,8 +23,6 @@ import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} 
 import {UniswapV3LiquidityPoolManager} from "../poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "../poolManager/AaveLendingPoolManager.sol";
 
-import "forge-std/console2.sol";
-
 contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeValidationChecker, Proxy {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
@@ -233,7 +231,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         _mint(msg.sender, _shares);
         _checkDepositCap();
 
-        emitAction(ActionType.DEPOSIT, msg.sender);
+        emitAction(ActionType.DEPOSIT);
         return _shares;
     }
 
@@ -373,7 +371,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         // complete redemption
         token0.safeTransfer(msg.sender, returnAssets_);
 
-        emitAction(ActionType.REDEEM, msg.sender);
+        emitAction(ActionType.REDEEM);
     }
 
     ///@notice remove liquidity by share ratio and collect all fees
@@ -395,11 +393,25 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     }
 
     /// @inheritdoc IOrangeVaultV1
-    function emitAction(ActionType _actionType, address _caller) public {
-        emit Action(_actionType, _caller, _totalAssets(lowerTick, upperTick), totalSupply);
+    function emitAction(ActionType _actionType) public {
+        (uint256 _amount0Collateral, uint256 _amount1Debt) = ILendingPoolManager(lendingPool).balances();
+        UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
+        emit Action(
+            _actionType,
+            msg.sender,
+            _amount0Collateral,
+            _amount1Debt,
+            _underlyingAssets.liquidityAmount0,
+            _underlyingAssets.liquidityAmount1,
+            _underlyingAssets.accruedFees0,
+            _underlyingAssets.accruedFees1,
+            _underlyingAssets.vaultAmount0,
+            _underlyingAssets.vaultAmount1,
+            totalSupply
+        );
     }
 
-    function _checkDepositCap() internal {
+    function _checkDepositCap() internal view {
         if (_totalAssets(lowerTick, upperTick) > params.depositCap()) {
             revert(ErrorsV1.CAPOVER);
         }
@@ -416,7 +428,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
     /// @inheritdoc IOrangeVaultV1
     function rebalance(int24, int24, Positions memory, uint128) external {
-        console2.log("OrangeVaultV1: rebalance");
         if (msg.sender != params.helper()) revert(ErrorsV1.ONLY_HELPER);
 
         _delegate(params.strategyImpl());
@@ -430,7 +441,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint256[] memory,
         bytes memory _userData
     ) external {
-        console2.log("receiveFlashLoan");
         if (msg.sender != balancer) revert(ErrorsV1.ONLY_BALANCER_VAULT);
         //check validity
         if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
@@ -439,14 +449,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
 
-        if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
-            console2.log("FlashloanType.STOPLOSS");
-
-            //delegate call
-            _delegate(params.strategyImpl());
+        if (
+            _flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE) ||
+            _flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)
+        ) {
+            _depositInFlashloan(_flashloanType, _amounts[0], _userData);
         } else if (_flashloanType == uint8(FlashloanType.REDEEM)) {
-            console2.log("FlashloanType.REDEEM");
-
             (, uint256 _amount1, uint256 _amount0) = abi.decode(_userData, (uint8, uint256, uint256)); // (, debt, collateral)
 
             // repay debt
@@ -469,9 +477,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 );
             }
         } else {
-            console2.log("FlashloanType.DEPOSIT_OVERHEDGE/UNDERHEDGE");
-
-            _depositInFlashloan(_flashloanType, _amounts[0], _userData);
+            //delegate call
+            _delegate(params.strategyImpl());
         }
 
         //repay flashloan
@@ -508,7 +515,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
         uint256 _actualUsedAmount0;
         if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
-            console2.log("FlashloanType.DEPOSIT_OVERHEDGE");
             // Token0 is flashLoaned.
             // Calculate the amount of surplus Token1 and swap for Token0 (Leave some Token1 to achieve #5)
             uint256 _surplusAmount1 = _positions.debtAmount1 - (_additionalLiquidityAmount1 + _positions.token1Balance);
@@ -521,7 +527,6 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
 
             _actualUsedAmount0 = flashloanAmount + _positions.token0Balance - _amountOutFromSurplusToken1Sale;
         } else if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
-            console2.log("FlashloanType.DEPOSIT_UNDERHEDGE");
             // Token1 is flashLoaned.
             // Calculate the amount of Token1 needed to be swapped to repay the loan, then swap Token0=>Token1 (Swap more Token0 for Token1 to achieve #5)
             uint256 amount1ToBeSwapped = _additionalLiquidityAmount1 +
