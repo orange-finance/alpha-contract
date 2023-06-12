@@ -50,6 +50,13 @@ export const getAddresses = () => {
         OrangeAlphaPeriphery: "0xCa612E6bCDcCa3d1b9828FDc912643228D4b8AA9",
         OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
         OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
+        //delta neutral
+        // OrangeDeltaParameters: "0x1eCaB7f39B7A1165BDCD9272d42244F8e0AD4aBe",
+        OrangeDeltaParameters: "0x153FD22940BDA400AB4B51860E18319D9d3EC3fF",
+        OrangeDeltaVault: "0x810fd69F58fF7Ff8553D43a5D3DCE3853960cAa6",
+        OrangeDeltaPeriphery: "0x2611D4aB59308Fe608F662aC993A7EC7b2647266",
+        OrangeDeltaResolver: "0x5ee552490E81582a734f234BfAce3D24Abdba043",
+        OrangeDeltaComputer: "0x75aaa778C7e6cAb08dc94452DaDe7909F8Aa7bf5",
         //v1
         OrangeParametersV1: "0xB5101c45109D7ECE0d3357f161FA0c2b66599b77",
         OrangeVaultV1: "0x5af9A292Aec0acab889138d1bDD50630aF8FF51D",
