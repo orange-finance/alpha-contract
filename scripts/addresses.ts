@@ -38,6 +38,7 @@ export const getAddresses = () => {
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        Balancer: "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
         //libraries
         GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
@@ -49,6 +50,11 @@ export const getAddresses = () => {
         OrangeAlphaPeriphery: "0xCa612E6bCDcCa3d1b9828FDc912643228D4b8AA9",
         OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
         OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
+        //v1
+        OrangeParametersV1: "0xB5101c45109D7ECE0d3357f161FA0c2b66599b77",
+        OrangeVaultV1: "0x5af9A292Aec0acab889138d1bDD50630aF8FF51D",
+        OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
+        OrangeStrategyHelperV1: "0xFC60b4Fe576d199138b77bd513936f45C6030E8B",
       };
   }
 };
