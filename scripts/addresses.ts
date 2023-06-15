@@ -31,6 +31,7 @@ export const getAddresses = () => {
         Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
         Owner: "0x38E4157345Bd2c8Cf7Dbe4B0C75302c2038AB7Ec", //Safe
         Strategist: "0xd31583735e47206e9af728EF4f44f62B20db4b27",
+        GelatoDedicatedMsgSender: "0xBa568F558aB731Aaa88272CF2206CBFc9611671C",
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
@@ -62,6 +63,7 @@ export const getAddresses = () => {
         OrangeVaultV1: "0x5af9A292Aec0acab889138d1bDD50630aF8FF51D",
         OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
         OrangeStrategyHelperV1: "0xFC60b4Fe576d199138b77bd513936f45C6030E8B",
+        OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
       };
   }
 };
