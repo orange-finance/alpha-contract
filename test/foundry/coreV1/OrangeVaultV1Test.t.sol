@@ -513,7 +513,7 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
 
     function test_emitAction_Success() public {
         vm.expectEmit(true, true, true, true);
-        emit Action(IOrangeVaultV1.ActionType.MANUAL, address(this), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        emit Action(IOrangeVaultV1.ActionType.MANUAL, address(this), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         vault.emitAction(IOrangeVaultV1.ActionType.MANUAL);
     }
 }

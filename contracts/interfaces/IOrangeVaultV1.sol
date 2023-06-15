@@ -56,6 +56,7 @@ interface IOrangeVaultV1 is IOrangeStorageV1 {
         uint256 accruedFees1,
         uint256 vaultAmount0,
         uint256 vaultAmount1,
+        uint256 totalAssets,
         uint256 totalSupply
     );
 

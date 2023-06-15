@@ -396,6 +396,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
     function emitAction(ActionType _actionType) public {
         (uint256 _amount0Collateral, uint256 _amount1Debt) = ILendingPoolManager(lendingPool).balances();
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingBalances(lowerTick, upperTick);
+        uint256 _amount0Balance = _underlyingAssets.liquidityAmount0 +
+            _underlyingAssets.accruedFees0 +
+            _underlyingAssets.vaultAmount0;
+        uint256 _amount1Balance = _underlyingAssets.liquidityAmount1 +
+            _underlyingAssets.accruedFees1 +
+            _underlyingAssets.vaultAmount1;
+        uint256 __totalAssets = _alignTotalAsset(_amount0Balance, _amount1Balance, _amount0Collateral, _amount1Debt);
+
         emit Action(
             _actionType,
             msg.sender,
@@ -407,6 +415,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             _underlyingAssets.accruedFees1,
             _underlyingAssets.vaultAmount0,
             _underlyingAssets.vaultAmount1,
+            __totalAssets,
             totalSupply
         );
     }
