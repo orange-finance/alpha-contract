@@ -143,6 +143,6 @@ SELECT
   upperPrice AS "Upper Range",
   lowerPrice AS "b1(for visualization)",
   lowerPrice AS "b2(for visualization)",
-  borrowEth / liquidityEth * 100 AS "Hedge Ratio"
+  borrowEth / liquidityEth AS "Hedge Ratio"
 FROM
   RangeAndEthPrice
