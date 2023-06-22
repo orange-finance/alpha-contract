@@ -50,11 +50,12 @@ export const getAddresses = () => {
         OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
         OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
         //delta neutral
+        // OrangeDeltaParameters: "0x1eCaB7f39B7A1165BDCD9272d42244F8e0AD4aBe",
         OrangeDeltaParameters: "0x153FD22940BDA400AB4B51860E18319D9d3EC3fF",
-        OrangeDeltaVault: "0x16F6617680333e90f18aA89a85817d347078b7b8",
-        OrangeDeltaPeriphery: "0x930781b2E7A58979716D4caA2d8c41D39F3EEC45",
-        OrangeDeltaResolver: "0x0CEA5ee3d971D425df4a4f2123fE18a62421bb1b",
-        OrangeDeltaComputer: "0x60a5A5C0c1fdCC192DE2b8F57e2E0D8cbf80A89b",
+        OrangeDeltaVault: "0x810fd69F58fF7Ff8553D43a5D3DCE3853960cAa6",
+        OrangeDeltaPeriphery: "0x2611D4aB59308Fe608F662aC993A7EC7b2647266",
+        OrangeDeltaResolver: "0x5ee552490E81582a734f234BfAce3D24Abdba043",
+        OrangeDeltaComputer: "0x75aaa778C7e6cAb08dc94452DaDe7909F8Aa7bf5",
       };
   }
 };
