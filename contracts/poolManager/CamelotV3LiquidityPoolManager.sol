@@ -3,7 +3,6 @@ pragma solidity 0.8.16;
 
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IAlgebraPool} from "../vendor/algebra/IAlgebraPool.sol";
-import {IDataStorageOperator} from "../vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraMintCallback} from "../vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -27,7 +26,6 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
 
     /* ========== PARAMETERS ========== */
     IAlgebraPool public pool;
-    IDataStorageOperator public dataStorage;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public immutable vault;
 
@@ -38,12 +36,11 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     }
 
     /* ========== Initializable ========== */
-    constructor(address _vault, address _token0, address _token1, address _pool, address _dataStorage) {
+    constructor(address _vault, address _token0, address _token1, address _pool) {
         vault = _vault;
         reversed = _token0 > _token1 ? true : false;
 
         pool = IAlgebraPool(_pool);
-        dataStorage = IDataStorageOperator(_dataStorage);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -51,7 +48,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = _minute;
         secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
         require(tickCumulatives.length == 2, "array len");
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
@@ -59,11 +56,11 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     }
 
     function getCurrentTick() external view returns (int24 tick) {
-        (, tick, , , , , ) = pool.globalState();
+        (, tick, , , , , , ) = pool.globalState();
     }
 
     function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128) {
-        (uint256 _liquidity, , , , ) = pool.positions(_createKey(address(this), _lowerTick, _upperTick));
+        (uint256 _liquidity, , , , , ) = pool.positions(_createKey(address(this), _lowerTick, _upperTick));
         return SafeCast.toUint128(_liquidity);
     }
 
@@ -72,7 +69,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         int24 upperTick,
         uint128 liquidity
     ) external view returns (uint256, uint256) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.globalState();
+        (uint160 _sqrtRatioX96, , , , , , , ) = pool.globalState();
         (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
             _sqrtRatioX96,
             lowerTick.getSqrtRatioAtTick(),
@@ -88,7 +85,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         uint256 amount0,
         uint256 amount1
     ) external view returns (uint128 liquidity) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.globalState();
+        (uint160 _sqrtRatioX96, , , , , , , ) = pool.globalState();
         (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
 
         return
@@ -113,6 +110,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     function getFeesEarned(int24 lowerTick, int24 upperTick) external view returns (uint256, uint256) {
         (
             uint256 liquidity,
+            ,
             uint256 feeGrowthInside0Last,
             uint256 feeGrowthInside1Last,
             uint128 tokensOwed0,
@@ -145,7 +143,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         int24 _lowerTick,
         int24 _upperTick
     ) internal view returns (uint256 fee_) {
-        (, int24 _tick, , , , , ) = pool.globalState();
+        (, int24 _tick, , , , , , ) = pool.globalState();
 
         bool isZero = (token == pool.token0()) ? true : false;
 
@@ -154,12 +152,12 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         uint256 feeGrowthGlobal;
         if (isZero) {
             feeGrowthGlobal = pool.totalFeeGrowth0Token();
-            (, , feeGrowthOutsideLower, , , , , , ) = pool.ticks(_lowerTick);
-            (, , feeGrowthOutsideUpper, , , , , , ) = pool.ticks(_upperTick);
+            (, , feeGrowthOutsideLower, , , , , ) = pool.ticks(_lowerTick);
+            (, , feeGrowthOutsideUpper, , , , , ) = pool.ticks(_upperTick);
         } else {
             feeGrowthGlobal = pool.totalFeeGrowth1Token();
-            (, , , feeGrowthOutsideLower, , , , , ) = pool.ticks(_lowerTick);
-            (, , , feeGrowthOutsideUpper, , , , , ) = pool.ticks(_upperTick);
+            (, , , feeGrowthOutsideLower, , , , ) = pool.ticks(_lowerTick);
+            (, , , feeGrowthOutsideUpper, , , , ) = pool.ticks(_upperTick);
         }
 
         unchecked {

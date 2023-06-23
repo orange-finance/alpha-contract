@@ -121,16 +121,24 @@ library AddressHelperV1 {
 library AddressHelperV2 {
     uint256 constant ARB_ID = 42161;
 
+    struct TokenAddrV2 {
+        address usdcAddr;
+    }
     struct CamelotAddr {
         address wethUsdcPoolAddr;
-        address wethUsdcDataStorageAddr;
+        address wethUsdcePoolAddr;
+        address wethUsdceDataStorageAddr;
     }
 
-    function addresses(uint256 _chainid) internal pure returns (CamelotAddr memory camelotAddr_) {
+    function addresses(
+        uint256 _chainid
+    ) internal pure returns (TokenAddrV2 memory tokenAddrV2_, CamelotAddr memory camelotAddr_) {
         if (_chainid == ARB_ID) {
+            tokenAddrV2_ = TokenAddrV2({usdcAddr: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831});
             camelotAddr_ = CamelotAddr({
-                wethUsdcPoolAddr: 0xb7Dd20F3FBF4dB42Fd85C839ac0241D09F72955f,
-                wethUsdcDataStorageAddr: 0x77E975dcCD14b23dd05d5798DbC8f68bDDC0b3bf
+                wethUsdcPoolAddr: 0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526,
+                wethUsdcePoolAddr: 0x521aa84ab3fcc4c05cABaC24Dc3682339887B126,
+                wethUsdceDataStorageAddr: 0x6c70EC64217CfE81A7961168CE9909ebAd7C2935
             });
         }
     }

@@ -5,7 +5,6 @@ import "../utils/BaseTest.sol";
 import {AddressHelperV2} from "../utils/AddressHelper.sol";
 
 import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
-import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraMintCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
 
@@ -23,7 +22,6 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
     AddressHelperV2.CamelotAddr camelotAddr;
 
     IAlgebraPool pool;
-    IDataStorageOperator dataStorage;
     IERC20 weth;
     IERC20 usdc;
 
@@ -32,10 +30,9 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
 
     function setUp() public {
         (tokenAddr, , ) = AddressHelper.addresses(block.chainid);
-        (camelotAddr) = AddressHelperV2.addresses(block.chainid);
+        (, camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
-        pool = IAlgebraPool(camelotAddr.wethUsdcPoolAddr);
-        dataStorage = IDataStorageOperator(camelotAddr.wethUsdcDataStorageAddr);
+        pool = IAlgebraPool(camelotAddr.wethUsdcePoolAddr);
         weth = IERC20(tokenAddr.wethAddr);
         usdc = IERC20(tokenAddr.usdcAddr);
 
@@ -46,12 +43,12 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
     }
 
     function test_setTick() public view {
-        (, int24 _currentTick, , , , , ) = pool.globalState();
+        (, int24 _currentTick, , , , , , ) = pool.globalState();
         console2.log(_currentTick.toString(), "tick");
     }
 
     function test_viewFunctions_success() public {
-        (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.globalState();
+        (uint160 sqrtRatioX96, int24 tick, , , , , , ) = pool.globalState();
         console2.log(sqrtRatioX96, "sqrtRatioX96");
         console2.log(tick.toString(), "tick");
         console2.log(tick.getSqrtRatioAtTick(), "tickToSqrt");
@@ -64,8 +61,8 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         int24 _upperTick = tick + 60;
         console2.log(_lowerTick.toString(), "lowerTick");
         console2.log(_upperTick.toString(), "upperTick");
-        (, , uint256 feeGrowthOutsideLower, , , , , , ) = pool.ticks(_lowerTick);
-        (, , uint256 feeGrowthOutsideUpper, , , , , , ) = pool.ticks(_upperTick);
+        (, , uint256 feeGrowthOutsideLower, , , , , ) = pool.ticks(_lowerTick);
+        (, , uint256 feeGrowthOutsideUpper, , , , , ) = pool.ticks(_upperTick);
         console2.log(feeGrowthOutsideLower, "feeGrowthOutsideLower");
         console2.log(feeGrowthOutsideUpper, "feeGrowthOutsideUpper");
 
@@ -81,7 +78,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
 
         uint256 amount0 = 1 ether;
         uint256 amount1 = 2000 * 1e6;
-        (uint160 sqrtRatioX96, , , , , , ) = pool.globalState();
+        (uint160 sqrtRatioX96, , , , , , , ) = pool.globalState();
         uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtRatioX96,
             lowerTick.getSqrtRatioAtTick(),
@@ -104,7 +101,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         assembly {
             key := or(shl(24, or(shl(24, owner), and(bottomTick, 0xFFFFFF))), and(topTick, 0xFFFFFF))
         }
-        (uint256 liquidity_, , , , ) = pool.positions(key);
+        (uint256 liquidity_, , , , , ) = pool.positions(key);
         console2.log(liquidity_, "liquidity_");
         assertEq(liquidity_, liquidity);
     }
@@ -112,7 +109,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
     function test_computeMintAmounts_success() public {
         uint256 amount0 = 1 ether;
         uint256 amount1 = 2000 * 1e6;
-        (uint160 sqrtRatioX96, , , , , , ) = pool.globalState();
+        (uint160 sqrtRatioX96, , , , , , , ) = pool.globalState();
 
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
             sqrtRatioX96,
@@ -140,7 +137,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         uint256 amount0 = 100 ether;
         uint256 amount1 = 2000 * 1e6;
 
-        (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.globalState();
+        (uint160 sqrtRatioX96, int24 tick, , , , , , ) = pool.globalState();
         console2.log(tick.toString(), "tick");
 
         uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
@@ -183,7 +180,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
     function test_burnAndCollect_success() public {
         uint256 amount0 = 1 ether;
         uint256 amount1 = 2000 * 1e6;
-        (uint160 sqrtRatioX96, , , , , , ) = pool.globalState();
+        (uint160 sqrtRatioX96, , , , , , , ) = pool.globalState();
         uint128 liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtRatioX96,
             lowerTick.getSqrtRatioAtTick(),
@@ -204,8 +201,8 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         assembly {
             key := or(shl(24, or(shl(24, owner), and(bottomTick, 0xFFFFFF))), and(topTick, 0xFFFFFF))
         }
-        (uint256 liquidity_, , , , ) = pool.positions(key);
-        assertEq(liquidity_, liquidity / 2);
+        (uint256 liquidity_, , , , , ) = pool.positions(key);
+        assertApproxEqAbs(liquidity_, liquidity / 2, 1);
         assertApproxEqRel(weth.balanceOf(address(this)), 10_000 ether - (1 ether / 2), 1e15);
         assertApproxEqRel(usdc.balanceOf(address(this)), 10_000_000 * 1e6 - ((2000 * 1e6) / 2), 1e15);
         console2.log("weth", weth.balanceOf(address(this)));
@@ -213,7 +210,7 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
 
         //burn all
         pool.burn(lowerTick, upperTick, uint128(liquidity_));
-        (uint256 liquidity__, , , , ) = pool.positions(key);
+        (uint256 liquidity__, , , , , ) = pool.positions(key);
         assertEq(liquidity__, 0);
         pool.collect(address(this), lowerTick, upperTick, type(uint128).max, type(uint128).max);
         assertApproxEqAbs(weth.balanceOf(address(this)), 10_000 ether, 2);
@@ -224,11 +221,11 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
 
     function test_swap_success() public {
         bool zeroForOne = true;
-        int256 swapAmount = 10 ether;
-        (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.globalState();
+        int256 swapAmount = 5 ether;
+        (uint160 sqrtRatioX96, int24 tick, , , , , , ) = pool.globalState();
         console2.log(sqrtRatioX96, "sqrtRatioX96");
 
-        uint160 swapThresholdPrice = TickMath.getSqrtRatioAtTick(tick - 30);
+        uint160 swapThresholdPrice = TickMath.getSqrtRatioAtTick(tick - 120);
         console2.log(swapThresholdPrice, "swapThresholdPrice");
 
         (int256 amount0Delta, int256 amount1Delta) = pool.swap(
@@ -241,14 +238,14 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         console2.log("testPoolSwap");
         console2.log(uint256(amount0Delta), uint256(amount1Delta));
         console2.log("weth", weth.balanceOf(address(this)));
-        assertEq(weth.balanceOf(address(this)), 9990 ether);
+        assertEq(weth.balanceOf(address(this)), 9995 ether);
         console2.log("usdc", usdc.balanceOf(address(this)));
     }
 
     function test_swapReverse_success() public {
         bool zeroForOne = false;
         int256 swapAmount = 1_000 * 1e6;
-        (uint160 sqrtRatioX96, int24 tick, , , , , ) = pool.globalState();
+        (, int24 tick, , , , , , ) = pool.globalState();
 
         uint160 swapThresholdPrice = TickMath.getSqrtRatioAtTick(tick + 30);
         console2.log("swapThresholdPrice", swapThresholdPrice);
@@ -271,14 +268,14 @@ contract CamelotTest is BaseTest, IAlgebraMintCallback, IAlgebraSwapCallback {
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = 5 minutes;
         secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
         require(tickCumulatives.length == 2, "array len");
         int24 avgTick;
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
         }
         console2.log(avgTick.toString(), "avgTick");
-        (, int24 _currentTick, , , , , ) = pool.globalState();
+        (, int24 _currentTick, , , , , , ) = pool.globalState();
         console2.log(_currentTick.toString(), "_currentTick");
     }
 

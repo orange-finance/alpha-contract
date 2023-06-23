@@ -42,10 +42,9 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
 
     function setUp() public virtual {
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
-        (camelotAddr) = AddressHelperV2.addresses(block.chainid);
+        (, camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
-        pool = IAlgebraPool(camelotAddr.wethUsdcPoolAddr);
-        dataStorage = IDataStorageOperator(camelotAddr.wethUsdcDataStorageAddr);
+        pool = IAlgebraPool(camelotAddr.wethUsdcePoolAddr);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
@@ -54,12 +53,11 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token0),
             address(token1),
-            address(pool),
-            address(dataStorage)
+            address(pool)
         );
 
         //set Ticks for testing
-        (, int24 _tick, , , , , ) = pool.globalState();
+        (, int24 _tick, , , , , , ) = pool.globalState();
         currentTick = _tick;
         console2.log("currentTick", currentTick.toString());
         int24 spac = pool.tickSpacing();
@@ -106,8 +104,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token1),
             address(token0),
-            address(pool),
-            address(dataStorage)
+            address(pool)
         );
         assertEq(liquidityPool.reversed(), true);
     }
@@ -117,7 +114,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = 5 minutes;
         secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = dataStorage.getTimepoints(secondsAgo);
+        (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
         int24 avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
         assertEq(avgTick, _twap);
     }
@@ -180,8 +177,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
             address(this),
             address(token1),
             address(token0),
-            address(pool),
-            address(dataStorage)
+            address(pool)
         );
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);
@@ -231,7 +227,7 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
     /* ========== TEST functions ========== */
     function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal {
         int256 _swapAmount = int256(_amountIn);
-        (, int24 _tick, , , , , ) = pool.globalState();
+        (, int24 _tick, , , , , , ) = pool.globalState();
         if (_zeroForOne) {
             _tick = _tick - 60;
         } else {
