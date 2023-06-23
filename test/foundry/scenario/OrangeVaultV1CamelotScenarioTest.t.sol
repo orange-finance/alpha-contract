@@ -79,24 +79,26 @@ contract OrangeVaultV1CamelotScenarioTest is BaseTest {
     }
 
     function _deploy() internal virtual {
+        liquidityPool = new CamelotV3LiquidityPoolManager(address(token0), address(token1), address(pool));
+        lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
         //vault
         vault = new OrangeVaultV1Mock(
             "OrangeVaultV1Mock",
             "ORANGE_VAULT_V1",
             address(token0),
             address(token1),
-            address(pool),
-            address(aave),
+            address(liquidityPool),
+            address(lendingPool),
             address(params),
             address(router),
             500,
             address(balancer)
         );
+        liquidityPool.setVault(address(vault));
+        lendingPool.setVault(address(vault));
 
         impl = new OrangeStrategyImplV1Mock();
         params.setStrategyImpl(address(impl));
-        liquidityPool = CamelotV3LiquidityPoolManager(vault.liquidityPool());
-        lendingPool = AaveLendingPoolManager(vault.lendingPool());
         helper = new OrangeStrategyHelperV1(address(vault));
         params.setHelper(address(helper));
     }

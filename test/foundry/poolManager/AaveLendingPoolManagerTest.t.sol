@@ -29,7 +29,8 @@ contract AaveLendingPoolManagerTest is BaseTest {
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
 
-        lendingPool = new AaveLendingPoolManager(address(this), address(token0), address(token1), address(aave));
+        lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
+        lendingPool.setVault(address(this));
 
         aToken0 = lendingPool.aToken0();
         debtToken1 = lendingPool.debtToken1();
@@ -46,6 +47,11 @@ contract AaveLendingPoolManagerTest is BaseTest {
     function test_constructor() public {
         assertEq(address(lendingPool.aToken0()), aaveAddr.awethAddr);
         assertEq(address(lendingPool.debtToken1()), aaveAddr.vDebtUsdcAddr);
+    }
+
+    function test_setVault() public {
+        vm.expectRevert(bytes("ALREADY_SET"));
+        lendingPool.setVault(address(this));
     }
 
     function test_onlyOperator_Revert() public {

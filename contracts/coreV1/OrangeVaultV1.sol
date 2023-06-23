@@ -37,8 +37,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         string memory _symbol,
         address _token0,
         address _token1,
-        address _pool,
-        address _aave,
+        address _liquidityPool,
+        address _lendingPool,
         address _params,
         address _router,
         uint24 _routerFee,
@@ -49,12 +49,12 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         token1 = IERC20(_token1);
 
         //deploy liquidity pool manager
-        liquidityPool = address(new UniswapV3LiquidityPoolManager(address(this), _token0, _token1, _pool));
+        liquidityPool = _liquidityPool;
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
         //deploy lending pool manager
-        lendingPool = address(new AaveLendingPoolManager(address(this), _token0, _token1, _aave));
+        lendingPool = _lendingPool;
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 

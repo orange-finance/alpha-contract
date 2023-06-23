@@ -27,7 +27,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     /* ========== PARAMETERS ========== */
     IAlgebraPool public pool;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
-    address public immutable vault;
+    address public vault;
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
@@ -36,11 +36,15 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     }
 
     /* ========== Initializable ========== */
-    constructor(address _vault, address _token0, address _token1, address _pool) {
-        vault = _vault;
+    constructor(address _token0, address _token1, address _pool) {
         reversed = _token0 > _token1 ? true : false;
 
         pool = IAlgebraPool(_pool);
+    }
+
+    function setVault(address _vault) external {
+        if (vault != address(0)) revert("ALREADY_SET");
+        vault = _vault;
     }
 
     /* ========== VIEW FUNCTIONS ========== */

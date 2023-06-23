@@ -30,7 +30,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     IUniswapV3Pool public pool;
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
-    address public immutable vault;
+    address public vault;
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
@@ -39,12 +39,16 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     }
 
     /* ========== Initializable ========== */
-    constructor(address _vault, address _token0, address _token1, address _pool) {
-        vault = _vault;
+    constructor(address _token0, address _token1, address _pool) {
         reversed = _token0 > _token1 ? true : false;
 
         pool = IUniswapV3Pool(_pool);
         fee = pool.fee();
+    }
+
+    function setVault(address _vault) external {
+        if (vault != address(0)) revert("ALREADY_SET");
+        vault = _vault;
     }
 
     /* ========== VIEW FUNCTIONS ========== */

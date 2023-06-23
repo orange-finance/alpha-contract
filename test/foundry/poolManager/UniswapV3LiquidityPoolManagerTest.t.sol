@@ -44,12 +44,8 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         token1 = IERC20(tokenAddr.usdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
 
-        liquidityPool = new UniswapV3LiquidityPoolManager(
-            address(this),
-            address(token0),
-            address(token1),
-            address(pool)
-        );
+        liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
+        liquidityPool.setVault(address(this));
 
         //set Ticks for testing
         (, int24 _tick, , , , , ) = pool.slot0();
@@ -94,13 +90,14 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
     function test_constructor_Success() public {
         assertEq(liquidityPool.reversed(), false);
-        liquidityPool = new UniswapV3LiquidityPoolManager(
-            address(this),
-            address(token1),
-            address(token0),
-            address(pool)
-        );
+        liquidityPool = new UniswapV3LiquidityPoolManager(address(token1), address(token0), address(pool));
+        liquidityPool.setVault(address(this));
         assertEq(liquidityPool.reversed(), true);
+    }
+
+    function test_setVault() public {
+        vm.expectRevert(bytes("ALREADY_SET"));
+        liquidityPool.setVault(address(this));
     }
 
     function test_getTwap_Success() public {
@@ -167,12 +164,8 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
     function test_allReverse_Success() public {
         //re-deploy contract
-        liquidityPool = new UniswapV3LiquidityPoolManager(
-            address(this),
-            address(token1),
-            address(token0),
-            address(pool)
-        );
+        liquidityPool = new UniswapV3LiquidityPoolManager(address(token1), address(token0), address(pool));
+        liquidityPool.setVault(address(this));
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);
 

@@ -64,7 +64,7 @@ Testing
 with forking Arbitrum
 
 ```
-forge test -vv --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*'
+forge test --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*' --no-match-contract 'Camelot'
 ```
 
 Coverage
@@ -72,5 +72,13 @@ Coverage
 with forking Arbitrum
 
 ```
-forge coverage --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*'
+forge coverage --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --no-match-path 'test/foundry/tmp/*' --no-match-contract 'Camelot'
+```
+
+with forking Arbitrum for Camelot
+
+```
+export ARB_BLOCK=103719100
+
+forge test --fork-url ${ARB_URL} --fork-block-number ${ARB_BLOCK} --match-contract 'Camelot'
 ```
