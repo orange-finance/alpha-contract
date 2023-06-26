@@ -31,6 +31,7 @@ export const getAddresses = () => {
         Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
         Owner: "0x38E4157345Bd2c8Cf7Dbe4B0C75302c2038AB7Ec", //Safe
         Strategist: "0xd31583735e47206e9af728EF4f44f62B20db4b27",
+        GelatoDedicatedMsgSender: "0xBa568F558aB731Aaa88272CF2206CBFc9611671C",
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
@@ -38,6 +39,7 @@ export const getAddresses = () => {
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        Balancer: "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
         //libraries
         GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
@@ -49,6 +51,19 @@ export const getAddresses = () => {
         OrangeAlphaPeriphery: "0xCa612E6bCDcCa3d1b9828FDc912643228D4b8AA9",
         OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
         OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
+        //delta neutral
+        // OrangeDeltaParameters: "0x1eCaB7f39B7A1165BDCD9272d42244F8e0AD4aBe",
+        OrangeDeltaParameters: "0x153FD22940BDA400AB4B51860E18319D9d3EC3fF",
+        OrangeDeltaVault: "0x810fd69F58fF7Ff8553D43a5D3DCE3853960cAa6",
+        OrangeDeltaPeriphery: "0x2611D4aB59308Fe608F662aC993A7EC7b2647266",
+        OrangeDeltaResolver: "0x5ee552490E81582a734f234BfAce3D24Abdba043",
+        OrangeDeltaComputer: "0x75aaa778C7e6cAb08dc94452DaDe7909F8Aa7bf5",
+        //v1
+        OrangeParametersV1: "0xB5101c45109D7ECE0d3357f161FA0c2b66599b77",
+        OrangeVaultV1: "0x5af9A292Aec0acab889138d1bDD50630aF8FF51D",
+        OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
+        OrangeStrategyHelperV1: "0xFC60b4Fe576d199138b77bd513936f45C6030E8B",
+        OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
       };
   }
 };
