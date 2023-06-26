@@ -90,7 +90,7 @@ contract OrangeStrategyHelperV1 is IResolver {
     // @inheritdoc IResolver
     function checker() external view override returns (bool, bytes memory) {
         if (vault.hasPosition()) {
-            (, int24 _currentTick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
+            int24 _currentTick = ILiquidityPoolManager(liquidityPool).getCurrentTick();
             int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
 
             if (
@@ -160,7 +160,7 @@ contract OrangeStrategyHelperV1 is IResolver {
     }
 
     function _quoteCurrent(uint128 baseAmount, address baseToken, address quoteToken) internal view returns (uint256) {
-        (, int24 _tick, , , , , ) = ILiquidityPoolManager(liquidityPool).pool().slot0();
+        int24 _tick = ILiquidityPoolManager(liquidityPool).getCurrentTick();
         return _quoteAtTick(_tick, baseAmount, baseToken, quoteToken);
     }
 

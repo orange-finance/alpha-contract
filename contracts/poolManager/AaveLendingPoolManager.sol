@@ -28,7 +28,7 @@ contract AaveLendingPoolManager is ILendingPoolManager {
     IERC20 public immutable token1;
     IERC20 public immutable aToken0;
     IERC20 public immutable debtToken1;
-    address public immutable vault;
+    address public vault;
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
@@ -37,8 +37,7 @@ contract AaveLendingPoolManager is ILendingPoolManager {
     }
 
     /* ========== INITIALIZER ========== */
-    constructor(address _vault, address _token0, address _token1, address _aave) {
-        vault = _vault;
+    constructor(address _token0, address _token1, address _aave) {
         aave = IAaveV3Pool(_aave);
 
         token0 = IERC20(_token0);
@@ -57,6 +56,11 @@ contract AaveLendingPoolManager is ILendingPoolManager {
 
         token0.safeApprove(address(aave), type(uint256).max);
         token1.safeApprove(address(aave), type(uint256).max);
+    }
+
+    function setVault(address _vault) external {
+        if (vault != address(0)) revert("ALREADY_SET");
+        vault = _vault;
     }
 
     function balances() external view returns (uint256, uint256) {

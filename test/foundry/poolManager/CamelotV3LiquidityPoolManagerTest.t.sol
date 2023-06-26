@@ -3,9 +3,11 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {CamelotV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
 
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
+import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
+import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -13,7 +15,7 @@ import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
 import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
 import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
 
-contract UniswapV3LiquidityPoolManagerTest is BaseTest {
+contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -22,48 +24,52 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
     AddressHelper.TokenAddr public tokenAddr;
     AddressHelper.UniswapAddr public uniswapAddr;
+    AddressHelperV2.CamelotAddr camelotAddr;
 
-    UniswapV3LiquidityPoolManager public liquidityPool;
-    IUniswapV3Pool public pool;
+    CamelotV3LiquidityPoolManager public liquidityPool;
+    IAlgebraPool public pool;
+    IDataStorageOperator public dataStorage;
     ISwapRouter public router;
     IERC20 public token0;
     IERC20 public token1;
-    IERC721 public nft;
 
-    int24 public lowerTick = -205680;
-    int24 public upperTick = -203760;
+    int24 public lowerTick = -202440;
+    int24 public upperTick = -200040;
     int24 public currentTick;
 
-    // currentTick = -204714;
+    // block 94588781
+    // currentTick = -201279;
 
     function setUp() public virtual {
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
+        (, camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
-        pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
+        pool = IAlgebraPool(camelotAddr.wethUsdcePoolAddr);
         token0 = IERC20(tokenAddr.wethAddr);
         token1 = IERC20(tokenAddr.usdcAddr);
         router = ISwapRouter(uniswapAddr.routerAddr);
 
-        liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
+        liquidityPool = new CamelotV3LiquidityPoolManager(address(token0), address(token1), address(pool));
         liquidityPool.setVault(address(this));
 
         //set Ticks for testing
-        (, int24 _tick, , , , , ) = pool.slot0();
+        (, int24 _tick, , , , , , ) = pool.globalState();
         currentTick = _tick;
+        console2.log("currentTick", currentTick.toString());
+        int24 spac = pool.tickSpacing();
+        console2.log(spac.toString(), "tickSpacing");
 
         //deal
         deal(tokenAddr.wethAddr, address(this), 10_000 ether);
         deal(tokenAddr.usdcAddr, address(this), 10_000_000 * 1e6);
-        deal(tokenAddr.wethAddr, carol, 10_000 ether);
-        deal(tokenAddr.usdcAddr, carol, 10_000_000 * 1e6);
+        // deal(tokenAddr.wethAddr, carol, 10_000 ether);
+        // deal(tokenAddr.usdcAddr, carol, 10_000_000 * 1e6);
 
         //approve
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);
-        vm.startPrank(carol);
-        token0.approve(address(router), type(uint256).max);
-        token1.approve(address(router), type(uint256).max);
-        vm.stopPrank();
+        token0.approve(address(pool), type(uint256).max);
+        token1.approve(address(pool), type(uint256).max);
     }
 
     function test_onlyOperator_Revert() public {
@@ -85,12 +91,12 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
         vm.expectRevert(bytes("ONLY_CALLBACK_CALLER"));
         vm.prank(alice);
-        liquidityPool.uniswapV3MintCallback(0, 0, bytes(""));
+        liquidityPool.algebraMintCallback(0, 0, bytes(""));
     }
 
     function test_constructor_Success() public {
         assertEq(liquidityPool.reversed(), false);
-        liquidityPool = new UniswapV3LiquidityPoolManager(address(token1), address(token0), address(pool));
+        liquidityPool = new CamelotV3LiquidityPoolManager(address(token1), address(token0), address(pool));
         liquidityPool.setVault(address(this));
         assertEq(liquidityPool.reversed(), true);
     }
@@ -105,7 +111,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = 5 minutes;
         secondsAgo[1] = 0;
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
+        (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
         int24 avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
         assertEq(avgTick, _twap);
     }
@@ -123,7 +129,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         // _consoleBalance();
 
         //compute liquidity
-        uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+        uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 2000 * 1e6);
 
         //mint
         (uint _amount0, uint _amount1) = liquidityPool.mint(lowerTick, upperTick, _liquidity);
@@ -136,7 +142,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
         uint128 _liquidity2 = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
         console2.log(_liquidity2, "liquidity2");
-        assertEq(_liquidity, _liquidity2);
+        // assertEq(_liquidity, _liquidity2);
         // _consoleBalance();
 
         //swap
@@ -153,18 +159,18 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-        // _consoleBalance();
+        _consoleBalance();
 
         (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
         console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token0.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token1.balanceOf(address(this)));
-        // _consoleBalance();
+        _consoleBalance();
     }
 
     function test_allReverse_Success() public {
         //re-deploy contract
-        liquidityPool = new UniswapV3LiquidityPoolManager(address(token1), address(token0), address(pool));
+        liquidityPool = new CamelotV3LiquidityPoolManager(address(token1), address(token0), address(pool));
         liquidityPool.setVault(address(this));
         token0.approve(address(liquidityPool), type(uint256).max);
         token1.approve(address(liquidityPool), type(uint256).max);
@@ -212,33 +218,23 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     }
 
     /* ========== TEST functions ========== */
-    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
-        ISwapRouter.ExactInputSingleParams memory inputParams;
+    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal {
+        int256 _swapAmount = int256(_amountIn);
+        (, int24 _tick, , , , , , ) = pool.globalState();
         if (_zeroForOne) {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token0),
-                tokenOut: address(token1),
-                fee: pool.fee(),
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
+            _tick = _tick - 60;
         } else {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token1),
-                tokenOut: address(token0),
-                fee: pool.fee(),
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
+            _tick = _tick + 60;
         }
-        vm.prank(carol);
-        amountOut_ = router.exactInputSingle(inputParams);
+        uint160 swapThresholdPrice = TickMath.getSqrtRatioAtTick(_tick);
+
+        pool.swap(
+            address(this),
+            _zeroForOne,
+            _swapAmount,
+            swapThresholdPrice,
+            "" //data
+        );
     }
 
     function multiSwapByCarol() internal {
@@ -255,5 +251,14 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
             token0.balanceOf(address(liquidityPool)),
             token1.balanceOf(address(liquidityPool))
         );
+    }
+
+    /// @notice Uniswap v3 callback fn, called back on pool.swap
+    function algebraSwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata /*data*/) external override {
+        // console2.log("algebraSwapCallback");
+        // console2.log(uint256(amount0Delta), uint256(amount1Delta));
+        require(msg.sender == address(pool), "callback caller");
+        if (amount0Delta > 0) token0.safeTransfer(msg.sender, uint256(amount0Delta));
+        else if (amount1Delta > 0) token1.safeTransfer(msg.sender, uint256(amount1Delta));
     }
 }

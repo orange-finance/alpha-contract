@@ -2,10 +2,8 @@
 pragma solidity 0.8.16;
 
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
+import {IAlgebraPool} from "../vendor/algebra/IAlgebraPool.sol";
+import {IAlgebraMintCallback} from "../vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //libraries
@@ -13,7 +11,9 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
-contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintCallback {
+import "forge-std/console2.sol";
+
+contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
 
@@ -25,8 +25,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     /* ========== STORAGES ========== */
 
     /* ========== PARAMETERS ========== */
-    IUniswapV3Pool public pool;
-    uint24 public immutable fee;
+    IAlgebraPool public pool;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public vault;
 
@@ -40,8 +39,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     constructor(address _token0, address _token1, address _pool) {
         reversed = _token0 > _token1 ? true : false;
 
-        pool = IUniswapV3Pool(_pool);
-        fee = pool.fee();
+        pool = IAlgebraPool(_pool);
     }
 
     function setVault(address _vault) external {
@@ -54,9 +52,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = _minute;
         secondsAgo[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
-
+        (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
         require(tickCumulatives.length == 2, "array len");
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
@@ -64,11 +60,12 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     }
 
     function getCurrentTick() external view returns (int24 tick) {
-        (, tick, , , , , ) = pool.slot0();
+        (, tick, , , , , , ) = pool.globalState();
     }
 
-    function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity_) {
-        (liquidity_, , , , ) = pool.positions(keccak256(abi.encodePacked(address(this), _lowerTick, _upperTick)));
+    function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128) {
+        (uint256 _liquidity, , , , , ) = pool.positions(_createKey(address(this), _lowerTick, _upperTick));
+        return SafeCast.toUint128(_liquidity);
     }
 
     function getAmountsForLiquidity(
@@ -76,7 +73,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 upperTick,
         uint128 liquidity
     ) external view returns (uint256, uint256) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (uint160 _sqrtRatioX96, , , , , , , ) = pool.globalState();
         (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
             _sqrtRatioX96,
             lowerTick.getSqrtRatioAtTick(),
@@ -92,7 +89,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         uint256 amount0,
         uint256 amount1
     ) external view returns (uint128 liquidity) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (uint160 _sqrtRatioX96, , , , , , , ) = pool.globalState();
         (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
 
         return
@@ -116,16 +113,27 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     function getFeesEarned(int24 lowerTick, int24 upperTick) external view returns (uint256, uint256) {
         (
-            uint128 liquidity,
+            uint256 liquidity,
+            ,
             uint256 feeGrowthInside0Last,
             uint256 feeGrowthInside1Last,
             uint128 tokensOwed0,
             uint128 tokensOwed1
-        ) = pool.positions(keccak256(abi.encodePacked(address(this), lowerTick, upperTick)));
-        uint256 _fee0 = _computeFeesEarned(pool.token0(), feeGrowthInside0Last, liquidity, lowerTick, upperTick) +
-            uint256(tokensOwed0);
-        uint256 _fee1 = _computeFeesEarned(pool.token1(), feeGrowthInside1Last, liquidity, lowerTick, upperTick) +
-            uint256(tokensOwed1);
+        ) = pool.positions(_createKey(address(this), lowerTick, upperTick));
+        uint256 _fee0 = _computeFeesEarned(
+            pool.token0(),
+            feeGrowthInside0Last,
+            SafeCast.toUint128(liquidity),
+            lowerTick,
+            upperTick
+        ) + uint256(tokensOwed0);
+        uint256 _fee1 = _computeFeesEarned(
+            pool.token1(),
+            feeGrowthInside1Last,
+            SafeCast.toUint128(liquidity),
+            lowerTick,
+            upperTick
+        ) + uint256(tokensOwed1);
 
         return reversed ? (_fee1, _fee0) : (_fee0, _fee1);
     }
@@ -139,7 +147,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 _lowerTick,
         int24 _upperTick
     ) internal view returns (uint256 fee_) {
-        (, int24 _tick, , , , , ) = pool.slot0();
+        (, int24 _tick, , , , , , ) = pool.globalState();
 
         bool isZero = (token == pool.token0()) ? true : false;
 
@@ -147,11 +155,11 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         uint256 feeGrowthOutsideUpper;
         uint256 feeGrowthGlobal;
         if (isZero) {
-            feeGrowthGlobal = pool.feeGrowthGlobal0X128();
+            feeGrowthGlobal = pool.totalFeeGrowth0Token();
             (, , feeGrowthOutsideLower, , , , , ) = pool.ticks(_lowerTick);
             (, , feeGrowthOutsideUpper, , , , , ) = pool.ticks(_upperTick);
         } else {
-            feeGrowthGlobal = pool.feeGrowthGlobal1X128();
+            feeGrowthGlobal = pool.totalFeeGrowth1Token();
             (, , , feeGrowthOutsideLower, , , , ) = pool.ticks(_lowerTick);
             (, , , feeGrowthOutsideUpper, , , , ) = pool.ticks(_upperTick);
         }
@@ -183,12 +191,25 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         }
     }
 
+    function _createKey(address _owner, int24 _lowerTick, int24 _upperTick) internal pure returns (bytes32 key_) {
+        assembly {
+            key_ := or(shl(24, or(shl(24, _owner), and(_lowerTick, 0xFFFFFF))), and(_upperTick, 0xFFFFFF))
+        }
+    }
+
     /* ========== WRITE FUNCTIONS ========== */
 
     function mint(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
         bytes memory data = abi.encode(msg.sender);
 
-        (uint256 amount0, uint256 amount1) = pool.mint(address(this), lowerTick, upperTick, liquidity, data);
+        (uint256 amount0, uint256 amount1, ) = pool.mint(
+            msg.sender,
+            address(this),
+            lowerTick,
+            upperTick,
+            liquidity,
+            data
+        );
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
@@ -224,17 +245,25 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     /* ========== CALLBACK FUNCTIONS ========== */
 
-    /// @notice Uniswap V3 callback fn, called back on pool.mint
-    function uniswapV3MintCallback(uint256 amount0Owed, uint256 amount1Owed, bytes calldata _data) external override {
+    /// @notice callback fn, called back on pool.mint
+    function algebraMintCallback(uint256 amount0Owed, uint256 amount1Owed, bytes calldata _data) external override {
         if (msg.sender != address(pool)) {
             revert("ONLY_CALLBACK_CALLER");
         }
         address sender = abi.decode(_data, (address));
 
         if (amount0Owed > 0) {
+            if (amount0Owed > IERC20(pool.token0()).balanceOf(sender)) {
+                console2.log("algebraMintCallback amount0 > balance");
+                console2.log(amount0Owed, IERC20(pool.token0()).balanceOf(sender));
+            }
             IERC20(pool.token0()).safeTransferFrom(sender, msg.sender, amount0Owed);
         }
         if (amount1Owed > 0) {
+            if (amount1Owed > IERC20(pool.token1()).balanceOf(sender)) {
+                console2.log("algebraMintCallback amount1 > balance");
+                console2.log(amount1Owed, IERC20(pool.token1()).balanceOf(sender));
+            }
             IERC20(pool.token1()).safeTransferFrom(sender, msg.sender, amount1Owed);
         }
     }

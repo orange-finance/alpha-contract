@@ -17,13 +17,28 @@ contract OrangeVaultV1Mock is OrangeVaultV1 {
         string memory _symbol,
         address _token0,
         address _token1,
-        address _pool,
-        address _aave,
+        address _liquidityPool,
+        address _lendingPool,
         address _params,
         address _router,
         uint24 _routerFee,
         address _balancer
-    ) OrangeVaultV1(_name, _symbol, _token0, _token1, _pool, _aave, _params, _router, _routerFee, _balancer) {}
+    )
+        OrangeVaultV1(
+            _name,
+            _symbol,
+            _token0,
+            _token1,
+            _liquidityPool,
+            _lendingPool,
+            _params,
+            _router,
+            _routerFee,
+            _balancer
+        )
+    {
+        // console.log("OrangeVaultV1Mock deployed");
+    }
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 
