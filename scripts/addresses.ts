@@ -40,6 +40,7 @@ export const getAddresses = () => {
         UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
         Balancer: "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        CamelotWethUsdcePoolAddr: "0x521aa84ab3fcc4c05cABaC24Dc3682339887B126",
         //libraries
         GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
@@ -64,6 +65,17 @@ export const getAddresses = () => {
         OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
         OrangeStrategyHelperV1: "0xFC60b4Fe576d199138b77bd513936f45C6030E8B",
         OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
+        //v1 for camelot usdc.e/weth
+        OrangeParametersV1CamelotUsdceWeth:
+          "0x3334585E8ce52Eb852964744326FCda06dF96f74",
+        CamelotV3LiquidityPoolManagerUsdceWeth:
+          "0x6929cA83CdBFe6279b731F6682b611F876962421",
+        AaveLendingPoolManagerCamelotUsdceWeth:
+          "0x8d45F21868a944bfDFEefdF01C6425a990af554B",
+        OrangeVaultV1CamelotUsdceWeth:
+          "0x99816CF8b1a4c6eE42d1a62852f934022143d1A6",
+        OrangeStrategyHelperV1CamelotUsdceWeth:
+          "0x579317fd38bAaE689b4263216f3C1d9f69cAF129",
       };
   }
 };
