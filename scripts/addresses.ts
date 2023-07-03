@@ -62,20 +62,21 @@ export const getAddresses = () => {
         //v1
         OrangeParametersV1: "0xB5101c45109D7ECE0d3357f161FA0c2b66599b77",
         OrangeVaultV1: "0x5af9A292Aec0acab889138d1bDD50630aF8FF51D",
-        OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
+        // OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
         OrangeStrategyHelperV1: "0xFC60b4Fe576d199138b77bd513936f45C6030E8B",
         OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
         //v1 for camelot usdc.e/weth
         OrangeParametersV1CamelotUsdceWeth:
-          "0x3334585E8ce52Eb852964744326FCda06dF96f74",
+          "0xB6B552Fc1a890B792d0F9bC0667888B7035f92F7",
         CamelotV3LiquidityPoolManagerUsdceWeth:
-          "0x6929cA83CdBFe6279b731F6682b611F876962421",
+          "0x767901B7D185bb951C7DA20cf55ae1F681953217",
         AaveLendingPoolManagerCamelotUsdceWeth:
-          "0x8d45F21868a944bfDFEefdF01C6425a990af554B",
+          "0xe5b174F0A74986172404414CD7a13e833451Be3D",
         OrangeVaultV1CamelotUsdceWeth:
-          "0x99816CF8b1a4c6eE42d1a62852f934022143d1A6",
+          "0xB9c5425084671221d7D5A547dBf1Bdcec26C8B7d",
+        OrangeStrategyImplV1: "0x0E7c98AA52311F36b637Cfc75723435737929597",
         OrangeStrategyHelperV1CamelotUsdceWeth:
-          "0x579317fd38bAaE689b4263216f3C1d9f69cAF129",
+          "0x1ba8fE85592aE22F523765492E1D7Fb1D1534359",
       };
   }
 };
