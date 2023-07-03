@@ -18,10 +18,6 @@ abstract contract OrangeStorageV1 is IOrangeStorageV1, OrangeERC20 {
     bool public hasPosition;
     bytes32 public flashloanHash; //cache flashloan hash to check validity
 
-    //Checker
-    mapping(address => DepositType) public deposits;
-    uint256 public totalDeposits;
-
     /* ========== PARAMETERS ========== */
     address public liquidityPool;
     address public lendingPool;
