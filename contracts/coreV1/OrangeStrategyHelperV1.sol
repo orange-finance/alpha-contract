@@ -88,7 +88,7 @@ contract OrangeStrategyHelperV1 is IResolver {
 
     /* ========== VIEW FUNCTIONS ========== */
     // @inheritdoc IResolver
-    function checker() external view override returns (bool, bytes memory) {
+    function checker() external view virtual override returns (bool, bytes memory) {
         if (vault.hasPosition()) {
             int24 _currentTick = ILiquidityPoolManager(liquidityPool).getCurrentTick();
             int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
