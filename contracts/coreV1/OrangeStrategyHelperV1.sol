@@ -110,7 +110,7 @@ contract OrangeStrategyHelperV1 is IResolver {
         int24,
         int24 _newStoplossUpperTick,
         uint256 _hedgeRatio
-    ) external view returns (uint128 liquidity_) {
+    ) public view returns (uint128 liquidity_) {
         uint256 _assets = vault.totalAssets();
         uint256 _ltv = _getLtvByRange(_newStoplossUpperTick);
         IOrangeVaultV1.Positions memory _position = _computeRebalancePosition(

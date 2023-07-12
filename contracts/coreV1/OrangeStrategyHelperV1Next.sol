@@ -29,27 +29,27 @@ contract OrangeStrategyHelperV1Next is OrangeStrategyHelperV1 {
             int24 _twap = ILiquidityPoolManager(liquidityPool).getTwap(5 minutes);
 
             //if current tick and twap is under stoploss range
-            if (_currentTick < stoplossLowerTick && _twap < stoplossLowerTick) {
-                bytes memory execPayload = abi.encodeWithSelector(
-                    OrangeStrategyHelperV1.rebalance.selector,
-                    nextUnderLowerTick,
-                    nextUnderUpperTick,
+            bool _underRange = _currentTick < stoplossLowerTick && _twap < stoplossLowerTick;
+            bool _overRange = _currentTick > stoplossUpperTick && _twap > stoplossUpperTick;
+            if (!_underRange || !_overRange) {} else {
+                int24 _nextLowerTick = (_underRange) ? nextUnderLowerTick : nextOverLowerTick;
+                int24 _nextUpperTick = (_underRange) ? nextUnderUpperTick : nextOverUpperTick;
+                uint128 _liquidity = getRebalancedLiquidity(
+                    _nextLowerTick,
+                    _nextUpperTick,
                     TickMath.MIN_TICK,
                     TickMath.MAX_TICK,
-                    0,
-                    0
+                    0 // hedge ratio
                 );
-                return (true, execPayload);
-            } else if (_currentTick > stoplossUpperTick && _twap > stoplossUpperTick) {
-                //over
+
                 bytes memory execPayload = abi.encodeWithSelector(
                     OrangeStrategyHelperV1.rebalance.selector,
-                    nextOverLowerTick,
-                    nextOverUpperTick,
+                    _nextLowerTick,
+                    _nextUpperTick,
                     TickMath.MIN_TICK,
                     TickMath.MAX_TICK,
                     0,
-                    0
+                    (_liquidity * 19) / 20 // 95% of liquidity
                 );
                 return (true, execPayload);
             }
