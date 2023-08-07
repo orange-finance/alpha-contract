@@ -5,13 +5,18 @@ import { getAddresses } from "../addresses";
 async function main() {
   const a = getAddresses()!;
 
-  await Deploy("UniswapV3LiquidityPoolManager", a.Usdc, a.Weth, a.UniswapPool);
+  await Deploy(
+    "UniswapV3LiquidityPoolManager",
+    a.Usdc,
+    a.Arb,
+    a.UniswapPoolArb
+  );
 
   await DeployLibraries(
     "AaveLendingPoolManager",
     { SafeAavePool: a.SafeAavePool },
     a.Usdc,
-    a.Weth,
+    a.Arb,
     a.AavePool
   );
 }

@@ -10,9 +10,6 @@ async function main() {
     a.OrangeEmitter
   )) as OrangeEmitter;
 
-  // const tx = await emitter.setStrategist(a.GelatoDedicatedMsgSender, true);
-  // console.log(tx);
-
   const tx2 = await emitter.pushVaultV1(a.OrangeVaultV1);
   console.log(tx2);
 }

@@ -13,6 +13,9 @@ async function main() {
 
   const tx = await helper.setStrategist(a.Strategist, true);
   console.log(tx);
+
+  const tx2 = await helper.setStrategist(a.GelatoDedicatedMsgSender, true);
+  console.log(tx2);
 }
 
 main().catch((error) => {

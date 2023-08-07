@@ -1,5 +1,4 @@
-import { ethers } from "hardhat";
-import { Deploy, DeployLibraries } from "../common";
+import { Deploy } from "../common";
 
 async function main() {
   await Deploy("OrangeParametersV1");

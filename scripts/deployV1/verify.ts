@@ -10,22 +10,34 @@ const vaultMeta = {
 const verify = async () => {
   const a = getAddresses()!;
 
-  await Verify(a.OrangeParametersV1, []);
+  // await Verify(a.OrangeParametersV1CamelotUsdceWeth, []);
 
-  await VerifyLibraries(a.OrangeVaultV1, { SafeAavePool: a.SafeAavePool }, [
-    vaultMeta.name,
-    vaultMeta.symbol,
-    a.Weth,
-    a.Usdc,
-    a.UniswapPool,
-    a.AavePool,
-    a.OrangeAlphaParameters,
-    a.UniswapRouter,
-    500,
-    a.Balancer,
-  ]);
+  // await Verify(a.UniswapV3LiquidityPoolManager, [
+  //   a.Usdc,
+  //   a.Weth,
+  //   a.UniswapPool,
+  // ]);
 
-  await Verify(a.OrangeStrategyImplV1, []);
+  // await Verify(a.AaveLendingPoolManager, [
+  //   a.Usdc,
+  //   a.Weth,
+  //   a.AavePool,
+  // ]);
+
+  // await Verify(a.OrangeVaultV1, [
+  //   vaultMeta.name,
+  //   vaultMeta.symbol,
+  //   a.Usdc,
+  //   a.Weth,
+  //   a.UniswapV3LiquidityPoolManager,
+  //   a.AaveLendingPoolManager,
+  //   a.OrangeParametersV1,
+  //   a.UniswapRouter,
+  //   500,
+  //   a.Balancer,
+  // ]);
+
+  // await Verify(a.OrangeStrategyImplV1, []);
 
   await Verify(a.OrangeStrategyHelperV1, [a.OrangeVaultV1]);
 };
