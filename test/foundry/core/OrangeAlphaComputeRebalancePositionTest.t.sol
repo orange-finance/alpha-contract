@@ -122,13 +122,13 @@ contract OrangeAlphaComputeRebalancePositionTest is OrangeAlphaTestBase {
         //total amount
         uint _total = _position.collateralAmount1 + _position.token1Balance;
         if (_position.debtAmount0 > _position.token0Balance) {
-            uint _debtUsdc = OracleLibrary.getQuoteAtTick(
+            uint __debtUsdc = OracleLibrary.getQuoteAtTick(
                 _currentTick,
                 uint128(_position.debtAmount0 - _position.token0Balance),
                 address(token0),
                 address(token1)
             );
-            _total -= _debtUsdc;
+            _total -= __debtUsdc;
         } else {
             uint _addedUsdc = OracleLibrary.getQuoteAtTick(
                 _currentTick,
