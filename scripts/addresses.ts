@@ -17,7 +17,7 @@ export const getAddresses = () => {
         LiquidityAmountsMock: "0x884B0F4c8c23D4d8Fd095B24879aaE6461b32475",
         // GelatoMock: "0x2461B62c06500C0256c324f57d4b71F9A5557e16",
         Weth: "0x246ce443416fd4cc9C057C99cA0918F4d3d525d4",
-        Usdc: "0xc24e97F0B049C6D1EC2Ddb21f2f55C128f74412c",
+        Usdc: "0xc24e97F0B049C6D1EC2Ddb21f2f55C128f74412c", //
         AavePool: "0x0a4eDC8A76776468311F3f58a6B6cf4c3DC6e287",
         VDebtWeth: "0x0d63c72e6F356f42D1940352F6eDD4f983E54CaD",
         AUsdc: "0x71c5271dCda234A1acA574f490C87e087A108E71",
@@ -31,31 +31,44 @@ export const getAddresses = () => {
         Deployer: "0xe66ffFd2D3aDE2697B3Cbeb69877a1fFE8A1f275",
         Owner: "0x38E4157345Bd2c8Cf7Dbe4B0C75302c2038AB7Ec", //Safe
         Strategist: "0xd31583735e47206e9af728EF4f44f62B20db4b27",
+        GelatoDedicatedMsgSender: "0xBa568F558aB731Aaa88272CF2206CBFc9611671C",
+        //Tokens
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-        Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8", //USDC.e
+        Arb: "0x912CE59144191C1204E64559FE8253a0e49E6548",
+        //Aave
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
         VDebtWeth: "0x0c84331e39d6658Cd6e6b9ba04736cC4c4734351",
         AUsdc: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
-        UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05%
+        //Uniswap
+        UniswapPool: "0xC31E54c7a869B9FcBEcc14363CF510d1c41fa443", // 0.05% USDC.e - WETH
+        UniswapPoolArb: "0xcDa53B1F66614552F834cEeF361A8D12a0B8DaD8", // 0.05% USDC.e - ARB
         UniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        //Balancer
+        Balancer: "0xBA12222222228d8Ba445958a75a0704d566BF2C8",
+        //Camelot
+        CamelotWethUsdcePoolAddr: "0x521aa84ab3fcc4c05cABaC24Dc3682339887B126",
+        CamelotArbUsdcePoolAddr: "0x4E635D35bB02576d0eAb75eF5E7EBE61C12F3C76",
         //libraries
         GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
         UniswapV3Twap: "0x9E58899B29361085Dc60EA4596650572f96F1Fc2",
         RebalancePositionComputer: "0x180240fee8FA687212f98b707f8D89be9EEDDBDF",
-        //core contracts
+        //Alpha contracts
         OrangeAlphaParameters: "0xB4F003bcccD9514CbA2a40e26CA9e275c93EAC6C",
         OrangeAlphaVault: "0x1c99416c7243563ebEDCBEd91ec8532fF74B9a39",
         OrangeAlphaPeriphery: "0xCa612E6bCDcCa3d1b9828FDc912643228D4b8AA9",
         OrangeAlphaResolver: "0x1Cd946d26286598B344D41260a65C51755A099F9",
         OrangeAlphaComputer: "0x6D9E5F6Eb48f1cd809c32AaBfE58A5da54029700",
-        //delta neutral
-        // OrangeDeltaParameters: "0x1eCaB7f39B7A1165BDCD9272d42244F8e0AD4aBe",
-        OrangeDeltaParameters: "0x153FD22940BDA400AB4B51860E18319D9d3EC3fF",
-        OrangeDeltaVault: "0x810fd69F58fF7Ff8553D43a5D3DCE3853960cAa6",
-        OrangeDeltaPeriphery: "0x2611D4aB59308Fe608F662aC993A7EC7b2647266",
-        OrangeDeltaResolver: "0x5ee552490E81582a734f234BfAce3D24Abdba043",
-        OrangeDeltaComputer: "0x75aaa778C7e6cAb08dc94452DaDe7909F8Aa7bf5",
+        //Vault v1
+        OrangeParametersV1: "",
+        UniswapV3LiquidityPoolManager: "",
+        CamelotV3LiquidityPoolManager: "",
+        AaveLendingPoolManager: "",
+        OrangeVaultV1: "",
+        OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
+        OrangeStrategyHelperV1: "",
+        OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
       };
   }
 };
