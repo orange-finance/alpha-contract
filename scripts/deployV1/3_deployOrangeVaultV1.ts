@@ -15,7 +15,7 @@ async function main() {
     vaultMeta.symbol,
     a.Usdc,
     a.Arb,
-    a.UniswapV3LiquidityPoolManager,
+    a.CamelotV3LiquidityPoolManager,
     a.AaveLendingPoolManager,
     a.OrangeParametersV1,
     a.UniswapRouter,

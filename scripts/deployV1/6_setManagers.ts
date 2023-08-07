@@ -7,9 +7,9 @@ async function main() {
   const a = getAddresses()!;
 
   const pool = (await ethers.getContractAt(
-    "UniswapV3LiquidityPoolManager",
-    a.UniswapV3LiquidityPoolManager
-  )) as UniswapV3LiquidityPoolManager;
+    "CamelotV3LiquidityPoolManager",
+    a.CamelotV3LiquidityPoolManager
+  )) as CamelotV3LiquidityPoolManager;
 
   const tx = await pool.setVault(a.OrangeVaultV1);
   console.log(tx);

@@ -17,7 +17,7 @@ export const getAddresses = () => {
         LiquidityAmountsMock: "0x884B0F4c8c23D4d8Fd095B24879aaE6461b32475",
         // GelatoMock: "0x2461B62c06500C0256c324f57d4b71F9A5557e16",
         Weth: "0x246ce443416fd4cc9C057C99cA0918F4d3d525d4",
-        Usdc: "0xc24e97F0B049C6D1EC2Ddb21f2f55C128f74412c",
+        Usdc: "0xc24e97F0B049C6D1EC2Ddb21f2f55C128f74412c", //
         AavePool: "0x0a4eDC8A76776468311F3f58a6B6cf4c3DC6e287",
         VDebtWeth: "0x0d63c72e6F356f42D1940352F6eDD4f983E54CaD",
         AUsdc: "0x71c5271dCda234A1acA574f490C87e087A108E71",
@@ -34,7 +34,7 @@ export const getAddresses = () => {
         GelatoDedicatedMsgSender: "0xBa568F558aB731Aaa88272CF2206CBFc9611671C",
         //Tokens
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-        Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8", //USDC.e
         Arb: "0x912CE59144191C1204E64559FE8253a0e49E6548",
         //Aave
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
@@ -63,22 +63,12 @@ export const getAddresses = () => {
         //Vault v1
         OrangeParametersV1: "",
         UniswapV3LiquidityPoolManager: "",
+        CamelotV3LiquidityPoolManager: "",
         AaveLendingPoolManager: "",
         OrangeVaultV1: "",
         OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
         OrangeStrategyHelperV1: "",
         OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
-        //v1 for camelot usdc.e/weth
-        OrangeParametersV1Camelot: "0xB6B552Fc1a890B792d0F9bC0667888B7035f92F7",
-        CamelotV3LiquidityPoolManager:
-          "0x767901B7D185bb951C7DA20cf55ae1F681953217",
-        AaveLendingPoolManagerCamelot:
-          "0xe5b174F0A74986172404414CD7a13e833451Be3D",
-        OrangeVaultV1Camelot: "0xB9c5425084671221d7D5A547dBf1Bdcec26C8B7d",
-        OrangeStrategyImplV1Camelot:
-          "0x0E7c98AA52311F36b637Cfc75723435737929597",
-        OrangeStrategyHelperV1Camelot:
-          "0x1ba8fE85592aE22F523765492E1D7Fb1D1534359",
       };
   }
 };

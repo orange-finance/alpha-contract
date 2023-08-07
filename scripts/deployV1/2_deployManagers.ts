@@ -5,11 +5,18 @@ import { getAddresses } from "../addresses";
 async function main() {
   const a = getAddresses()!;
 
+  // await Deploy(
+  //   "UniswapV3LiquidityPoolManager",
+  //   a.Usdc,
+  //   a.Arb,
+  //   a.UniswapPoolArb
+  // );
+
   await Deploy(
-    "UniswapV3LiquidityPoolManager",
+    "CamelotV3LiquidityPoolManager",
     a.Usdc,
     a.Arb,
-    a.UniswapPoolArb
+    a.CamelotArbUsdcePoolAddr
   );
 
   await DeployLibraries(
