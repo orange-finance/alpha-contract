@@ -66,7 +66,7 @@ export const getAddresses = () => {
         CamelotV3LiquidityPoolManager: "",
         AaveLendingPoolManager: "",
         OrangeVaultV1: "",
-        OrangeStrategyImplV1: "0xCEd0Df830B3C8d3CccE8F9271D50caE5bF04D051",
+        OrangeStrategyImplV1: "0x0E7c98AA52311F36b637Cfc75723435737929597",
         OrangeStrategyHelperV1: "",
         OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
       };
