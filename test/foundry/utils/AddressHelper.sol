@@ -134,6 +134,7 @@ library AddressHelperV2 {
         address wethUsdcePoolAddr;
         address wethUsdceDataStorageAddr;
         address arbUsdcePoolAddr;
+        address arbWethPoolAddr;
     }
 
     function addresses(
@@ -148,7 +149,8 @@ library AddressHelperV2 {
                 wethUsdcPoolAddr: 0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526,
                 wethUsdcePoolAddr: 0x521aa84ab3fcc4c05cABaC24Dc3682339887B126,
                 wethUsdceDataStorageAddr: 0x6c70EC64217CfE81A7961168CE9909ebAd7C2935,
-                arbUsdcePoolAddr: 0x4E635D35bB02576d0eAb75eF5E7EBE61C12F3C76
+                arbUsdcePoolAddr: 0x4E635D35bB02576d0eAb75eF5E7EBE61C12F3C76,
+                arbWethPoolAddr: 0xe51635ae8136aBAc44906A8f230C2D235E9c195F
             });
         }
     }

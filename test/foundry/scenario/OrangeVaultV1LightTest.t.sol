@@ -23,12 +23,22 @@ import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/Liquid
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract OrangeVaultV1LightTest is BaseTest {
+    using SafeERC20 for IERC20;
+    using TickMath for int24;
+    using FullMath for uint256;
+    using Ints for int24;
+    using Ints for int256;
+
     /**** modify below ****/
     uint24 public constant FEE = 500;
     uint256 constant INITIAL_BAL = 10_000 * 1e6;
-    UniswapV3LiquidityPoolManager public liquidityPool;
-    // IAlgebraPool public pool;
-    IUniswapV3Pool public pool;
+
+    //uniswap
+    // UniswapV3LiquidityPoolManager public liquidityPool;
+    // IUniswapV3Pool public pool;
+    //camelot
+    CamelotV3LiquidityPoolManager public liquidityPool;
+    IAlgebraPool public pool;
 
     //ARB - USDC.e
     // currentTick = -274999;
@@ -38,6 +48,12 @@ contract OrangeVaultV1LightTest is BaseTest {
     // int24 public stoplossUpperTick = -273180;
 
     //ETH - USDC.e
+    // int24 public lowerTick = -205680;
+    // int24 public upperTick = -203760;
+    // int24 public stoplossLowerTick = -206280;
+    // int24 public stoplossUpperTick = -203160;
+
+    //ETH - USDC at blocknum: 125971611
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
     int24 public stoplossLowerTick = -206280;
@@ -69,137 +85,15 @@ contract OrangeVaultV1LightTest is BaseTest {
     OrangeStrategyHelperV1 public helper;
     int24 public currentTick;
 
-    function __setUp() internal virtual {
-        (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
-        (tokenAddrV2, camelotAddr) = AddressHelperV2.addresses(block.chainid);
-
-        /**** modify below ****/
-        token0 = IERC20(tokenAddr.usdcAddr);
-        token1 = IERC20(tokenAddrV2.arbAddr);
-        pool = IUniswapV3Pool(uniswapAddr.arbUsdcePoolAddr);
-        int24 _tick = getCurrentTick();
-        currentTick = _tick;
-        /**** modify end ****/
-
-        aave = IAaveV3Pool(aaveAddr.poolAddr);
-        router = ISwapRouter(uniswapAddr.routerAddr);
-        balancerAddr = AddressHelperV1.addresses(block.chainid);
-        balancer = IBalancerVault(balancerAddr.vaultAddr);
-        params = new OrangeParametersV1();
-
-        params.setDepositCap(9_000 ether);
-        params.setMinDepositAmount(MIN_DEPOSIT);
-        params.setHelper(address(this));
-        params.setAllowlistEnabled(false);
-
+    function setUp() public {
+        _setAddresses();
         _deploy();
         _dealAndApprove();
-    }
-
-    function _deploy() internal virtual {
-        /**** modify below ****/
-        liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
-        /**** modify end ****/
-        lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
-        //vault
-        vault = new OrangeVaultV1Mock(
-            "OrangeVaultV1Mock",
-            "ORANGE_VAULT_V1",
-            address(token0),
-            address(token1),
-            address(liquidityPool),
-            address(lendingPool),
-            address(params),
-            address(router),
-            FEE,
-            address(balancer)
-        );
-        liquidityPool.setVault(address(vault));
-        lendingPool.setVault(address(vault));
-
-        impl = new OrangeStrategyImplV1Mock();
-        params.setStrategyImpl(address(impl));
-        helper = new OrangeStrategyHelperV1(address(vault));
-        params.setHelper(address(helper));
-        //set Ticks for testing
-    }
-
-    function _dealAndApprove() internal virtual {
-        //deal
-        deal(tokenAddrV2.arbAddr, address(this), 10_000 ether);
-        deal(tokenAddr.usdcAddr, address(this), 10_000 ether);
-        deal(tokenAddrV2.arbAddr, carol, 10_000 ether);
-        deal(tokenAddr.usdcAddr, carol, 10_000 ether);
-
-        //approve
-        token0.approve(address(vault), type(uint256).max);
-        vm.startPrank(carol);
-        token0.approve(address(router), type(uint256).max);
-        token1.approve(address(router), type(uint256).max);
-        vm.stopPrank();
-    }
-
-    /* ========== TEST functions ========== */
-    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
-        ISwapRouter.ExactInputSingleParams memory inputParams;
-        if (_zeroForOne) {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token0),
-                tokenOut: address(token1),
-                fee: FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-        } else {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token1),
-                tokenOut: address(token0),
-                fee: FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-        }
-        vm.prank(carol);
-        amountOut_ = router.exactInputSingle(inputParams);
-    }
-
-    function multiSwapByCarol() internal {
-        swapByCarol(true, 1 ether);
-        swapByCarol(false, 2000 * 1e6);
-        swapByCarol(true, 1 ether);
-    }
-
-    function roundTick(int24 _tick) internal view returns (int24) {
-        return (_tick / pool.tickSpacing()) * pool.tickSpacing();
-    }
-
-    function getCurrentTick() internal view returns (int24) {
-        // (, int24 _tick, , , , , , ) = pool.globalState();
-        (, int24 _tick, , , , , ) = pool.slot0();
-        return _tick;
-    }
-
-    using SafeERC20 for IERC20;
-    using TickMath for int24;
-    using FullMath for uint256;
-    using Ints for int24;
-    using Ints for int256;
-
-    function setUp() public {
-        __setUp();
-        params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
 
         //set Ticks for testing
         currentTick = getCurrentTick();
 
         //deal
-
         deal(address(token0), address(11), INITIAL_BAL);
         deal(address(token0), address(12), INITIAL_BAL);
         deal(address(token0), address(13), INITIAL_BAL);
@@ -227,6 +121,74 @@ contract OrangeVaultV1LightTest is BaseTest {
         vm.stopPrank();
     }
 
+    function _setAddresses() internal virtual {
+        (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
+        (tokenAddrV2, camelotAddr) = AddressHelperV2.addresses(block.chainid);
+
+        /**** modify below ****/
+        token0 = IERC20(tokenAddrV2.usdcAddr);
+        token1 = IERC20(tokenAddr.wethAddr);
+        // pool = IUniswapV3Pool(uniswapAddr.arbUsdcePoolAddr);
+        pool = IAlgebraPool(camelotAddr.wethUsdcPoolAddr);
+        /**** modify end ****/
+
+        aave = IAaveV3Pool(aaveAddr.poolAddr);
+        router = ISwapRouter(uniswapAddr.routerAddr);
+        balancerAddr = AddressHelperV1.addresses(block.chainid);
+        balancer = IBalancerVault(balancerAddr.vaultAddr);
+        params = new OrangeParametersV1();
+
+        params.setDepositCap(9_000 ether);
+        params.setMinDepositAmount(MIN_DEPOSIT);
+        params.setHelper(address(this));
+        params.setAllowlistEnabled(false);
+        params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
+    }
+
+    function _deploy() internal virtual {
+        /**** modify below ****/
+        // liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
+        liquidityPool = new CamelotV3LiquidityPoolManager(address(token0), address(token1), address(pool));
+        /**** modify end ****/
+        lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
+        //vault
+        vault = new OrangeVaultV1Mock(
+            "OrangeVaultV1Mock",
+            "ORANGE_VAULT_V1",
+            address(token0),
+            address(token1),
+            address(liquidityPool),
+            address(lendingPool),
+            address(params),
+            address(router),
+            FEE,
+            address(balancer)
+        );
+        liquidityPool.setVault(address(vault));
+        lendingPool.setVault(address(vault));
+
+        impl = new OrangeStrategyImplV1Mock();
+        params.setStrategyImpl(address(impl));
+        helper = new OrangeStrategyHelperV1(address(vault));
+        params.setHelper(address(helper));
+    }
+
+    function _dealAndApprove() internal virtual {
+        //deal
+        deal(tokenAddrV2.arbAddr, address(this), 10_000 ether);
+        deal(tokenAddr.usdcAddr, address(this), 10_000 ether);
+        deal(tokenAddrV2.arbAddr, carol, 10_000 ether);
+        deal(tokenAddr.usdcAddr, carol, 10_000 ether);
+
+        //approve
+        token0.approve(address(vault), type(uint256).max);
+        vm.startPrank(carol);
+        token0.approve(address(router), type(uint256).max);
+        token1.approve(address(router), type(uint256).max);
+        vm.stopPrank();
+    }
+
+    /* ========== TEST start ========== */
     //deposit and redeem
     function test_scenario1(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
         _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
@@ -458,6 +420,49 @@ contract OrangeVaultV1LightTest is BaseTest {
     }
 
     /* ========== TEST functions ========== */
+    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
+        ISwapRouter.ExactInputSingleParams memory inputParams;
+        if (_zeroForOne) {
+            inputParams = ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(token0),
+                tokenOut: address(token1),
+                fee: FEE,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountIn: _amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+        } else {
+            inputParams = ISwapRouter.ExactInputSingleParams({
+                tokenIn: address(token1),
+                tokenOut: address(token0),
+                fee: FEE,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountIn: _amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+        }
+        vm.prank(carol);
+        amountOut_ = router.exactInputSingle(inputParams);
+    }
+
+    function multiSwapByCarol() internal {
+        swapByCarol(true, 1 ether);
+        swapByCarol(false, 2000 * 1e6);
+        swapByCarol(true, 1 ether);
+    }
+
+    function roundTick(int24 _tick) internal view returns (int24) {
+        return (_tick / pool.tickSpacing()) * pool.tickSpacing();
+    }
+
+    function getCurrentTick() internal view returns (int24) {
+        return liquidityPool.getCurrentTick();
+    }
+
     function _deposit(
         uint _maxAsset1,
         uint _maxAsset2,
