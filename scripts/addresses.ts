@@ -35,6 +35,7 @@ export const getAddresses = () => {
         //Tokens
         Weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         Usdc: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8", //USDC.e
+        Usdc2: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", //USDC
         Arb: "0x912CE59144191C1204E64559FE8253a0e49E6548",
         //Aave
         AavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
@@ -49,6 +50,8 @@ export const getAddresses = () => {
         //Camelot
         CamelotWethUsdcePoolAddr: "0x521aa84ab3fcc4c05cABaC24Dc3682339887B126",
         CamelotArbUsdcePoolAddr: "0x4E635D35bB02576d0eAb75eF5E7EBE61C12F3C76",
+        CamelotWethUsdcPoolAddr: "0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526",
+        CamelotArbWethPoolAddr: "0xe51635ae8136aBAc44906A8f230C2D235E9c195F",
         //libraries
         GelatoOps: "0xadFf2D91Cc75C63e1A1bb882cFa9EB2b421a1B52",
         SafeAavePool: "0xc370958Be186aC4a3cA50B897311Fd13490796fa",
