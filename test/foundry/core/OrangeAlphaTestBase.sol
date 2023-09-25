@@ -13,7 +13,7 @@ import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {Errors} from "../../../contracts/libs/Errors.sol";
+import {ErrorsAlpha} from "../../../contracts/core/ErrorsAlpha.sol";
 import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
 import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
 import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";

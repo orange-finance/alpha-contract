@@ -8,6 +8,7 @@ import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
 
 //libraries
+import {ErrorsV1} from "./ErrorsV1.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
@@ -33,7 +34,7 @@ contract OrangeStrategyHelperV1 is IResolver {
 
     /* ========== MODIFIER ========== */
     modifier onlyStrategist() {
-        require(strategists[msg.sender], "ONLY_STRATEGIST");
+        if (!strategists[msg.sender]) revert(ErrorsV1.ONLY_STRATEGISTS);
         _;
     }
 

@@ -5,6 +5,9 @@ pragma solidity 0.8.16;
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {IOrangeAlphaVault} from "../interfaces/IOrangeAlphaVault.sol";
 
+//libraries
+import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
+
 contract OrangeEmitter {
     mapping(address => bool) public strategists;
     address[] public alphaVaults;
@@ -27,14 +30,18 @@ contract OrangeEmitter {
     }
 
     function _setStrategist(address _strategist, bool _status) internal {
+        if (_strategist == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         strategists[_strategist] = _status;
     }
 
     function pushAlphaVault(address _alphaVault) external onlyStrategist {
+        if (_alphaVault == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         alphaVaults.push(_alphaVault);
     }
 
     function pushVaultV1(address _vaultV1) external onlyStrategist {
+        if (_vaultV1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         vaultV1s.push(_vaultV1);
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.16;
 
-library Errors {
+library ErrorsAlpha {
     //OrangeAlphaVault
     string public constant ONLY_PERIPHERY = "101";
     string public constant ONLY_STRATEGISTS_OR_GELATO = "102";

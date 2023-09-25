@@ -14,7 +14,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 //libraries
 import {ERC20} from "../libs/ERC20.sol";
 import {SafeAavePool, IAaveV3Pool} from "../libs/SafeAavePool.sol";
-import {Errors} from "../libs/Errors.sol";
+import {ErrorsAlpha} from "./ErrorsAlpha.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
@@ -53,7 +53,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
     /* ========== MODIFIER ========== */
     modifier onlyPeriphery() {
-        if (msg.sender != params.periphery()) revert(Errors.ONLY_PERIPHERY);
+        if (msg.sender != params.periphery()) revert(ErrorsAlpha.ONLY_PERIPHERY);
         _;
     }
 
@@ -302,12 +302,12 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     /// @inheritdoc IOrangeAlphaVault
     function deposit(uint256 _shares, address _receiver, uint256 _maxAssets) external onlyPeriphery returns (uint256) {
         //validation check
-        if (_shares == 0 || _maxAssets == 0) revert(Errors.INVALID_AMOUNT);
+        if (_shares == 0 || _maxAssets == 0) revert(ErrorsAlpha.INVALID_AMOUNT);
 
         //initial deposit
         if (totalSupply == 0) {
             if (_maxAssets < params.minDepositAmount()) {
-                revert(Errors.INVALID_DEPOSIT_AMOUNT);
+                revert(ErrorsAlpha.INVALID_DEPOSIT_AMOUNT);
             }
             token1.safeTransferFrom(msg.sender, address(this), _maxAssets);
             _mint(_receiver, _maxAssets - 1e4);
@@ -429,7 +429,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     ) external onlyPeriphery returns (uint256 returnAssets_) {
         //validation
         if (_shares == 0) {
-            revert(Errors.INVALID_AMOUNT);
+            revert(ErrorsAlpha.INVALID_AMOUNT);
         }
 
         uint256 _totalSupply = totalSupply;
@@ -490,7 +490,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
 
         // Transfer USDC from Vault to Receiver
         if (returnAssets_ < _minAssets) {
-            revert(Errors.LESS_AMOUNT);
+            revert(ErrorsAlpha.LESS_AMOUNT);
         }
         token1.safeTransfer(_receiver, returnAssets_);
 
@@ -517,7 +517,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
     /// @inheritdoc IOrangeAlphaVault
     function stoploss(int24 _inputTick) external returns (uint256) {
         if (!params.strategists(msg.sender) && params.gelatoExecutor() != msg.sender) {
-            revert(Errors.ONLY_STRATEGISTS_OR_GELATO);
+            revert(ErrorsAlpha.ONLY_STRATEGISTS_OR_GELATO);
         }
 
         if (totalSupply == 0) return 0;
@@ -572,7 +572,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         uint128 _minNewLiquidity
     ) external {
         if (!params.strategists(msg.sender)) {
-            revert(Errors.ONLY_STRATEGISTS);
+            revert(ErrorsAlpha.ONLY_STRATEGISTS);
         }
         //validation of tickSpacing
         _validateTicks(_newLowerTick, _newUpperTick);
@@ -627,7 +627,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _targetPosition.token1Balance // amount of token1 to be added to Uniswap
         );
         if (_targetLiquidity < _minNewLiquidity) {
-            revert(Errors.LESS_LIQUIDITY);
+            revert(ErrorsAlpha.LESS_LIQUIDITY);
         }
 
         _emitAction(ActionType.REBALANCE, msg.sender);
@@ -651,7 +651,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         ) {
             // if originally collateral is 0, through this function
             if (_currentPosition.collateralAmount1 == 0) return;
-            revert(Errors.EQUAL_COLLATERAL_OR_DEBT);
+            revert(ErrorsAlpha.EQUAL_COLLATERAL_OR_DEBT);
         }
         unchecked {
             if (
@@ -832,7 +832,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         if (_lowerTick < _upperTick && _lowerTick % _spacing == 0 && _upperTick % _spacing == 0) {
             return;
         }
-        revert(Errors.INVALID_TICKS);
+        revert(ErrorsAlpha.INVALID_TICKS);
     }
 
     ///@notice Quote eth price by USDC
@@ -852,7 +852,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
             _currentTick > _inputTick + int24(params.tickSlippageBPS()) ||
             _currentTick < _inputTick - int24(params.tickSlippageBPS())
         ) {
-            revert(Errors.HIGH_SLIPPAGE);
+            revert(ErrorsAlpha.HIGH_SLIPPAGE);
         }
     }
 
@@ -941,7 +941,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         bytes calldata /*_data*/
     ) external override {
         if (msg.sender != address(pool)) {
-            revert(Errors.ONLY_CALLBACK_CALLER);
+            revert(ErrorsAlpha.ONLY_CALLBACK_CALLER);
         }
 
         if (amount0Owed > 0) {
@@ -968,8 +968,9 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         uint256[] memory,
         bytes memory _userData
     ) external {
-        if (msg.sender != balancer) revert(Errors.ONLY_BALANCER_VAULT);
-        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData)) revert(Errors.INVALID_FLASHLOAN_HASH);
+        if (msg.sender != balancer) revert(ErrorsAlpha.ONLY_BALANCER_VAULT);
+        if (flashloanHash == bytes32(0) || flashloanHash != keccak256(_userData))
+            revert(ErrorsAlpha.INVALID_FLASHLOAN_HASH);
         flashloanHash = bytes32(0); //clear storage
 
         uint8 _flashloanType = abi.decode(_userData, (uint8));
@@ -1048,7 +1049,7 @@ contract OrangeAlphaVault is IOrangeAlphaVault, IUniswapV3MintCallback, ERC20, I
         }
 
         //Refund the unspent USDC (Leave some USDC for #6)
-        if (_maxAssets < _actualUsedAmountUSDC) revert(Errors.LESS_MAX_ASSETS);
+        if (_maxAssets < _actualUsedAmountUSDC) revert(ErrorsAlpha.LESS_MAX_ASSETS);
         unchecked {
             uint256 _refundAmountUSDC = _maxAssets - _actualUsedAmountUSDC;
             if (_refundAmountUSDC > 0) token1.safeTransfer(_receiver, _refundAmountUSDC);
