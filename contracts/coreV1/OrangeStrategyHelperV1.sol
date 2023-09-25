@@ -17,7 +17,7 @@ contract OrangeStrategyHelperV1 is IResolver {
     using FullMath for uint256;
 
     /* ========== CONSTANTS ========== */
-    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
+    uint256 private constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
 
     /* ========== STORAGE ========== */
     int24 public stoplossLowerTick;

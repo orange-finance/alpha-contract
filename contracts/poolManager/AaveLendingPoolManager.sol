@@ -17,8 +17,8 @@ contract AaveLendingPoolManager is ILendingPoolManager {
     /* ========== Structs ========== */
 
     /* ========== CONSTANTS ========== */
-    uint16 constant AAVE_REFERRAL_NONE = 0;
-    uint256 constant AAVE_VARIABLE_INTEREST = 2;
+    uint16 public constant AAVE_REFERRAL_NONE = 0;
+    uint256 public constant AAVE_VARIABLE_INTEREST = 2;
 
     /* ========== STORAGES ========== */
 
