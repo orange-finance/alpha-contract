@@ -6,13 +6,14 @@ import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {IResolver} from "../interfaces/IResolver.sol";
+import {IOrangeStrategyHelperV1} from "../interfaces/IOrangeStrategyHelperV1.sol";
 
 //libraries
 import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
 import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeStrategyHelperV1 is IResolver {
+contract OrangeStrategyHelperV1 is IResolver, IOrangeStrategyHelperV1 {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
 
@@ -82,7 +83,7 @@ contract OrangeStrategyHelperV1 is IResolver {
         stoplossUpperTick = _newStoplossUpperTick;
     }
 
-    function stoploss(int24 _inputTick) external onlyStrategist {
+    function stoploss(int24 _inputTick) external override onlyStrategist {
         vault.stoploss(_inputTick);
     }
 
