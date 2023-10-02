@@ -55,19 +55,19 @@ contract AaveLendingPoolManagerTest is BaseTest {
     }
 
     function test_onlyOperator_Revert() public {
-        vm.expectRevert(bytes("ONLY_VAULT"));
+        vm.expectRevert(bytes("117"));
         vm.prank(alice);
         lendingPool.supply(0);
 
-        vm.expectRevert(bytes("ONLY_VAULT"));
+        vm.expectRevert(bytes("117"));
         vm.prank(alice);
         lendingPool.withdraw(0);
 
-        vm.expectRevert(bytes("ONLY_VAULT"));
+        vm.expectRevert(bytes("117"));
         vm.prank(alice);
         lendingPool.borrow(0);
 
-        vm.expectRevert(bytes("ONLY_VAULT"));
+        vm.expectRevert(bytes("117"));
         vm.prank(alice);
         lendingPool.repay(0);
     }

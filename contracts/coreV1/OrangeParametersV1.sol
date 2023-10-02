@@ -37,6 +37,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _tickSlippageBPS Check ticks BPS
      */
     function setSlippage(uint16 _slippageBPS, uint24 _tickSlippageBPS) external onlyOwner {
+        if (_tickSlippageBPS == 0) revert(ErrorsV1.ZERO_INTEGER);
+
         if (_slippageBPS > MAGIC_SCALE_1E4) {
             revert(ErrorsV1.INVALID_PARAM);
         }
@@ -49,6 +51,7 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _twapSlippageInterval TWAP slippage interval
      */
     function setTwapSlippageInterval(uint32 _twapSlippageInterval) external onlyOwner {
+        if (_twapSlippageInterval == 0) revert(ErrorsV1.ZERO_INTEGER);
         twapSlippageInterval = _twapSlippageInterval;
     }
 
@@ -84,6 +87,7 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _depositCap Deposit cap of each accounts
      */
     function setDepositCap(uint256 _depositCap) external onlyOwner {
+        if (_depositCap == 0) revert(ErrorsV1.ZERO_INTEGER);
         depositCap = _depositCap;
     }
 
@@ -92,6 +96,7 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _minDepositAmount Min deposit amount
      */
     function setMinDepositAmount(uint256 _minDepositAmount) external onlyOwner {
+        if (_minDepositAmount == 0) revert(ErrorsV1.ZERO_INTEGER);
         minDepositAmount = _minDepositAmount;
     }
 
@@ -100,6 +105,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _helper Helper
      */
     function setHelper(address _helper) external onlyOwner {
+        if (_helper == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         helper = _helper;
     }
 
@@ -108,6 +115,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      * @param _strategyImpl strategyImpl
      */
     function setStrategyImpl(address _strategyImpl) external onlyOwner {
+        if (_strategyImpl == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         strategyImpl = _strategyImpl;
     }
 }

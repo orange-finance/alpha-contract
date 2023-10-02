@@ -11,7 +11,7 @@ library UniswapV3Twap {
 
         (int56[] memory tickCumulatives, ) = _pool.observe(secondsAgo);
 
-        require(tickCumulatives.length == 2, "array len");
+        if (tickCumulatives.length != 2) revert("array len");
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(5 minutes)));
         }

@@ -53,7 +53,7 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         secondsAgo[0] = _minute;
         secondsAgo[1] = 0;
         (int56[] memory tickCumulatives, , , ) = pool.getTimepoints(secondsAgo);
-        require(tickCumulatives.length == 2, "array len");
+        if (tickCumulatives.length != 2) revert("array len");
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
         }

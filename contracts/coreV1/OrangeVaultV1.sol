@@ -42,6 +42,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint24 _routerFee,
         address _balancer
     ) OrangeERC20(_name, _symbol) {
+        if (_token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_lendingPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         // setting adresses and approving
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);

@@ -48,15 +48,15 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
 
     function test_rebalance_RevertOnlyStrategists() public {
         vm.startPrank(alice);
-        vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS));
+        vm.expectRevert(bytes(ErrorsAlpha.ONLY_STRATEGISTS));
         vault.rebalance(0, 0, 0, 0, 0, 0);
     }
 
     function test_rebalance_RevertTickSpacing() public {
         uint256 _hedgeRatio = 100e6;
-        vm.expectRevert(bytes(Errors.INVALID_TICKS));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_TICKS));
         vault.rebalance(-1, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, 1);
-        vm.expectRevert(bytes(Errors.INVALID_TICKS));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_TICKS));
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, -1, _hedgeRatio, 1);
     }
 
@@ -73,7 +73,7 @@ contract OrangeAlphaRebalanceTest is OrangeAlphaTestBase {
             _hedgeRatio
         );
 
-        vm.expectRevert(bytes(Errors.LESS_LIQUIDITY));
+        vm.expectRevert(bytes(ErrorsAlpha.LESS_LIQUIDITY));
         vault.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, _hedgeRatio, _liquidity);
     }
 

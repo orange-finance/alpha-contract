@@ -2,6 +2,10 @@
 pragma solidity ^0.8.16;
 
 library ErrorsV1 {
+    //General Errors
+    string public constant ZERO_ADDRESS = "001";
+    string public constant ZERO_INTEGER = "002";
+
     //OrangeAlphaVault
     string public constant ONLY_HELPER = "101";
     string public constant ONLY_STRATEGISTS = "103";
@@ -18,6 +22,7 @@ library ErrorsV1 {
     string public constant ONLY_BALANCER_VAULT = "114";
     string public constant INVALID_FLASHLOAN_HASH = "115";
     string public constant LESS_MAX_ASSETS = "116";
+    string public constant ONLY_VAULT = "117";
 
     //OrangeValidationChecker
     string public constant MERKLE_ALLOWLISTED = "201";

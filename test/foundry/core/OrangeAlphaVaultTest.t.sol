@@ -37,9 +37,9 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     /* ========== MODIFIER ========== */
     function test_onlyPeriphery_Revert() public {
         vm.startPrank(alice);
-        vm.expectRevert(bytes(Errors.ONLY_PERIPHERY));
+        vm.expectRevert(bytes(ErrorsAlpha.ONLY_PERIPHERY));
         vault.deposit(0, address(this), 0);
-        vm.expectRevert(bytes(Errors.ONLY_PERIPHERY));
+        vm.expectRevert(bytes(ErrorsAlpha.ONLY_PERIPHERY));
         vault.redeem(0, address(this), address(0), 0);
     }
 
@@ -238,14 +238,14 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     // deposit,_depositLiquidityByShares,_swapSurplusAmount are tested in OrangeAlphaVaultDepositTest.t.sol
 
     function test_redeem_Revert1() public {
-        vm.expectRevert(bytes(Errors.INVALID_AMOUNT));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_AMOUNT));
         vault.redeem(0, address(this), address(0), 9_900 * 1e6);
     }
 
     function test_redeem_Revert2() public {
         uint256 _shares = vault.deposit(10_000 * 1e6, address(this), 10_000 * 1e6);
         skip(1);
-        vm.expectRevert(bytes(Errors.LESS_AMOUNT));
+        vm.expectRevert(bytes(ErrorsAlpha.LESS_AMOUNT));
         vault.redeem(_shares, address(this), address(0), 100_900 * 1e6);
     }
 
@@ -314,7 +314,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
     }
 
     function test_stoploss_Revert() public {
-        vm.expectRevert(bytes(Errors.ONLY_STRATEGISTS_OR_GELATO));
+        vm.expectRevert(bytes(ErrorsAlpha.ONLY_STRATEGISTS_OR_GELATO));
         vm.prank(alice);
         vault.stoploss(1);
     }
@@ -444,11 +444,11 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     function test_validateTicks_Success() public {
         vault.validateTicks(60, 120);
-        vm.expectRevert(bytes(Errors.INVALID_TICKS));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_TICKS));
         vault.validateTicks(120, 60);
-        vm.expectRevert(bytes(Errors.INVALID_TICKS));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_TICKS));
         vault.validateTicks(61, 120);
-        vm.expectRevert(bytes(Errors.INVALID_TICKS));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_TICKS));
         vault.validateTicks(60, 121);
     }
 
@@ -462,7 +462,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     function test_checkTickSlippage_Success1() public {
         vault.checkTickSlippage(0, 0);
-        vm.expectRevert(bytes(Errors.HIGH_SLIPPAGE));
+        vm.expectRevert(bytes(ErrorsAlpha.HIGH_SLIPPAGE));
         vault.checkTickSlippage(10, 21);
     }
 
@@ -523,7 +523,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
     /* ========== CALLBACK FUNCTIONS ========== */
     function test_uniswapV3Callback_Revert() public {
-        vm.expectRevert(bytes(Errors.ONLY_CALLBACK_CALLER));
+        vm.expectRevert(bytes(ErrorsAlpha.ONLY_CALLBACK_CALLER));
         vault.uniswapV3MintCallback(0, 0, "");
     }
 
@@ -549,7 +549,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
         _tokensFlashloan[0] = token0;
         uint256[] memory _amountsFlashloan = new uint256[](1);
         _amountsFlashloan[0] = 100;
-        vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_FLASHLOAN_HASH));
         IVault(balancer).flashLoan(
             IFlashLoanRecipient(address(vault)),
             _tokensFlashloan,
@@ -568,7 +568,7 @@ contract OrangeAlphaVaultTest is OrangeAlphaTestBase, IOrangeAlphaVaultEvent {
 
         vault.setFlashloanHash(keccak256(abi.encode(2)));
 
-        vm.expectRevert(bytes(Errors.INVALID_FLASHLOAN_HASH));
+        vm.expectRevert(bytes(ErrorsAlpha.INVALID_FLASHLOAN_HASH));
         IVault(balancer).flashLoan(
             IFlashLoanRecipient(address(vault)),
             _tokensFlashloan,

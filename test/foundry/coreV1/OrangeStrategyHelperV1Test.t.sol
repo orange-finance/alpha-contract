@@ -27,13 +27,13 @@ contract OrangeStrategyHelperV1Test is OrangeVaultV1TestBase {
     }
 
     function test_onlyStrategist_Revert() public {
-        vm.expectRevert(bytes("ONLY_STRATEGIST"));
+        vm.expectRevert(bytes("103")); //only strategists
         vm.prank(alice);
         helper.setStrategist(alice, false);
-        vm.expectRevert(bytes("ONLY_STRATEGIST"));
+        vm.expectRevert(bytes("103"));
         vm.prank(alice);
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, 0, 0);
-        vm.expectRevert(bytes("ONLY_STRATEGIST"));
+        vm.expectRevert(bytes("103"));
         vm.prank(alice);
         helper.stoploss(currentTick);
     }

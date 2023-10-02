@@ -8,6 +8,7 @@ import {DataTypes} from "../vendor/aave/DataTypes.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //libraries
+import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract AaveLendingPoolManager is ILendingPoolManager {
@@ -17,8 +18,8 @@ contract AaveLendingPoolManager is ILendingPoolManager {
     /* ========== Structs ========== */
 
     /* ========== CONSTANTS ========== */
-    uint16 constant AAVE_REFERRAL_NONE = 0;
-    uint256 constant AAVE_VARIABLE_INTEREST = 2;
+    uint16 private constant AAVE_REFERRAL_NONE = 0;
+    uint256 private constant AAVE_VARIABLE_INTEREST = 2;
 
     /* ========== STORAGES ========== */
 
@@ -32,7 +33,7 @@ contract AaveLendingPoolManager is ILendingPoolManager {
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
-        if (msg.sender != vault) revert("ONLY_VAULT");
+        if (msg.sender != vault) revert(ErrorsV1.ONLY_VAULT);
         _;
     }
 
@@ -60,6 +61,8 @@ contract AaveLendingPoolManager is ILendingPoolManager {
 
     function setVault(address _vault) external {
         if (vault != address(0)) revert("ALREADY_SET");
+        if (_vault == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         vault = _vault;
     }
 

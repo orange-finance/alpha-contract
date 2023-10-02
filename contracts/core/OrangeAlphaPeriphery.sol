@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IOrangeAlphaPeriphery, IOrangeAlphaVault, IOrangeAlphaParameters} from "../interfaces/IOrangeAlphaPeriphery.sol";
-import {Errors} from "../libs/Errors.sol";
+import {ErrorsAlpha} from "./ErrorsAlpha.sol";
 
 contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     using SafeERC20 for IERC20;
@@ -31,13 +31,13 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
 
         //validation of deposit caps
         if (deposits[msg.sender].assets + _maxAssets > params.depositCap()) {
-            revert(Errors.CAPOVER);
+            revert(ErrorsAlpha.CAPOVER);
         }
         deposits[msg.sender].assets += _maxAssets;
         deposits[msg.sender].timestamp = uint40(block.timestamp);
         uint256 _totalDeposits = totalDeposits;
         if (_totalDeposits + _maxAssets > params.totalDepositCap()) {
-            revert(Errors.CAPOVER);
+            revert(ErrorsAlpha.CAPOVER);
         }
         totalDeposits = _totalDeposits + _maxAssets;
 
@@ -52,7 +52,7 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
 
     function _redeem(uint256 _shares, uint256 _minAssets) internal returns (uint256) {
         if (block.timestamp < deposits[msg.sender].timestamp + params.lockupPeriod()) {
-            revert(Errors.LOCKUP);
+            revert(ErrorsAlpha.LOCKUP);
         }
         uint256 _assets = vault.redeem(_shares, msg.sender, msg.sender, _minAssets);
 
@@ -79,7 +79,7 @@ contract OrangeAlphaPeriphery is IOrangeAlphaPeriphery {
     function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view virtual {
         if (params.allowlistEnabled()) {
             if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
-                revert(Errors.MERKLE_ALLOWLISTED);
+                revert(ErrorsAlpha.MERKLE_ALLOWLISTED);
             }
         }
     }

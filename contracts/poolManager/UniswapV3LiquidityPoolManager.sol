@@ -9,6 +9,7 @@ import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //libraries
+import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
@@ -46,6 +47,8 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     function setVault(address _vault) external {
         if (vault != address(0)) revert("ALREADY_SET");
+        if (_vault == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
         vault = _vault;
     }
 
@@ -57,7 +60,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
         (int56[] memory tickCumulatives, ) = pool.observe(secondsAgo);
 
-        require(tickCumulatives.length == 2, "array len");
+        if (tickCumulatives.length != 2) revert("array len");
         unchecked {
             avgTick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_minute)));
         }
