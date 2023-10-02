@@ -20,7 +20,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     /* ========== Structs ========== */
 
     /* ========== CONSTANTS ========== */
-    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
+    uint16 private constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== STORAGES ========== */
 
