@@ -7,8 +7,8 @@ import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
 
 contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     /* ========== CONSTANTS ========== */
-    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
+    uint256 private constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
+    uint16 private constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     /* ========== PARAMETERS ========== */
     uint16 public slippageBPS;
