@@ -13,7 +13,6 @@ contract UniswapV3LiquidityPoolManagerDeployerTest is Fixture {
         _deployMockUniswapV3Pool();
         _deployMockTokens();
 
-        // bytes4 _sig = bytes4(keccak256("fee()"));
         bytes4 _sig = IUniswapV3PoolImmutables.fee.selector;
         uint24 _fee = 3000;
         mockUniswapV3Pool.setUint24ReturnValue(_sig, _fee);
