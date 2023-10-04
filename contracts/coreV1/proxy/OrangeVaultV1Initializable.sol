@@ -1,37 +1,45 @@
-// TODO: Delete this file after replacement for the new contract supporting minimul proxy
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
 //interafaces
-import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
+import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
+import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
+import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 
 //extends
-import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
-import {OrangeERC20} from "./OrangeERC20.sol";
+import {OrangeValidationCheckerInitializable} from "@src/coreV1/proxy/OrangeValidationCheckerInitializable.sol";
+import {OrangeERC20} from "@src/coreV1/OrangeERC20.sol";
 
 //libraries
-import {Proxy} from "../libs/Proxy.sol";
-import {ErrorsV1} from "./ErrorsV1.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {Proxy} from "@src/libs/Proxy.sol";
+import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
-import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
-import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
-import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
-import {UniswapV3LiquidityPoolManager} from "../poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "../poolManager/AaveLendingPoolManager.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
+import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
+import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
+import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeValidationChecker, Proxy {
+contract OrangeVaultV1Initializable is
+    Initializable,
+    OrangeValidationCheckerInitializable,
+    IOrangeVaultV1,
+    IOrangeVaultV1Initializable,
+    IBalancerFlashLoanRecipient,
+    Proxy
+{
     using SafeERC20 for IERC20;
     using FullMath for uint256;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
     /* ========== CONSTRUCTOR ========== */
-    constructor(
+    function initialize(
         string memory _name,
         string memory _symbol,
         address _token0,
@@ -42,7 +50,8 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         address _router,
         uint24 _routerFee,
         address _balancer
-    ) OrangeERC20(_name, _symbol) {
+    ) external initializer {
+        __OrangeERC20_init(_name, _symbol);
         if (_token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);

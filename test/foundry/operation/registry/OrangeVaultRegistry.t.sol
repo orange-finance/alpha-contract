@@ -10,7 +10,7 @@ import {AddressZero, EmptyString} from "@src/operation/Errors.sol";
 import {ErrorUtil} from "@test/foundry/utils/ErrorUtil.sol";
 
 contract OrangeVaultRegistryTest is Fixture {
-    function setup() public {
+    function setUp() public {
         _setUp();
     }
 
