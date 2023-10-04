@@ -18,14 +18,13 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         OrangeVaultFactoryV1_0.VaultConfig memory _vaultConfig = OrangeVaultFactoryV1_0.VaultConfig({
             name: "Orange Vault",
             symbol: "ORANGE",
-            token0: address(0x1),
-            token1: address(0x2),
-            liquidityPool: address(0x3),
-            lendingPool: address(0x4),
-            params: address(0x5),
-            router: address(0x6),
+            token0: address(mockToken0),
+            token1: address(mockToken1),
+            liquidityPool: address(0x1),
+            lendingPool: address(0x2),
+            router: address(0x5),
             routerFee: 3000,
-            balancer: address(0x7),
+            balancer: address(0x6),
             allowlistEnabled: true,
             depositCap: 100000,
             minDepositAmount: 100,
@@ -33,18 +32,10 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         });
 
         OrangeVaultFactoryV1_0.PoolManagerConfig memory _liquidityManagerConfig = OrangeVaultFactoryV1_0
-            .PoolManagerConfig({
-                // TODO: use mock
-                managerDeployer: address(0x8),
-                setUpData: ""
-            });
+            .PoolManagerConfig({managerDeployer: address(mockLiquidityPoolManagerDeployer), setUpData: ""});
 
         OrangeVaultFactoryV1_0.PoolManagerConfig memory _lendingManagerConfig = OrangeVaultFactoryV1_0
-            .PoolManagerConfig({
-                // TODO: use mock
-                managerDeployer: address(0x10),
-                setUpData: ""
-            });
+            .PoolManagerConfig({managerDeployer: address(mockLendingPoolManagerDeployer), setUpData: ""});
 
         OrangeVaultFactoryV1_0.StrategyConfig memory _strategyConfig = OrangeVaultFactoryV1_0.StrategyConfig({
             strategist: bob
@@ -67,7 +58,6 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         assertEq(address(_vault.token1()), _vaultConfig.token1, "token1 should be set");
         assertEq(_vault.liquidityPool(), _vaultConfig.liquidityPool, "liquidityPool should be set");
         assertEq(_vault.lendingPool(), _vaultConfig.lendingPool, "lendingPool should be set");
-        assertEq(address(_vault.params()), _vaultConfig.params, "params should be set");
         assertEq(_vault.router(), _vaultConfig.router, "router should be set");
         assertEq(_vault.routerFee(), _vaultConfig.routerFee, "routerFee should be set");
         assertEq(_vault.balancer(), _vaultConfig.balancer, "balancer should be set");

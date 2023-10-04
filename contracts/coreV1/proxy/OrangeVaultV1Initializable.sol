@@ -39,48 +39,37 @@ contract OrangeVaultV1Initializable is
     using BalancerFlashloan for IBalancerVault;
 
     /* ========== CONSTRUCTOR ========== */
-    function initialize(
-        string memory _name,
-        string memory _symbol,
-        address _token0,
-        address _token1,
-        address _liquidityPool,
-        address _lendingPool,
-        address _params,
-        address _router,
-        uint24 _routerFee,
-        address _balancer
-    ) external initializer {
-        __OrangeERC20_init(_name, _symbol);
-        if (_token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_lendingPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+    function initialize(VaultInitalizeParams calldata _params) external initializer {
+        __OrangeERC20_init(_params.name, _params.symbol);
+        if (_params.token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.lendingPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
 
         // setting adresses and approving
-        token0 = IERC20(_token0);
-        token1 = IERC20(_token1);
+        token0 = IERC20(_params.token0);
+        token1 = IERC20(_params.token1);
 
         //deploy liquidity pool manager
-        liquidityPool = _liquidityPool;
+        liquidityPool = _params.liquidityPool;
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
         //deploy lending pool manager
-        lendingPool = _lendingPool;
+        lendingPool = _params.lendingPool;
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 
-        params = IOrangeParametersV1(_params);
+        params = IOrangeParametersV1(_params.params);
 
-        router = _router;
-        token0.safeApprove(_router, type(uint256).max);
-        token1.safeApprove(_router, type(uint256).max);
-        routerFee = _routerFee;
-        balancer = _balancer;
+        router = _params.router;
+        token0.safeApprove(_params.router, type(uint256).max);
+        token1.safeApprove(_params.router, type(uint256).max);
+        routerFee = _params.routerFee;
+        balancer = _params.balancer;
     }
 
     /* ========== VIEW FUNCTIONS ========== */

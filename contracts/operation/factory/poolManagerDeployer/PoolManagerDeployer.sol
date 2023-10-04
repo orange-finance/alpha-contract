@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import {IPoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/IPoolManagerDeployer.sol";
+import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 
 abstract contract PoolManagerDeployer is IPoolManagerDeployer {
     function deployPoolManager(
@@ -9,7 +10,7 @@ abstract contract PoolManagerDeployer is IPoolManagerDeployer {
         address _token1,
         address _liquidityPool,
         bytes calldata _setUpData
-    ) external virtual returns (address);
+    ) external virtual returns (IPoolManager);
 
     function _onPoolManagerDeployed(
         address /* _poolManager */,

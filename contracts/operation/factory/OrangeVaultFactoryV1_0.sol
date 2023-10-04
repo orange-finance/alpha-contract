@@ -26,7 +26,6 @@ contract OrangeVaultFactoryV1_0 {
         address token1;
         address liquidityPool;
         address lendingPool;
-        address params;
         address router;
         uint24 routerFee;
         address balancer;
@@ -89,18 +88,21 @@ contract OrangeVaultFactoryV1_0 {
 
         // deploy clone of vault contract
         address _vault = _createClone(vaultImpl);
-        IOrangeVaultV1Initializable(_vault).initialize({
-            _name: _vaultConfig.name,
-            _symbol: _vaultConfig.symbol,
-            _token0: _vaultConfig.token0,
-            _token1: _vaultConfig.token1,
-            _liquidityPool: _vaultConfig.liquidityPool,
-            _lendingPool: _vaultConfig.lendingPool,
-            _params: address(_parameters),
-            _router: _vaultConfig.router,
-            _routerFee: _vaultConfig.routerFee,
-            _balancer: _vaultConfig.balancer
-        });
+        IOrangeVaultV1Initializable.VaultInitalizeParams memory _params = IOrangeVaultV1Initializable
+            .VaultInitalizeParams({
+                name: _vaultConfig.name,
+                symbol: _vaultConfig.symbol,
+                token0: _vaultConfig.token0,
+                token1: _vaultConfig.token1,
+                liquidityPool: _vaultConfig.liquidityPool,
+                lendingPool: _vaultConfig.lendingPool,
+                params: address(_parameters),
+                router: _vaultConfig.router,
+                routerFee: _vaultConfig.routerFee,
+                balancer: _vaultConfig.balancer
+            });
+
+        IOrangeVaultV1Initializable(_vault).initialize(_params);
 
         // deploy strategy helper contract
         OrangeStrategyHelperV1 _strategyHelper = new OrangeStrategyHelperV1(_vault);
