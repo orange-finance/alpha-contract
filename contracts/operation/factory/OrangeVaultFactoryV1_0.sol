@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.16;
 
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {IOrangeVaultRegistry} from "@src/operation/registry/IOrangeVaultRegistry.sol";
 import {IOrangeVaultV1Initializable} from "@src/operation/factory/IOrangeVaultV1Initializable.sol";
 import {IPoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/IPoolManagerDeployer.sol";
@@ -10,7 +12,9 @@ import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
 import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
 import {AddressZero} from "@src/operation/Errors.sol";
 
-contract OrangeVaultFactoryV1_0 {
+contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
+    using Clones for address;
+
     address public immutable registry;
     address public immutable vaultImpl;
     address public strategyImpl;
@@ -34,7 +38,7 @@ contract OrangeVaultFactoryV1_0 {
         uint256 depositCap;
         uint256 minDepositAmount;
         address owner;
-        // TODO: check if we need to specify these params (defaut values are set in Vault's constructor)
+        // TODO: check if we need to specify these params (default values are set in Vault's constructor)
         // uint16 slippageBPS;
         // uint24 tickSlippageBPS;
         // uint32 twapSlippageInterval;
@@ -58,6 +62,8 @@ contract OrangeVaultFactoryV1_0 {
         registry = _registry;
         vaultImpl = _vaultImpl;
         strategyImpl = _strategyImpl;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function createVault(
@@ -65,7 +71,7 @@ contract OrangeVaultFactoryV1_0 {
         PoolManagerConfig calldata _liquidityManagerConfig,
         PoolManagerConfig calldata _lendingManagerConfig,
         StrategyConfig calldata _strategyConfig
-    ) external returns (address) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (address) {
         // deploy parameters contract
         OrangeParametersV1 _parameters = new OrangeParametersV1();
 
@@ -87,7 +93,8 @@ contract OrangeVaultFactoryV1_0 {
         });
 
         // deploy clone of vault contract
-        address _vault = _createClone(vaultImpl);
+        // address _vault = _createClone(vaultImpl);
+        address _vault = vaultImpl.clone();
         IOrangeVaultV1Initializable.VaultInitalizeParams memory _params = IOrangeVaultV1Initializable
             .VaultInitalizeParams({
                 name: _vaultConfig.name,
@@ -137,29 +144,5 @@ contract OrangeVaultFactoryV1_0 {
                 _liquidityPool: _liquidityPool,
                 _setUpData: _setUpData
             });
-    }
-
-    /**
-     * @notice Template Code for the create clone method:
-     * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1167.md
-     */
-    function _createClone(address target) internal returns (address result) {
-        //convert address to bytes20 for assembly use
-        bytes20 targetBytes = bytes20(target);
-
-        assembly {
-            // allocate clone memory
-            let clone := mload(0x40)
-            // store initial portion of the delegation contract code in bytes form
-            mstore(clone, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
-            // store the provided address
-            mstore(add(clone, 0x14), targetBytes)
-            // store the remaining delegation contract code
-            mstore(add(clone, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
-            // create the actual delegate contract reference and return its address
-            result := create(0, clone, 0x37)
-        }
-
-        require(result != address(0), "ERROR: ZERO_ADDRESS");
     }
 }
