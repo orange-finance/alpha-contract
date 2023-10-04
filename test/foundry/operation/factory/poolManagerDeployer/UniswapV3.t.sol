@@ -26,7 +26,7 @@ contract UniswapV3LiquidityPoolManagerDeployerTest is Fixture {
         assertTrue(_manager != address(0), "should deploy UniswapV3LiquidityPoolManager");
 
         UniswapV3LiquidityPoolManager _m = UniswapV3LiquidityPoolManager(_manager);
-        assertEq(address(_m.pool()), address(mockUniswapV3Pool), "should set token0");
+        assertEq(address(_m.pool()), address(mockUniswapV3Pool), "should set pool");
         assertEq(_m.fee(), _fee, "should set fee");
     }
 }
