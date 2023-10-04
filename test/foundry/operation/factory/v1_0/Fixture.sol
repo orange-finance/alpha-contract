@@ -2,8 +2,8 @@
 pragma solidity 0.8.16;
 
 import {BaseTest} from "@test/foundry/utils/BaseTest.sol";
-import {MockPoolManagerDeployer} from "@test/foundry/mocks/MockPoolManagerDeployer.sol";
-import {MockPoolManager} from "@test/foundry/mocks/MockPoolManager.sol";
+import {MockPoolManagerDeployer} from "@test/foundry/operation/mocks/MockPoolManagerDeployer.sol";
+import {MockPoolManager} from "@test/foundry/operation/mocks/MockPoolManager.sol";
 import {MockERC20} from "@test/foundry/mocks/MockERC20.sol";
 import {OrangeVaultFactoryV1_0} from "@src/operation/factory/OrangeVaultFactoryV1_0.sol";
 import {OrangeStrategyImplV1} from "@src/coreV1/OrangeStrategyImplV1.sol";
