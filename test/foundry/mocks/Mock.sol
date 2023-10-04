@@ -2,8 +2,9 @@
 
 pragma solidity 0.8.16;
 
-contract Mock {
+abstract contract Mock {
     mapping(bytes4 => uint256) public uint256Returns;
+    mapping(bytes4 => uint24) public uint24Returns;
     mapping(bytes4 => address) public addressReturns;
     mapping(bytes4 => bool) public boolReturns;
     mapping(bytes4 => bytes32) public bytes32Returns;
@@ -19,27 +20,31 @@ contract Mock {
         _;
     }
 
-    function setReturnValue(bytes4 _sig, uint256 _val) public {
+    function setUint256ReturnValue(bytes4 _sig, uint256 _val) public {
         uint256Returns[_sig] = _val;
     }
 
-    function setReturnValue(bytes4 _sig, address _val) public {
+    function setUint24ReturnValue(bytes4 _sig, uint24 _val) public {
+        uint24Returns[_sig] = _val;
+    }
+
+    function setAddressReturnValue(bytes4 _sig, address _val) public {
         addressReturns[_sig] = _val;
     }
 
-    function setReturnValue(bytes4 _sig, bool _val) public {
+    function setBoolReturnValue(bytes4 _sig, bool _val) public {
         boolReturns[_sig] = _val;
     }
 
-    function setReturnValue(bytes4 _sig, bytes32 _val) public {
+    function setBytes32ReturnValue(bytes4 _sig, bytes32 _val) public {
         bytes32Returns[_sig] = _val;
     }
 
-    function setReturnValue(bytes4 _sig, bytes memory _val) public {
+    function setBytesReturnValue(bytes4 _sig, bytes memory _val) public {
         bytesReturns[_sig] = _val;
     }
 
-    function setReturnValue(bytes4 _sig, string memory _val) public {
+    function setStringReturnValue(bytes4 _sig, string memory _val) public {
         stringReturns[_sig] = _val;
     }
 
