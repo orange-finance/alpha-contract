@@ -24,6 +24,8 @@ contract CamelotV3LiquidityPoolManagerDeployer is PoolManagerDeployer {
             _pool: _liquidityPool
         });
 
+        emit PoolManagerDeployed(address(poolManager), _liquidityPool);
+
         return IPoolManager(address(poolManager));
     }
 }

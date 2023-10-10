@@ -24,6 +24,8 @@ contract AaveLendingPoolManagerDeployer is PoolManagerDeployer {
             _aave: _liquidityPool
         });
 
+        emit PoolManagerDeployed(address(poolManager), _liquidityPool);
+
         return IPoolManager(address(poolManager));
     }
 }

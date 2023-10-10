@@ -10,6 +10,8 @@ import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolMana
  * @notice base contract of all PoolManagerDeployer
  */
 abstract contract PoolManagerDeployer is IPoolManagerDeployer {
+    event PoolManagerDeployed(address indexed _poolManager, address indexed _liquidityPool);
+
     /// @inheritdoc IPoolManagerDeployer
     function deployPoolManager(
         address _token0,
