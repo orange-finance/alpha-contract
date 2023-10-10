@@ -20,6 +20,8 @@ import {AddressZero} from "@src/operation/Errors.sol";
 contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
     using Clones for address;
 
+    string public constant VAULT_VERSION = "1.0";
+
     address public immutable registry;
     address public immutable vaultImpl;
     address public strategyImpl;
@@ -139,6 +141,8 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
         // setup managers
         _lendingManager.setVault(_vault);
         _liquidityManager.setVault(_vault);
+
+        IOrangeVaultRegistry(registry).add(_vault, VAULT_VERSION, address(_parameters));
 
         return _vault;
     }

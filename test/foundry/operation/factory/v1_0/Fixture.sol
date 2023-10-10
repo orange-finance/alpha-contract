@@ -38,6 +38,7 @@ contract Fixture is BaseTest {
             _strategyImpl: address(strategyImpl),
             _vaultImpl: address(vaultImpl)
         });
+        registry.grantRole(registry.VAULT_DEPLOYER_ROLE(), address(factory));
         vm.stopPrank();
 
         mockLiquidityPoolManagerDeployer.setPoolManagerReturnValue(address(mockLiquidityPoolManager));
