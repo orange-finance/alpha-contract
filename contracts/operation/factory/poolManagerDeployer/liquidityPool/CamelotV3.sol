@@ -5,7 +5,13 @@ import {PoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/Po
 import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 import {CamelotV3LiquidityPoolManager} from "@src/poolManager/CamelotV3LiquidityPoolManager.sol";
 
+/**
+ * @title CamelotV3LiquidityPoolManagerDeployer
+ * @author Orange Finance
+ * @notice Deploys CamelotV3LiquidityPoolManager contracts in a way of OrangeVaultFactory
+ */
 contract CamelotV3LiquidityPoolManagerDeployer is PoolManagerDeployer {
+    /// @inheritdoc PoolManagerDeployer
     function deployPoolManager(
         address _token0,
         address _token1,

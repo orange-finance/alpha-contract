@@ -5,7 +5,13 @@ import {PoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/Po
 import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
 
+/**
+ * @title AaveLendingPoolManagerDeployer
+ * @author Orange Finance
+ * @notice Deploys AaveLendingPoolManager contracts in a way of OrangeVaultFactory
+ */
 contract AaveLendingPoolManagerDeployer is PoolManagerDeployer {
+    /// @inheritdoc PoolManagerDeployer
     function deployPoolManager(
         address _token0,
         address _token1,

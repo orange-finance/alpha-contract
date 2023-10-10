@@ -12,6 +12,11 @@ import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
 import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
 import {AddressZero} from "@src/operation/Errors.sol";
 
+/**
+ * @title OrangeVaultFactoryV1_0 contract
+ * @author Orange Finance
+ * @notice Factory contract for deploying new vaults.
+ */
 contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
     using Clones for address;
 
@@ -66,6 +71,14 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
+    /**
+     * @notice Deploy an new vault and perifery contracts for the vault. then add the vault to the registry.
+     * @param _vaultConfig The configuration for the vault.
+     * @param _liquidityManagerConfig The configuration for the liquidity pool manager.
+     * @param _lendingManagerConfig The configuration for the lending pool manager.
+     * @param _strategyConfig The configuration for the vault strategy.
+     * @return The address of the new vault.
+     */
     function createVault(
         VaultConfig calldata _vaultConfig,
         PoolManagerConfig calldata _liquidityManagerConfig,

@@ -1,7 +1,11 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.0;
 
+/**
+ * @title OrangeVaultV1 interface to initialize minimal-proxy clone vaults.
+ * @author Orange Finance
+ */
 interface IOrangeVaultV1Initializable {
     struct VaultInitalizeParams {
         string name;
@@ -16,5 +20,9 @@ interface IOrangeVaultV1Initializable {
         address balancer;
     }
 
+    /**
+     * @notice Initializes the vault.
+     * @param _params The parameters to initialize the vault.
+     */
     function initialize(VaultInitalizeParams calldata _params) external;
 }

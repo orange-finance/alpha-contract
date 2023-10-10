@@ -4,6 +4,11 @@ pragma solidity ^0.8.0;
 
 import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 
+/**
+ * @title PoolManagerDeployer interface
+ * @notice Interface for the PoolManagerDeployer contract.
+ * @dev All Deployer contracts should follow this interface to ensure compatibility with the factory.
+ */
 interface IPoolManagerDeployer {
     /**
      * @notice Deploy a pool manager contract

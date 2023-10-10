@@ -6,6 +6,12 @@ import {Strings} from "@src/libs/Strings.sol";
 import {AddressZero, EmptyString} from "@src/operation/Errors.sol";
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
+/**
+ * @title OrangeVaultRegistry contract
+ * @author Orange Finance
+ * @notice Registry for vaults.
+ * @dev This contract is used to keep track of all vaults.
+ */
 contract OrangeVaultRegistry is IOrangeVaultRegistry, AccessControlEnumerable {
     using Strings for string;
 
@@ -21,10 +27,15 @@ contract OrangeVaultRegistry is IOrangeVaultRegistry, AccessControlEnumerable {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
+    /// @inheritdoc IOrangeVaultRegistry
     function getDetailOf(address _vault) external view override returns (VaultDetail memory) {
         return vaultDetails[_vault];
     }
 
+    /**
+     * @inheritdoc IOrangeVaultRegistry
+     * @dev Only callable by the vault deployer assumed to be the OrangeVaultFactory contract.
+     */
     function add(
         address _vault,
         string calldata _version,
@@ -42,6 +53,8 @@ contract OrangeVaultRegistry is IOrangeVaultRegistry, AccessControlEnumerable {
         emit VaultAdded(_vault, _version, _parameters);
     }
 
+    /// @inheritdoc IOrangeVaultRegistry
+    /// @dev Only callable by the admin  account.
     function remove(address _vault) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (vaultDetails[_vault].version.equal("")) revert VaultNotFound(_vault);
         delete vaultDetails[_vault];
