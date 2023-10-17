@@ -51,15 +51,18 @@ contract OrangeStoplossChecker is IResolver, AccessControlEnumerable {
         bytes[] memory _payloads = new bytes[](_len);
 
         uint256 j = 0;
-        for (uint256 i = 0; i < _len; i++) {
+        for (uint256 i = 0; i < _len; ) {
             address _vault = _vaults.at(i);
             IResolver _helper = helpers[_vault];
 
             (bool _can, bytes memory _payload) = _helper.checker();
-            if (_can) {
-                _targets[j] = _vault;
-                _payloads[j] = _payload;
-                j++;
+            unchecked {
+                if (_can) {
+                    _targets[j] = _vault;
+                    _payloads[j] = _payload;
+                    j++;
+                }
+                i++;
             }
         }
 
@@ -75,7 +78,7 @@ contract OrangeStoplossChecker is IResolver, AccessControlEnumerable {
      * @param payloads The payloads to call the stoploss function of each target vault.
      */
     function stoplossBatch(address[] calldata vaults_, bytes[] calldata payloads) external onlyRole(BATCH_CALLER) {
-        for (uint256 i = 0; i < vaults_.length; i++) {
+        for (uint256 i = 0; i < vaults_.length; ) {
             // * NOTES: if _vaults[i] is address(0), it means the all vaults are processed
             address _vault = vaults_[i];
             if (_vault == address(0)) return;
@@ -83,6 +86,10 @@ contract OrangeStoplossChecker is IResolver, AccessControlEnumerable {
             address _helper = address(helpers[_vault]);
             (bool _ok, ) = _helper.call(payloads[i]);
             if (!_ok) revert RawCallFailed();
+
+            unchecked {
+                i++;
+            }
         }
     }
 
