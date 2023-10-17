@@ -112,7 +112,7 @@ contract OrangeStopLossCheckerTest is Fixture {
 
         (bool _canExec, bytes memory _execPayload) = checker.checker();
         assertEq(_canExec, false);
-        assertEq(_execPayload, bytes("OrangeStopLossChecker: Not in range"));
+        assertEq(_execPayload, bytes("OrangeStopLossChecker: No vaults to stoploss"));
     }
 
     function test_checker__Fail_NoVaultAdded() public {
@@ -120,7 +120,7 @@ contract OrangeStopLossCheckerTest is Fixture {
 
         (bool _canExec, bytes memory _execPayload) = checker.checker();
         assertEq(_canExec, false);
-        assertEq(_execPayload, bytes("OrangeStopLossChecker: Not in range"));
+        assertEq(_execPayload, bytes("OrangeStopLossChecker: No vaults to stoploss"));
     }
 
     function test_checker__Fail_NotBatchCaller() public {

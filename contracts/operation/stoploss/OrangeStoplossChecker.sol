@@ -47,7 +47,7 @@ contract OrangeStoplossChecker is IResolver, AccessControlEnumerable {
 
         if (j > 0) return (true, abi.encodeWithSelector(this.stoplossBatch.selector, _targets, _payloads));
 
-        return (false, bytes("OrangeStopLossChecker: Not in range"));
+        return (false, bytes("OrangeStopLossChecker: No vaults to stoploss"));
     }
 
     /**
