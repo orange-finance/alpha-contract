@@ -7,6 +7,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 //libraries
 import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
@@ -14,7 +15,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
-contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintCallback {
+contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
 
@@ -30,6 +31,8 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public vault;
+    address perfFeeRecipient;
+    uint128 public perfFeeDivisor = 10; // 10% of profit
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
@@ -188,6 +191,15 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
 
     /* ========== WRITE FUNCTIONS ========== */
 
+    function setPerfFeeRecipient(address _perfFeeRecipient) external onlyOwner {
+        perfFeeRecipient = _perfFeeRecipient;
+    }
+
+    function setPerfFeeDivisor(uint128 _perfFeeDivisor) external onlyOwner {
+        if (_perfFeeDivisor == 0) revert("DIV_BY_ZERO");
+        perfFeeDivisor = _perfFeeDivisor;
+    }
+
     function mint(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
         bytes memory data = abi.encode(msg.sender);
 
@@ -207,6 +219,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
     }
 
     function burn(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
+        _takeFee(lowerTick, upperTick);
         (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
@@ -216,6 +229,7 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256, uint256) {
+        _takeFee(lowerTick, upperTick);
         uint256 _burn0;
         uint256 _burn1;
         if (liquidity > 0) {
@@ -223,6 +237,35 @@ contract UniswapV3LiquidityPoolManager is ILiquidityPoolManager, IUniswapV3MintC
         }
         pool.collect(msg.sender, lowerTick, upperTick, type(uint128).max, type(uint128).max);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
+    }
+
+    function _takeFee(int24 lowerTick, int24 upperTick) internal {
+        // if no recipient, skip
+        if (perfFeeRecipient == address(0)) return;
+
+        // zero burn to update feeGrowth
+        pool.burn(lowerTick, upperTick, 0);
+
+        (uint128 _amount0, uint128 _amount1) = pool.collect(
+            msg.sender,
+            lowerTick,
+            upperTick,
+            type(uint128).max,
+            type(uint128).max
+        );
+
+        (uint128 _a0, uint128 _a1) = reversed ? (_amount1, _amount0) : (_amount0, _amount1);
+
+        IERC20 _token0 = IERC20(pool.token0());
+        IERC20 _token1 = IERC20(pool.token1());
+
+        (uint128 _perfFee0, uint128 _perfFee1) = (_a0 / perfFeeDivisor, _a1 / perfFeeDivisor);
+
+        if (_perfFee0 > 0 && _token0.balanceOf(msg.sender) >= _perfFee0)
+            _token0.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee0);
+
+        if (_perfFee1 > 0 && _token1.balanceOf(msg.sender) >= _perfFee1)
+            _token1.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee1);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
