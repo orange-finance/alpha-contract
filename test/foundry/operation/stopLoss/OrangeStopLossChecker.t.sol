@@ -3,16 +3,24 @@
 pragma solidity 0.8.16;
 
 import "./Fixture.sol";
+import {IResolver} from "../../../../contracts/interfaces/IResolver.sol";
 
 contract OrangeStopLossCheckerTest is Fixture {
+    function test_getVaultCount__Success() public {
+        _deployChecker();
+        _deployMockHelpers(5);
+
+        assertEq(checker.getVaultCount(), 5);
+    }
+
     function test_checker__Success() public {
         _deployChecker();
         _deployMockHelpers(3);
         checker.grantRole(checker.BATCH_CALLER(), address(this));
 
-        address _v1 = checker.vaults(0);
-        address _v2 = checker.vaults(1);
-        address _v3 = checker.vaults(2);
+        address _v1 = checker.getVaultAt(0);
+        address _v2 = checker.getVaultAt(1);
+        address _v3 = checker.getVaultAt(2);
 
         MockStrategyHelperV1(address(checker.helpers(_v1))).setCanExec(true);
         MockStrategyHelperV1(address(checker.helpers(_v2))).setCanExec(true);
@@ -66,9 +74,9 @@ contract OrangeStopLossCheckerTest is Fixture {
         _deployMockHelpers(3);
         checker.grantRole(checker.BATCH_CALLER(), address(this));
 
-        address _v1 = checker.vaults(0);
-        address _v2 = checker.vaults(1);
-        address _v3 = checker.vaults(2);
+        address _v1 = checker.getVaultAt(0);
+        address _v2 = checker.getVaultAt(1);
+        address _v3 = checker.getVaultAt(2);
 
         MockStrategyHelperV1(address(checker.helpers(_v1))).setCanExec(false);
         MockStrategyHelperV1(address(checker.helpers(_v2))).setCanExec(true);
@@ -98,13 +106,68 @@ contract OrangeStopLossCheckerTest is Fixture {
         assertTrue(_ok);
     }
 
+    function test_removeVault__Success() public {
+        _deployChecker();
+        _deployMockHelpers(3);
+        checker.grantRole(checker.BATCH_CALLER(), address(this));
+
+        address _v1 = checker.getVaultAt(0);
+        address _v2 = checker.getVaultAt(1);
+        address _v3 = checker.getVaultAt(2);
+
+        MockStrategyHelperV1(address(checker.helpers(_v1))).setCanExec(true);
+        MockStrategyHelperV1(address(checker.helpers(_v2))).setCanExec(true);
+        MockStrategyHelperV1(address(checker.helpers(_v3))).setCanExec(true);
+
+        MockStrategyHelperV1(address(checker.helpers(_v1))).setTick(1);
+        MockStrategyHelperV1(address(checker.helpers(_v2))).setTick(2);
+        MockStrategyHelperV1(address(checker.helpers(_v3))).setTick(3);
+
+        checker.removeVault(_v1);
+        checker.removeVault(_v3);
+
+        // check if vaults are removed
+        assertEq(checker.getVaultCount(), 1);
+        assertEq(checker.getVaultAt(0), _v2);
+        vm.expectRevert(stdError.indexOOBError);
+        checker.getVaultAt(1);
+        vm.expectRevert(stdError.indexOOBError);
+        checker.getVaultAt(2);
+
+        // check if helpers are removed
+        assertEq(address(checker.helpers(_v1)), address(0));
+        assertEq(address(checker.helpers(_v3)), address(0));
+
+        // check if checker works as expected
+        address[] memory _targets = new address[](1);
+        _targets[0] = _v2;
+
+        bytes memory _payload1 = abi.encodeWithSelector(
+            MockStrategyHelperV1(address(checker.helpers(_v2))).stoploss.selector,
+            2
+        );
+        bytes[] memory _payloads = new bytes[](1);
+        _payloads[0] = _payload1;
+
+        (bool _canExec, bytes memory _execPayload) = checker.checker();
+
+        assertEq(_canExec, true);
+        assertEq(_execPayload, abi.encodeWithSelector(checker.stoplossBatch.selector, _targets, _payloads));
+
+        vm.expectEmit(true, true, true, true);
+        emit MockStoplossCalled(2);
+
+        (bool _ok, ) = address(checker).call(_execPayload);
+        assertTrue(_ok);
+    }
+
     function test_checker__Fail_NoVaultExecutable() public {
         _deployChecker();
         _deployMockHelpers(3);
 
-        address _v1 = checker.vaults(0);
-        address _v2 = checker.vaults(1);
-        address _v3 = checker.vaults(2);
+        address _v1 = checker.getVaultAt(0);
+        address _v2 = checker.getVaultAt(1);
+        address _v3 = checker.getVaultAt(2);
 
         MockStrategyHelperV1(address(checker.helpers(_v1))).setCanExec(false);
         MockStrategyHelperV1(address(checker.helpers(_v2))).setCanExec(false);
@@ -128,9 +191,9 @@ contract OrangeStopLossCheckerTest is Fixture {
         _deployMockHelpers(3);
         checker.grantRole(checker.BATCH_CALLER(), address(this));
 
-        address _v1 = checker.vaults(0);
-        address _v2 = checker.vaults(1);
-        address _v3 = checker.vaults(2);
+        address _v1 = checker.getVaultAt(0);
+        address _v2 = checker.getVaultAt(1);
+        address _v3 = checker.getVaultAt(2);
 
         MockStrategyHelperV1(address(checker.helpers(_v1))).setCanExec(true);
         MockStrategyHelperV1(address(checker.helpers(_v2))).setCanExec(true);
