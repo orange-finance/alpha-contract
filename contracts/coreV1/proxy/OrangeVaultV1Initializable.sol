@@ -43,8 +43,8 @@ contract OrangeVaultV1Initializable is
         __OrangeERC20_init(_params.name, _params.symbol);
         if (_params.token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_params.liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_params.lendingPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.liquidityPoolManager == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.lendingPoolManager == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
@@ -54,12 +54,12 @@ contract OrangeVaultV1Initializable is
         token1 = IERC20(_params.token1);
 
         //deploy liquidity pool manager
-        liquidityPool = _params.liquidityPool;
+        liquidityPool = _params.liquidityPoolManager;
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
         //deploy lending pool manager
-        lendingPool = _params.lendingPool;
+        lendingPool = _params.lendingPoolManager;
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 
