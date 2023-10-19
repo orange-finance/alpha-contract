@@ -72,6 +72,7 @@ export const getAddresses = () => {
         OrangeStrategyImplV1: "0x0E7c98AA52311F36b637Cfc75723435737929597",
         OrangeStrategyHelperV1: "",
         OrangeEmitter: "0xaCD36B472ca6cF2E167CB8feA751B33e45b432D9",
+        OrangeStoplossChecker: "0xfBA0FA53ec375C43860Dd42b67957890F2D660A2",
       };
   }
 };
