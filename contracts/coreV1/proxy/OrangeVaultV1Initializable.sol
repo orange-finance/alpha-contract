@@ -10,7 +10,6 @@ import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 
 //extends
 import {OrangeValidationCheckerInitializable} from "@src/coreV1/proxy/OrangeValidationCheckerInitializable.sol";
-import {OrangeERC20} from "@src/coreV1/OrangeERC20.sol";
 
 //libraries
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
