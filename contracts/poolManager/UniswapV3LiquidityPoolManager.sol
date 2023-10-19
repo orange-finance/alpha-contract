@@ -195,8 +195,11 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
         perfFeeRecipient = _perfFeeRecipient;
     }
 
+    /**
+     * @dev set performance fee divisor
+     * @param _perfFeeDivisor divisor of performance fee. setting 0 will disable performance fee
+     */
     function setPerfFeeDivisor(uint128 _perfFeeDivisor) external onlyOwner {
-        if (_perfFeeDivisor == 0) revert("DIV_BY_ZERO");
         perfFeeDivisor = _perfFeeDivisor;
     }
 
@@ -242,6 +245,8 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
     function _takeFee(int24 lowerTick, int24 upperTick) internal {
         // if no recipient, skip
         if (perfFeeRecipient == address(0)) return;
+        // if divisor set to zero, skip
+        if (perfFeeDivisor == 0) return;
 
         // zero burn to update feeGrowth
         pool.burn(lowerTick, upperTick, 0);

@@ -110,11 +110,6 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         liquidityPool.setVault(address(this));
     }
 
-    function test_setPerfDivisorZero_Revert() public {
-        vm.expectRevert(bytes("DIV_BY_ZERO"));
-        liquidityPool.setPerfFeeDivisor(0);
-    }
-
     function test_getTwap_Success() public {
         int24 _twap = liquidityPool.getTwap(5 minutes);
         uint32[] memory secondsAgo = new uint32[](2);
@@ -218,6 +213,46 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         assertEq(token1.balanceOf(david), _perfFee1);
         assertEq(token0.balanceOf(address(this)), _balance0 + fee0 - _perfFee0 + burn0_);
         assertEq(token1.balanceOf(address(this)), _balance1 + fee1 - _perfFee1 + burn1_);
+    }
+
+    function test_allWithZeroFee_Success() public {
+        liquidityPool.setPerfFeeRecipient(david);
+        liquidityPool.setPerfFeeDivisor(0); // no performance fee
+
+        //compute liquidity
+        uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+
+        //mint
+        (uint _amount0, uint _amount1) = liquidityPool.mint(lowerTick, upperTick, _liquidity);
+
+        //assertion of mint
+        (uint _amount0_, uint _amount1_) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, _amount0_ + 1);
+        assertEq(_amount1, _amount1_ + 1);
+
+        uint128 _liquidity2 = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, _liquidity2);
+
+        //swap
+        multiSwapByCarol();
+
+        //compute current fee and position
+        (uint256 fee0, uint256 fee1) = liquidityPool.getFeesEarned(lowerTick, upperTick);
+        (_amount0, _amount1) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        uint _balance0 = token0.balanceOf(address(this));
+        uint _balance1 = token1.balanceOf(address(this));
+
+        // burn and collect
+        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, burn0_);
+        assertEq(_amount1, burn1_);
+
+        liquidityPool.collect(lowerTick, upperTick);
+
+        assertEq(token0.balanceOf(david), 0);
+        assertEq(token1.balanceOf(david), 0);
+        assertEq(token0.balanceOf(address(this)), _balance0 + fee0 + burn0_);
+        assertEq(token1.balanceOf(address(this)), _balance1 + fee1 + burn1_);
     }
 
     function test_allReverse_Success() public {
