@@ -110,8 +110,8 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
         // deploy clone of vault contract
         // address _vault = _createClone(vaultImpl);
         address _vault = vaultImpl.clone();
-        IOrangeVaultV1Initializable.VaultInitalizeParams memory _params = IOrangeVaultV1Initializable
-            .VaultInitalizeParams({
+        IOrangeVaultV1Initializable.VaultInitializeParams memory _params = IOrangeVaultV1Initializable
+            .VaultInitializeParams({
                 name: _vaultConfig.name,
                 symbol: _vaultConfig.symbol,
                 token0: _vaultConfig.token0,
