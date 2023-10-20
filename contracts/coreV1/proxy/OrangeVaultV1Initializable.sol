@@ -13,7 +13,6 @@ import {IMerklCompatibleVault} from "@src/interfaces/IMerklCompatibleVault.sol";
 import {OrangeValidationCheckerInitializable} from "@src/coreV1/proxy/OrangeValidationCheckerInitializable.sol";
 
 //libraries
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {Proxy} from "@src/libs/Proxy.sol";
 import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -22,11 +21,8 @@ import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
 import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
-import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
 
 contract OrangeVaultV1Initializable is
-    Initializable,
     OrangeValidationCheckerInitializable,
     IOrangeVaultV1,
     IOrangeVaultV1Initializable,
@@ -50,7 +46,7 @@ contract OrangeVaultV1Initializable is
         if (_params.router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
 
-        // setting adresses and approving
+        // setting addresses and approving
         token0 = IERC20(_params.token0);
         token1 = IERC20(_params.token1);
 
