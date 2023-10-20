@@ -22,9 +22,11 @@ import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
 import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {OrangeERC20Initializable, IERC20Decimals} from "@src/coreV1/proxy/OrangeERC20Initializable.sol";
 
 contract OrangeVaultV1Initializable is
     OrangeStorageV1Initializable,
+    OrangeERC20Initializable,
     IOrangeVaultV1,
     IOrangeVaultV1Initializable,
     IBalancerFlashLoanRecipient,
@@ -76,6 +78,11 @@ contract OrangeVaultV1Initializable is
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+
+    /// @inheritdoc OrangeERC20Initializable
+    function decimals() public view override returns (uint8) {
+        return IERC20Decimals(address(token0)).decimals();
+    }
 
     /// @inheritdoc IOrangeVaultV1
     function convertToShares(uint256 _assets) external view returns (uint256) {
@@ -272,7 +279,7 @@ contract OrangeVaultV1Initializable is
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token0,
@@ -291,7 +298,7 @@ contract OrangeVaultV1Initializable is
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token1,
