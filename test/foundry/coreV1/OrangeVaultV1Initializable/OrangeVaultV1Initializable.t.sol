@@ -157,7 +157,7 @@ contract OrangeVaultV1InitializableTest is Fixture {
         //zero
         assertGt(_underlyingAssets.liquidityAmount0, 0);
         assertGt(_underlyingAssets.liquidityAmount1, 0);
-        //Greater than or equial 0
+        //Greater than or equal 0
         assertGe(_underlyingAssets.vaultAmount0, 0);
         assertGe(_underlyingAssets.vaultAmount1, 0);
     }
@@ -174,7 +174,7 @@ contract OrangeVaultV1InitializableTest is Fixture {
         //Greater than 0
         assertGt(_underlyingAssets.accruedFees0, 0);
         assertGt(_underlyingAssets.accruedFees1, 0);
-        //Greater than or equial 0
+        //Greater than or equal 0
         assertGe(_underlyingAssets.vaultAmount0, 0);
         assertGe(_underlyingAssets.vaultAmount1, 0);
     }
@@ -517,5 +517,59 @@ contract OrangeVaultV1InitializableTest is Fixture {
         vm.expectEmit(true, true, true, true);
         emit Action(IOrangeVaultV1.ActionType.MANUAL, address(this), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         vault.emitAction(IOrangeVaultV1.ActionType.MANUAL);
+    }
+
+    function test_allowlisted_Success() public {
+        /**
+         * assume that the proofs are as follows:
+         *
+         *  root: 0xe47075d54b1d9bb2eca1aaf74c2a73615b83ee5e7b02a4323bb50db8c32cea00
+         *
+         *  address:  0x7e5f4552091a69125d5dfcb7b8c2659029395bdf // alice
+         *  proof: [
+         *  '0x94a6fc29a44456b36232638a7042431c9c91b910df1c52187179085fac1560e9',
+         *  '0x7ffe805cbf69104033955da6db7de982b4b029fc5459b3133ba12ed30a67ad85'
+         *  ]
+         *
+         *  address:  0x2b5ad5c4795c026514f8317c7a215e218dccd6cf // bob
+         *  proof: [
+         *  '0x3322f33946a3c503c916c8fc29768a547f01fa665e1eb22f9f66cf7e5a262012',
+         *  '0x7ffe805cbf69104033955da6db7de982b4b029fc5459b3133ba12ed30a67ad85'
+         *  ]
+         *
+         *  address:  0x6813eb9362372eef6200f3b1dbc3f819671cba69 // carol
+         *  proof: [
+         *  '0x1143df8268b94bd6292fdd7c9b8af39a79f764cfc03ae006844446bc91203927',
+         *  '0x3dd73fb4bffdc562cf570f864739747e2ab5d46ab397c4466da14e0e06b57d56'
+         *  ]
+         *
+         *  address:  0x1eff47bc3a10a45d4b230b5d10e37751fe6aa718 // david
+         *  proof: [
+         *  '0x1bec7c333d3d0c3eef8c6199a402856509c3f869d25408cc1cc2208d0371db0e',
+         *  '0x3dd73fb4bffdc562cf570f864739747e2ab5d46ab397c4466da14e0e06b57d56'
+         *  ]
+         */
+
+        vm.prank(carol);
+        token0.approve(address(vault), type(uint256).max);
+
+        params.setAllowlistEnabled(true);
+        params.setMerkleRoot(0xe47075d54b1d9bb2eca1aaf74c2a73615b83ee5e7b02a4323bb50db8c32cea00);
+        bytes32[] memory _p1 = new bytes32[](2);
+        _p1[0] = 0x1143df8268b94bd6292fdd7c9b8af39a79f764cfc03ae006844446bc91203927;
+        _p1[1] = 0x3dd73fb4bffdc562cf570f864739747e2ab5d46ab397c4466da14e0e06b57d56;
+
+        vm.prank(carol);
+        vault.deposit(10 ether, 10 ether, _p1);
+        assertTrue(vault.balanceOf(carol) > 0);
+    }
+
+    function test_allowlisted_Revert() public {
+        params.setAllowlistEnabled(true);
+        params.setMerkleRoot(keccak256(abi.encodePacked(uint(1))));
+        bytes32[] memory _merkleProof = new bytes32[](1);
+        _merkleProof[0] = bytes32(0);
+        vm.expectRevert(bytes(ErrorsV1.MERKLE_ALLOWLISTED));
+        vault.deposit(10 ether, 10 ether, _merkleProof);
     }
 }
