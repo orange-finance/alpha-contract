@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
+import "@test/foundry/utils/BaseTest.sol";
 
-import {CamelotV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
-
-import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
-import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
-import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+
+import {IAlgebraPool} from "@src/vendor/algebra/IAlgebraPool.sol";
+import {IDataStorageOperator} from "@src/vendor/algebra/IDataStorageOperator.sol";
+import {IAlgebraSwapCallback} from "@src/vendor/algebra/callback/IAlgebraSwapCallback.sol";
+
+import {CamelotV3LiquidityPoolManager} from "@src/poolManager/CamelotV3LiquidityPoolManager.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 
 contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
     using SafeERC20 for IERC20;
