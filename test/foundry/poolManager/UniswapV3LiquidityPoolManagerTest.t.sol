@@ -73,14 +73,6 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
 
         vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
-        liquidityPool.collect(lowerTick, upperTick);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
-        liquidityPool.burn(lowerTick, upperTick, 0);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
         liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
 
         vm.expectRevert(bytes("ONLY_CALLBACK_CALLER"));
@@ -160,13 +152,10 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-        // _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token0.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token1.balanceOf(address(this)));
         // _consoleBalance();
@@ -200,11 +189,9 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-
-        liquidityPool.collect(lowerTick, upperTick);
 
         // 5% of fee
         (uint _perfFee0, uint _perfFee1) = (fee0 / 20, fee1 / 20);
@@ -243,11 +230,9 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-
-        liquidityPool.collect(lowerTick, upperTick);
 
         assertEq(token0.balanceOf(david), 0);
         assertEq(token1.balanceOf(david), 0);
@@ -292,13 +277,11 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token0.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
         // _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token1.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token0.balanceOf(address(this)));
         // _consoleBalance();

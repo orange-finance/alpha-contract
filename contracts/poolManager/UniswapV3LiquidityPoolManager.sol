@@ -11,7 +11,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 //libraries
 import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {TickMath} from "../libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
 
@@ -208,23 +207,6 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
 
         (uint256 amount0, uint256 amount1) = pool.mint(address(this), lowerTick, upperTick, liquidity, data);
         return reversed ? (amount1, amount0) : (amount0, amount1);
-    }
-
-    function collect(int24 lowerTick, int24 upperTick) external onlyVault returns (uint128, uint128) {
-        (uint128 _amount0, uint128 _amount1) = pool.collect(
-            msg.sender,
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-        return reversed ? (_amount1, _amount0) : (_amount0, _amount1);
-    }
-
-    function burn(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
-        _takeFee(lowerTick, upperTick);
-        (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
-        return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
     }
 
     function burnAndCollect(
