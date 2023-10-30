@@ -42,7 +42,7 @@ contract TokenizedStrategyImpl {
     error AmountZero();
     error LessThanMinDepositAmount();
     error DepositCapReached();
-    error OnRedeemReturnedIncorrectAmount();
+    error WithdrawnLessThanMinAsset();
 
     function _sharedStorage() internal pure returns (SharedStorage storage s) {
         bytes32 slot = SHARED_STORAGE;
@@ -74,49 +74,64 @@ contract TokenizedStrategyImpl {
 
     // state modifying
     function deposit(
-        uint256 share,
+        uint256 assets,
         bytes32[] calldata merkleProof,
         bytes calldata depositConfig
     ) external returns (uint256) {
         SharedStorage storage s = _sharedStorage();
 
-        if (share == 0) revert AmountZero();
-        if (share < s.minDepositAmount) revert LessThanMinDepositAmount();
-        if (share + s.totalSupply > s.depositCap) revert DepositCapReached();
+        if (assets == 0) revert AmountZero();
+        if (assets < s.minDepositAmount) revert LessThanMinDepositAmount();
 
-        if (s.totalSupply == 0) {
-            s.asset.safeTransferFrom(msg.sender, address(this), share);
-            uint _initialBurnedBalance = (10 ** s.decimals / 1000);
-            uint _actualDepositAmount = share - _initialBurnedBalance;
-            _mint(msg.sender, _actualDepositAmount);
-            _mint(address(0), _initialBurnedBalance); // for manipulation resistance
+        // only first deposit
+        if (s.totalSupply == 0) return _firstDeposit(s, assets);
 
-            // TODO: check if this is needed
-            // _checkDepositCap();
-            return _actualDepositAmount;
-        }
+        uint256 _totalAssets = IStrategy(address(this)).totalAssets();
+        if (_totalAssets + assets > s.depositCap) revert DepositCapReached();
 
-        s.asset.safeTransferFrom(msg.sender, address(this), share);
+        s.asset.safeTransferFrom(msg.sender, address(this), assets);
+
+        IStrategy(address(this)).depositCallback(assets, depositConfig);
+
         _mint(msg.sender, share);
-
-        IStrategy(address(this)).onDeposit(share, depositConfig);
 
         return share;
     }
 
-    function redeem(uint256 share, bytes calldata redeemConfig) external returns (uint256 assets) {
+    function redeem(uint256 share, uint256 minAssets, bytes calldata redeemConfig) external returns (uint256) {
+        SharedStorage storage s = _sharedStorage();
+
         if (share == 0) revert AmountZero();
 
-        SharedStorage storage s = _sharedStorage();
+        uint256 _assets = convertToAssets(share);
+
+        uint256 _beforeBal = s.asset.balanceOf(address(this));
+        IStrategy(address(this)).withdrawCallback(assets, redeemConfig);
+        uint256 _afterBal = s.asset.balanceOf(address(this));
+
+        uint256 _withdrawn = _afterBal - _beforeBal;
+
+        if (_withdrawn < minAssets) revert WithdrawnLessThanMinAsset();
+
+        _sharedStorage().asset.safeTransfer(msg.sender, _assets);
 
         _burn(msg.sender, share);
 
-        uint256 _beforeBal = s.asset.balanceOf(address(this));
-        uint256 _assets = IStrategy(address(this)).onRedeem(share, redeemConfig);
+        return _withdrawn;
+    }
 
-        if (_beforeBal - s.asset.balanceOf(address(this)) != _assets) revert OnRedeemReturnedIncorrectAmount();
+    function tend(bytes calldata tendConfig) external {
+        IStrategy(address(this)).tendThis(tendConfig);
+    }
 
-        _sharedStorage().asset.safeTransfer(msg.sender, _assets);
+    function _firstDeposit(SharedStorage storage s, uint256 assets) internal returns (uint256) {
+        s.asset.safeTransferFrom(msg.sender, address(this), assets);
+        uint _initialBurnedBalance = (10 ** s.decimals / 1000);
+        uint _share = assets - _initialBurnedBalance;
+        _mint(msg.sender, _share);
+        _mint(address(0), _initialBurnedBalance); // for manipulation resistance
+
+        return _share;
     }
 
     /*//////////////////////////////////////////////////////////////
