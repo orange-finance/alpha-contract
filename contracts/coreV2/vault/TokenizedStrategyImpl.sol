@@ -43,6 +43,7 @@ contract TokenizedStrategyImpl {
     error LessThanMinDepositAmount();
     error DepositCapReached();
     error WithdrawnLessThanMinAsset();
+    error WithdrawCallbackResultMismatch(uint256 actualWithdrawn, uint256 expectedWithdrawn);
 
     function _sharedStorage() internal pure returns (SharedStorage storage s) {
         bytes32 slot = SHARED_STORAGE;
@@ -104,20 +105,21 @@ contract TokenizedStrategyImpl {
         if (share == 0) revert AmountZero();
 
         uint256 _assets = convertToAssets(share);
+        uint256 _beforeAssets = IStrategy(address(this)).totalAssets();
+        uint256 _actualWithdrawn = IStrategy(address(this)).withdrawCallback(assets, redeemConfig);
+        uint256 _afterAssets = IStrategy(address(this)).totalAssets();
 
-        uint256 _beforeBal = s.asset.balanceOf(address(this));
-        IStrategy(address(this)).withdrawCallback(assets, redeemConfig);
-        uint256 _afterBal = s.asset.balanceOf(address(this));
+        uint256 _expectedWithdrawn = _beforeAssets - _afterAssets;
 
-        uint256 _withdrawn = _afterBal - _beforeBal;
+        if (_expectedWithdrawn != _actualWithdrawn)
+            revert WithdrawCallbackResultMismatch(_actualWithdrawn, _expectedWithdrawn);
+        if (_actualWithdrawn < minAssets) revert WithdrawnLessThanMinAsset();
 
-        if (_withdrawn < minAssets) revert WithdrawnLessThanMinAsset();
-
-        _sharedStorage().asset.safeTransfer(msg.sender, _assets);
+        _sharedStorage().asset.safeTransfer(msg.sender, _actualWithdrawn);
 
         _burn(msg.sender, share);
 
-        return _withdrawn;
+        return _actualWithdrawn;
     }
 
     function tend(bytes calldata tendConfig) external {

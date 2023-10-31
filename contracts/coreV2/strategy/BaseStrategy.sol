@@ -29,11 +29,17 @@ abstract contract BaseStrategy is IStrategy, Proxy {
         return 0;
     }
 
-    function depositCallback(uint256 share, bytes calldata depositConfig) external virtual onlySelf {
+    function depositCallback(
+        uint256 share,
+        bytes calldata depositConfig
+    ) external virtual onlySelf returns (uint256 actualDepositAssets) {
         _depositCallback(share, depositConfig);
     }
 
-    function withdrawCallback(uint256 assets, bytes calldata redeemConfig) external virtual onlySelf {
+    function withdrawCallback(
+        uint256 assets,
+        bytes calldata redeemConfig
+    ) external virtual onlySelf returns (uint256 actualDepositAssets) {
         return _withdrawCallback(assets, redeemConfig);
     }
 
@@ -49,9 +55,15 @@ abstract contract BaseStrategy is IStrategy, Proxy {
         return (_shouldTend, abi.encodeWithSelector(ITokenizedStrategyActions.tend.selector, _tendConfig));
     }
 
-    function _depositCallback(uint256 assets, bytes calldata depositConfig) internal virtual {}
+    function _depositCallback(
+        uint256 assets,
+        bytes calldata depositConfig
+    ) internal virtual returns (uint256 actualDepositAssets) {}
 
-    function _withdrawCallback(uint256 assets, bytes calldata redeemConfig) internal virtual {}
+    function _withdrawCallback(
+        uint256 assets,
+        bytes calldata redeemConfig
+    ) internal virtual returns (uint256 actualDepositAssets) {}
 
     function _tend(bytes calldata tendConfig) internal virtual {}
 

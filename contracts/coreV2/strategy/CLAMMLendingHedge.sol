@@ -53,6 +53,8 @@ contract CLAMMLendingHedge is BaseStrategy {
     IERC20 immutable token1;
 
     bytes32 public flashloanHash;
+    uint256 unspentDepositCache;
+
     int24 public lowerTick;
     int24 public upperTick;
 
@@ -89,7 +91,7 @@ contract CLAMMLendingHedge is BaseStrategy {
                         Strategy Functions
     //////////////////////////////////////////////////////////////*/
 
-    function _depositCallback(uint256 assets, bytes calldata) internal override {
+    function _depositCallback(uint256 assets, bytes calldata) internal override returns (uint256) {
         //take current positions.
         UnderlyingAssets memory _underlyingAssets = _getUnderlyingAssets(lowerTick, upperTick);
 
@@ -97,15 +99,15 @@ contract CLAMMLendingHedge is BaseStrategy {
 
         uint256 _collateralAmount0 = ILendingHelper(lendingHelper).balanceOfCollateral(lendingPool, address(token0));
         uint256 _debtAmount1 = ILendingHelper(lendingHelper).balanceOfDebt(lendingPool, address(token1));
-        uint256 _token0Balance = _underlyingAssets.vaultAmount0 + _underlyingAssets.accruedFees0; //including pending fees
-        uint256 _token1Balance = _underlyingAssets.vaultAmount1 + _underlyingAssets.accruedFees1; //including pending fees
+        uint256 _tokenBalance0 = _underlyingAssets.vaultAmount0 + _underlyingAssets.accruedFees0; //including pending fees
+        uint256 _tokenBalance1 = _underlyingAssets.vaultAmount1 + _underlyingAssets.accruedFees1; //including pending fees
 
         //calculate additional Aave position and Contract balances by assets
         Positions memory _additionalPosition = Positions({
             collateralAmount0: _collateralAmount0.mulDiv(assets, _totalAssets),
             debtAmount1: _debtAmount1.mulDiv(assets, _totalAssets),
-            token0Balance: _token0Balance.mulDiv(assets, _totalAssets), //including pending fees
-            token1Balance: _token1Balance.mulDiv(assets, _totalAssets) //including pending fees
+            token0Balance: _tokenBalance0.mulDiv(assets, _totalAssets), //including pending fees
+            token1Balance: _tokenBalance1.mulDiv(assets, _totalAssets) //including pending fees
         });
 
         uint128 _liquidity = ICLAMMHelper(clammHelper).getCurrentLiquidity(clammPool, lowerTick, upperTick);
@@ -140,76 +142,58 @@ contract CLAMMLendingHedge is BaseStrategy {
                 assets //Token0 from User
             );
         }
+
+        if (unspentDepositCache > 0) {
+            uint256 _actualDepositAssets = assets - unspentDepositCache;
+            unspentDepositCache = 0;
+
+            return _actualDepositAssets;
+        }
+
+        return assets;
     }
 
-    function _withdrawCallback(uint256 assets, bytes calldata withdrawConfig) internal override {
+    function _withdrawCallback(uint256 assets, bytes calldata) internal override returns (uint256) {
         uint256 _totalAssets = totalAssets();
 
-        // Remove liquidity by shares and collect all fees
-        (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) = _withdrawLiquidityByAssets(
-            assets,
-            _totalAssets,
-            lowerTick,
-            upperTick
-        );
+        // Remove liquidity by assets and collect all fees
+        (uint256 _burned0, uint256 _burned1) = _withdrawLiquidityByAssets(assets, _totalAssets, lowerTick, upperTick);
 
-        //compute redeem positions except liquidity
-        //because liquidity is computed by shares
-        //so `token0.balanceOf(address(this)) - _burnedLiquidityAmount0` means remaining balance and colleted fee
-        Positions memory _redeemPosition = _computeTargetPositionByShares(
-            ILendingPoolManager(lendingPool).balanceOfCollateral(),
-            ILendingPoolManager(lendingPool).balanceOfDebt(),
-            token0.balanceOf(address(this)) - _burnedLiquidityAmount0,
-            token1.balanceOf(address(this)) - _burnedLiquidityAmount1,
-            _shares,
-            _totalSupply
-        );
+        // TODO: check if the calculation is correct
+        uint256 _balanceOfCollateral = ILendingHelper(lendingHelper).balanceOfCollateral(lendingPool, address(token0));
+        uint256 _balanceOfDebt = ILendingHelper(lendingHelper).balanceOfDebt(lendingPool, address(token1));
 
-        // `_redeemableAmount0/1` are currently hold balances in this vault and will transfer to receiver
-        uint256 _redeemableAmount0 = _redeemPosition.token0Balance + _burnedLiquidityAmount0;
-        uint256 _redeemableAmount1 = _redeemPosition.token1Balance + _burnedLiquidityAmount1;
+        Positions memory _redeemPosition = Positions({
+            collateralAmount0: _balanceOfCollateral.mulDiv(assets, _totalAssets), // collateral to be withdrawn
+            debtAmount1: _balanceOfDebt.mulDiv(assets, _totalAssets), // debt to be repaid
+            token0Balance: (token0.balanceOf(address(this)) - _burned0).mulDiv(assets, _totalAssets), // token0 for the receiver
+            token1Balance: (token1.balanceOf(address(this)) - _burned1).mulDiv(assets, _totalAssets) // token1 for the receiver
+        });
 
+        uint256 _repayCapacity = _redeemPosition.token1Balance + _burned1;
+        uint256 _repayDebt = _redeemPosition.debtAmount1;
+
+        uint256 _token0ForReceiver = _redeemPosition.token0Balance + _burned0;
         uint256 _flashLoanAmount1;
-        if (_redeemPosition.debtAmount1 >= _redeemableAmount1) {
+        if (_repayDebt >= _repayCapacity) {
             unchecked {
-                _flashLoanAmount1 = _redeemPosition.debtAmount1 - _redeemableAmount1;
+                _flashLoanAmount1 = _repayDebt - _repayCapacity;
             }
         } else {
             // swap surplus Token1 to return receiver as Token0
-            _redeemableAmount0 += ISwapRouter(router).swapAmountIn(
+            _token0ForReceiver += ISwapRouter(router).swapAmountIn(
                 address(token1),
                 address(token0),
                 routerFee,
-                _redeemableAmount1 - _redeemPosition.debtAmount1
+                _repayCapacity - _repayDebt
             );
         }
 
-        // memorize balance of token0 to be remained in vault
-        uint256 _unRedeemableBalance0 = token0.balanceOf(address(this)) - _redeemableAmount0;
+        uint256 _token0ForOtherProviders = token0.balanceOf(address(this)) - _token0ForReceiver;
 
-        // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
-        bytes memory _userData = abi.encode(
-            FlashloanType.REDEEM,
-            _redeemPosition.debtAmount1,
-            _redeemPosition.collateralAmount0
-        );
-        flashloanHash = keccak256(_userData); //set stroage for callback
-        IBalancerVault(balancer).makeFlashLoan(
-            IBalancerFlashLoanRecipient(address(this)),
-            token1,
-            _flashLoanAmount1,
-            _userData
-        );
+        _triggerFlashloanForLiquidation(_flashLoanAmount1, _redeemPosition);
 
-        returnAssets_ = token0.balanceOf(address(this)) - _unRedeemableBalance0;
-
-        // check if redemption has done as expected or not
-        if (returnAssets_ < _minAssets) {
-            revert(ErrorsV1.LESS_AMOUNT);
-        }
-
-        // complete redemption
-        token0.safeTransfer(msg.sender, returnAssets_);
+        return token0.balanceOf(address(this)) - _token0ForOtherProviders;
     }
 
     function tendThis() external {}
@@ -236,18 +220,19 @@ contract CLAMMLendingHedge is BaseStrategy {
     }
 
     function _withdrawLiquidityByAssets(
-        uint256 _shares,
-        uint256 _totalSupply,
-        int24 _lowerTick,
-        int24 _upperTick
+        uint256 assets,
+        uint256 totalAssets_,
+        int24 lowerTick_,
+        int24 upperTick_
     ) internal returns (uint256 _burnedLiquidityAmount0, uint256 _burnedLiquidityAmount1) {
-        uint128 _liquidity = ILiquidityPoolManager(liquidityPool).getCurrentLiquidity(_lowerTick, _upperTick);
-        //unnecessary to check _totalSupply == 0 because an error occurs in redeem before calling this function
-        uint128 _burnLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(_shares, _totalSupply));
-        (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = ILiquidityPoolManager(liquidityPool).burnAndCollect(
-            _lowerTick,
-            _upperTick,
-            _burnLiquidity
+        uint128 _liquidity = ICLAMMHelper(clammHelper).getCurrentLiquidity(clammPool, lowerTick_, upperTick_);
+        //unnecessary to check _totalAssets_ == 0 because an error occurs in redeem before calling this function
+        uint128 _burnedLiquidity = SafeCast.toUint128(uint256(_liquidity).mulDiv(assets, totalAssets_));
+        (_burnedLiquidityAmount0, _burnedLiquidityAmount1) = ICLAMMHelper(clammHelper).burnAndCollect(
+            clammPool,
+            lowerTick_,
+            upperTick_,
+            _burnedLiquidity
         );
     }
 
@@ -265,8 +250,7 @@ contract CLAMMLendingHedge is BaseStrategy {
             FlashloanType.DEPOSIT_OVERHEDGE,
             additionalPosition,
             additionalLiquidity,
-            assets,
-            msg.sender
+            assets
         );
 
         flashloanHash = keccak256(_userData); //set storage for callback
@@ -288,8 +272,7 @@ contract CLAMMLendingHedge is BaseStrategy {
             FlashloanType.DEPOSIT_UNDERHEDGE,
             additionalPosition,
             additionalLiquidity,
-            assets,
-            msg.sender
+            assets
         );
         flashloanHash = keccak256(_userData); //set storage for callback
         IBalancerVault(balancer).makeFlashLoan(
@@ -298,6 +281,23 @@ contract CLAMMLendingHedge is BaseStrategy {
             additionalPosition.debtAmount1 > additionalLiquidityAmount1
                 ? 0
                 : additionalLiquidityAmount1 - additionalPosition.debtAmount1 + 1,
+            _userData
+        );
+    }
+
+    function _triggerFlashloanForLiquidation(uint256 flashloanAmount1, Positions memory redeemPosition) internal {
+        // execute flashloan (repay Token1 and withdraw Token0 in callback function `receiveFlashLoan`)
+        bytes memory _userData = abi.encode(
+            FlashloanType.REDEEM,
+            redeemPosition.debtAmount1,
+            redeemPosition.collateralAmount0
+        );
+
+        flashloanHash = keccak256(_userData); //set storage for callback
+        IBalancerVault(balancer).makeFlashLoan(
+            IBalancerFlashLoanRecipient(address(this)),
+            token1,
+            flashloanAmount1,
             _userData
         );
     }
@@ -313,32 +313,32 @@ contract CLAMMLendingHedge is BaseStrategy {
         if (flashloanHash == bytes32(0) || flashloanHash != keccak256(userData)) revert InvalidFlashloanHash();
         flashloanHash = bytes32(0); //clear cache
 
-        uint8 _flashloanType = abi.decode(userData, (uint8));
+        uint8 _type = abi.decode(userData, (uint8));
 
-        if (_flashloanType == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
-            (, Positions memory _pos, uint128 _liq, uint256 _assets, address _receiver) = abi.decode(
+        if (_type == uint8(FlashloanType.DEPOSIT_OVERHEDGE)) {
+            (, Positions memory _pos, uint128 _liq, uint256 _assets) = abi.decode(
                 userData,
-                (uint8, Positions, uint128, uint256, address)
+                (uint8, Positions, uint128, uint256)
             );
 
             _execOverhedge(amounts[0], _assets, _liq, _pos);
         }
 
-        if (_flashloanType == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
-            (, Positions memory _pos, uint128 _liq, uint256 _assets, address _receiver) = abi.decode(
+        if (_type == uint8(FlashloanType.DEPOSIT_UNDERHEDGE)) {
+            (, Positions memory _pos, uint128 _liq, uint256 _assets) = abi.decode(
                 userData,
-                (uint8, Positions, uint128, uint256, address)
+                (uint8, Positions, uint128, uint256)
             );
 
             _execUnderHedge(_assets, _liq, _pos);
         }
 
-        if (_flashloanType == uint8(FlashloanType.REDEEM)) {
-            (, uint256 _amount1, uint256 _amount0) = abi.decode(userData, (uint8, uint256, uint256)); // (, debt, collateral)
-            _execLiquidation(address(tokens[0]), amounts[0], _amount0, _amount1);
+        if (_type == uint8(FlashloanType.REDEEM)) {
+            (, uint256 _debt1, uint256 _collateral1) = abi.decode(userData, (uint8, uint256, uint256));
+            _execLiquidation(address(tokens[0]), amounts[0], _collateral1, _debt1);
         }
 
-        if (_flashloanType == uint8(FlashloanType.STOPLOSS)) {
+        if (_type == uint8(FlashloanType.STOPLOSS)) {
             // TODO: implement this
         }
 
@@ -424,29 +424,23 @@ contract CLAMMLendingHedge is BaseStrategy {
             positions.token0Balance +
             amount0UsedForToken1;
 
-        //Refund the unspent Token0 (Leave some Token0 for #6)
-        if (_actualUsedAmount0 < assetUserProvided) {
-            //Refund the unspent Token0 (Leave some Token0 for #6)
-            unchecked {
-                token0.safeTransfer(msg.sender, assetUserProvided - _actualUsedAmount0);
-            }
-        }
+        unspentDepositCache = assetUserProvided - _actualUsedAmount0;
     }
 
     function _execLiquidation(
         address flashloanToken0,
         uint256 flashloanAmount0,
-        uint256 amount0,
-        uint256 amount1
+        uint256 collateralAmount0,
+        uint256 debtAmount1
     ) internal {
         address _token0 = address(token0);
         address _token1 = address(token1);
 
         // repay debt
-        ILendingHelper(lendingHelper).repay(lendingPool, _token1, amount1);
+        ILendingHelper(lendingHelper).repay(lendingPool, _token1, debtAmount1);
 
         // withdraw collateral
-        ILendingHelper(lendingHelper).withdraw(lendingPool, _token0, amount0);
+        ILendingHelper(lendingHelper).withdraw(lendingPool, _token0, collateralAmount0);
 
         //swap to repay flashloan
         if (flashloanAmount0 > 0) {
