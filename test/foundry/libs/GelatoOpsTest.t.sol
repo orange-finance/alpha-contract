@@ -3,6 +3,7 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 import {GelatoOps, IOpsProxyFactory} from "../../../contracts/libs/GelatoOps.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract GelatoOpsTest is BaseTest {
     GelatoOpsMock gelatoOps;
@@ -10,6 +11,7 @@ contract GelatoOpsTest is BaseTest {
     address dedicatedMsgSender;
 
     function setUp() public {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         gelatoOps = new GelatoOpsMock();
         (dedicatedMsgSender, ) = IOpsProxyFactory(OPS_PROXY_FACTORY).getProxyOf(address(this));
     }

@@ -3,15 +3,15 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {UniswapV3LiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import {FullMath} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     using SafeERC20 for IERC20;
@@ -37,6 +37,8 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     // currentTick = -204714;
 
     function setUp() public virtual {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
+
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
 
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
