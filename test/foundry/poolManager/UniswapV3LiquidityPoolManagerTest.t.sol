@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
+import "@test/foundry/utils/BaseTest.sol";
 
-import {UniswapV3LiquidityPoolManager, ILiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+
+import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 
 contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     using SafeERC20 for IERC20;
@@ -70,14 +70,6 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
         liquidityPool.mint(lowerTick, upperTick, 0);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
-        liquidityPool.collect(lowerTick, upperTick);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
-        liquidityPool.burn(lowerTick, upperTick, 0);
 
         vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
@@ -160,13 +152,10 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-        // _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token0.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token1.balanceOf(address(this)));
         // _consoleBalance();
@@ -200,11 +189,9 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-
-        liquidityPool.collect(lowerTick, upperTick);
 
         // 5% of fee
         (uint _perfFee0, uint _perfFee1) = (fee0 / 20, fee1 / 20);
@@ -243,11 +230,9 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-
-        liquidityPool.collect(lowerTick, upperTick);
 
         assertEq(token0.balanceOf(david), 0);
         assertEq(token1.balanceOf(david), 0);
@@ -292,13 +277,11 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         uint _balance1 = token0.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
         // _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token1.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token0.balanceOf(address(this)));
         // _consoleBalance();

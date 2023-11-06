@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -9,15 +8,16 @@ import {IUniswapV3MintCallback} from "@uniswap/v3-core/contracts/interfaces/call
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-//libraries
-import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {TickMath} from "../libs/uniswap/TickMath.sol";
-import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
+import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {FullMath, LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {ILiquidityPoolCollectable, PerformanceFee} from "@src/poolManager/libs/PerformanceFee.sol";
 
 contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
+    using PerformanceFee for ILiquidityPoolCollectable;
 
     /* ========== Structs ========== */
 
@@ -210,29 +210,19 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
-    function collect(int24 lowerTick, int24 upperTick) external onlyVault returns (uint128, uint128) {
-        (uint128 _amount0, uint128 _amount1) = pool.collect(
-            msg.sender,
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-        return reversed ? (_amount1, _amount0) : (_amount0, _amount1);
-    }
-
-    function burn(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
-        _takeFee(lowerTick, upperTick);
-        (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
-        return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
-    }
-
     function burnAndCollect(
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256, uint256) {
-        _takeFee(lowerTick, upperTick);
+        PerformanceFee.FeeCollectParams memory _params = PerformanceFee.FeeCollectParams({
+            lowerTick: lowerTick,
+            upperTick: upperTick,
+            perfFeeRecipient: perfFeeRecipient,
+            perfFeeDivisor: perfFeeDivisor
+        });
+        ILiquidityPoolCollectable(address(pool)).takeFee(_params);
+
         uint256 _burn0;
         uint256 _burn1;
         if (liquidity > 0) {
@@ -240,37 +230,6 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
         }
         pool.collect(msg.sender, lowerTick, upperTick, type(uint128).max, type(uint128).max);
         return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
-    }
-
-    function _takeFee(int24 lowerTick, int24 upperTick) internal {
-        // if no recipient, skip
-        if (perfFeeRecipient == address(0)) return;
-        // if divisor set to zero, skip
-        if (perfFeeDivisor == 0) return;
-
-        // zero burn to update feeGrowth
-        pool.burn(lowerTick, upperTick, 0);
-
-        (uint128 _amount0, uint128 _amount1) = pool.collect(
-            msg.sender,
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-
-        (uint128 _a0, uint128 _a1) = reversed ? (_amount1, _amount0) : (_amount0, _amount1);
-
-        IERC20 _token0 = IERC20(pool.token0());
-        IERC20 _token1 = IERC20(pool.token1());
-
-        (uint128 _perfFee0, uint128 _perfFee1) = (_a0 / perfFeeDivisor, _a1 / perfFeeDivisor);
-
-        if (_perfFee0 > 0 && _token0.balanceOf(msg.sender) >= _perfFee0)
-            _token0.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee0);
-
-        if (_perfFee1 > 0 && _token1.balanceOf(msg.sender) >= _perfFee1)
-            _token1.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee1);
     }
 
     /* ========== CALLBACK FUNCTIONS ========== */
