@@ -2,8 +2,9 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyHelperV1, ILiquidityPoolManager} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
+import {ILiquidityPoolManager} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "../../../contracts/libs/UniswapV3Twap.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract OrangeStrategyHelperV1Test is OrangeVaultV1TestBase {
     using UniswapV3Twap for IUniswapV3Pool;
@@ -14,6 +15,7 @@ contract OrangeStrategyHelperV1Test is OrangeVaultV1TestBase {
     using Ints for int256;
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         super.setUp();
     }
 

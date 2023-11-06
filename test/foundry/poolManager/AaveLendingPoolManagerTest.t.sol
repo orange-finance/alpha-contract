@@ -3,9 +3,9 @@ pragma solidity 0.8.16;
 
 import "../utils/BaseTest.sol";
 
-import {ILendingPoolManager, IAaveV3Pool, AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-
+import {IAaveV3Pool, AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract AaveLendingPoolManagerTest is BaseTest {
     using SafeERC20 for IERC20;
@@ -23,6 +23,8 @@ contract AaveLendingPoolManagerTest is BaseTest {
     IERC20 public debtToken1;
 
     function setUp() public virtual {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
+
         (tokenAddr, aaveAddr, ) = AddressHelper.addresses(block.chainid);
 
         aave = IAaveV3Pool(aaveAddr.poolAddr);
