@@ -235,6 +235,8 @@ contract CamelotV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IAlgeb
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256, uint256) {
+        if (liquidity == 0) return (0, 0);
+
         PerformanceFee.FeeCollectParams memory _params = PerformanceFee.FeeCollectParams({
             lowerTick: lowerTick,
             upperTick: upperTick,

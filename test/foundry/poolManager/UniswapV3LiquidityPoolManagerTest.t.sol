@@ -37,6 +37,9 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     // currentTick = -204714;
 
     function setUp() public virtual {
+        uint256 _forkBlock = 46334701;
+        vm.createSelectFork(vm.rpcUrl("arb"), _forkBlock);
+
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
 
         pool = IUniswapV3Pool(uniswapAddr.wethUsdcPoolAddr500);
@@ -119,6 +122,16 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
         liquidityPool.validateTicks(lowerTick, 1);
         vm.expectRevert(bytes("INVALID_TICKS"));
         liquidityPool.validateTicks(upperTick, lowerTick);
+    }
+
+    function test_burnAndCollect_ReturnsZero() public {
+        liquidityPool.setPerfFeeRecipient(david);
+        liquidityPool.setPerfFeeDivisor(20); // 5%
+
+        (uint256 _burned0, uint256 _burned1) = liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
+
+        assertEq(_burned0, 0);
+        assertEq(_burned1, 0);
     }
 
     function test_all_Success() public {
