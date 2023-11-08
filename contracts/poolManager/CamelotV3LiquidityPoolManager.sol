@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {IAlgebraPool} from "../vendor/algebra/IAlgebraPool.sol";
-import {IAlgebraMintCallback} from "../vendor/algebra/callback/IAlgebraMintCallback.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-//libraries
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {TickMath} from "../libs/uniswap/TickMath.sol";
-import {FullMath, LiquidityAmounts} from "../libs/uniswap/LiquidityAmounts.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
+import {ILiquidityPoolCollectable, PerformanceFee} from "@src/poolManager/libs/PerformanceFee.sol";
+import {IAlgebraPool} from "@src/vendor/algebra/IAlgebraPool.sol";
+import {IAlgebraMintCallback} from "@src/vendor/algebra/callback/IAlgebraMintCallback.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {FullMath, LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
 
 // import "forge-std/console2.sol";
 
-contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCallback {
+contract CamelotV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IAlgebraMintCallback {
     using SafeERC20 for IERC20;
     using TickMath for int24;
+    using PerformanceFee for ILiquidityPoolCollectable;
 
     /* ========== Structs ========== */
 
@@ -28,6 +30,8 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
     IAlgebraPool public pool;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public vault;
+    address perfFeeRecipient;
+    uint128 public perfFeeDivisor = 10; // 10% of profit
 
     /* ========== MODIFIER ========== */
     modifier onlyVault() {
@@ -199,6 +203,19 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
 
     /* ========== WRITE FUNCTIONS ========== */
 
+    function setPerfFeeRecipient(address _perfFeeRecipient) external onlyOwner {
+        perfFeeRecipient = _perfFeeRecipient;
+    }
+
+    /**
+     * @dev set performance fee divisor
+     * @param _perfFeeDivisor divisor of performance fee. setting 0 will disable performance fee
+     */
+
+    function setPerfFeeDivisor(uint128 _perfFeeDivisor) external onlyOwner {
+        perfFeeDivisor = _perfFeeDivisor;
+    }
+
     function mint(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
         bytes memory data = abi.encode(msg.sender);
 
@@ -213,27 +230,21 @@ contract CamelotV3LiquidityPoolManager is ILiquidityPoolManager, IAlgebraMintCal
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
-    function collect(int24 lowerTick, int24 upperTick) external onlyVault returns (uint128, uint128) {
-        (uint128 _amount0, uint128 _amount1) = pool.collect(
-            msg.sender,
-            lowerTick,
-            upperTick,
-            type(uint128).max,
-            type(uint128).max
-        );
-        return reversed ? (_amount1, _amount0) : (_amount0, _amount1);
-    }
-
-    function burn(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
-        (uint256 _burn0, uint256 _burn1) = pool.burn(lowerTick, upperTick, liquidity);
-        return reversed ? (_burn1, _burn0) : (_burn0, _burn1);
-    }
-
     function burnAndCollect(
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256, uint256) {
+        if (liquidity == 0) return (0, 0);
+
+        PerformanceFee.FeeCollectParams memory _params = PerformanceFee.FeeCollectParams({
+            lowerTick: lowerTick,
+            upperTick: upperTick,
+            perfFeeRecipient: perfFeeRecipient,
+            perfFeeDivisor: perfFeeDivisor
+        });
+        ILiquidityPoolCollectable(address(pool)).takeFee(_params);
+
         uint256 _burn0;
         uint256 _burn1;
         if (liquidity > 0) {
