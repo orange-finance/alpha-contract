@@ -9,9 +9,10 @@ import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRoute
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
-import {TickMath} from "@src/libs/uniswap/TickMath.sol";
-import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {UniswapV3LiquidityPoolManager, UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
+import {FullMath} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     using SafeERC20 for IERC20;
@@ -37,8 +38,7 @@ contract UniswapV3LiquidityPoolManagerTest is BaseTest {
     // currentTick = -204714;
 
     function setUp() public virtual {
-        uint256 _forkBlock = 46334701;
-        vm.createSelectFork(vm.rpcUrl("arb"), _forkBlock);
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
 
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
 

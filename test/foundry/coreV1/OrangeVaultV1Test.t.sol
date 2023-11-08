@@ -2,9 +2,9 @@
 pragma solidity 0.8.16;
 
 import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeStorageV1, IOrangeParametersV1, OrangeERC20} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
-import {Proxy} from "../../../contracts/libs/Proxy.sol";
+import {ErrorsV1, IOrangeVaultV1, OrangeERC20} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
 import {IERC20Decimals} from "../../../contracts/coreV1/OrangeERC20.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract OrangeVaultV1Test is OrangeVaultV1TestBase {
     using SafeERC20 for IERC20;
@@ -16,6 +16,7 @@ contract OrangeVaultV1Test is OrangeVaultV1TestBase {
     uint256 constant HEDGE_RATIO = 100e6; //100%
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         super.setUp();
     }
 

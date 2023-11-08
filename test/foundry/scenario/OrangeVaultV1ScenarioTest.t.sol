@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import "../coreV1/OrangeVaultV1TestBase.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract OrangeVaultV1ScenarioTest is OrangeVaultV1TestBase {
     using SafeERC20 for IERC20;
@@ -15,6 +16,8 @@ contract OrangeVaultV1ScenarioTest is OrangeVaultV1TestBase {
     uint256 constant MIN_DEPOSIT = 1e15;
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
+
         super.setUp();
         params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
 
