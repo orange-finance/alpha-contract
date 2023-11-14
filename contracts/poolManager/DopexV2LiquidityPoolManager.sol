@@ -13,6 +13,7 @@ import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {ILiquidityPoolCollectable, PerformanceFee} from "@src/poolManager/libs/PerformanceFee.sol";
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 
 import {IDopexV2PositionManager} from "@src/vendor/dopexV2/IDopexV2PositionManager.sol";
 import {IUniswapV3SingleTickLiquidityHandler} from "@src/vendor/dopexV2/IUniswapV3SingleTickLiquidityHandler.sol";
@@ -79,40 +80,48 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         return reversed ? (_a1, _a0) : (_a0, _a1);
     }
 
-    // TODO: take performance fee
     function burnAndCollect(
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
-    ) external onlyVault returns (uint256, uint256) {
+    ) external onlyVault returns (uint256 got0, uint256 got1) {
         if (liquidity == 0) return (0, 0);
 
         address _vault = vault;
-        IUniswapV3Pool _pool = pool;
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
-        (address _t0, address _t1) = (pool.token0(), pool.token1());
+        // calculate performance fee before burning position
+        (uint256 _pf0, uint256 _pf1) = _performanceFee(lowerTick, upperTick);
 
+        // cache before balance
+        (address _t0, address _t1) = (pool.token0(), pool.token1());
         uint256 _pre0 = IERC20(_t0).balanceOf(address(this));
         uint256 _pre1 = IERC20(_t1).balanceOf(address(this));
 
         // burn position
         uint256 _shares = IUniswapV3SingleTickLiquidityHandler(address(handler)).convertToShares(liquidity);
-        bytes memory _burnPositionData = abi.encode(_pool, lowerTick, upperTick, _shares);
+        bytes memory _burnPositionData = abi.encode(pool, lowerTick, upperTick, _shares);
         positionManager.burnPosition(_handler, _burnPositionData);
 
-        uint256 _post0 = IERC20(_t0).balanceOf(address(this));
-        uint256 _post1 = IERC20(_t1).balanceOf(address(this));
-
-        // check tokens received
-        uint256 _a0 = _post0 - _pre0;
-        uint256 _a1 = _post1 - _pre1;
+        // tokens to receive
+        got0 = IERC20(_t0).balanceOf(address(this)) - (_pre0 + _pf0);
+        got1 = IERC20(_t1).balanceOf(address(this)) - (_pre1 + _pf1);
 
         // send tokens to a vault
-        IERC20(_t0).safeTransfer(_vault, _a0);
-        IERC20(_t1).safeTransfer(_vault, _a1);
+        IERC20(_t0).safeTransfer(_vault, got0);
+        IERC20(_t1).safeTransfer(_vault, got1);
 
-        return reversed ? (_a1, _a0) : (_a0, _a1);
+        if (reversed) (got0, got1) = (got1, got0);
+    }
+
+    function _performanceFee(int24 lowerTick, int24 upperTick) internal view returns (uint256 fee0, uint256 fee1) {
+        if (perfFeeRecipient == address(0) || perfFeeDivisor == 0) return (0, 0);
+
+        (uint256 _f0, uint256 _f1) = getFeesEarned(lowerTick, upperTick);
+        fee0 = _f0 / perfFeeDivisor;
+        fee1 = _f1 / perfFeeDivisor;
+        // sort in uniV3's manner
+        if (reversed) (fee0, fee1) = (fee1, fee0);
     }
 
     /*//////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +195,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         revert("INVALID_TICKS");
     }
 
-    function getFeesEarned(int24 lowerTick, int24 upperTick) external view returns (uint256 fee0, uint256 fee1) {
+    function getFeesEarned(int24 lowerTick, int24 upperTick) public view returns (uint256 fee0, uint256 fee1) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
         uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
         IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = _handler.tokenIds(_tid);
