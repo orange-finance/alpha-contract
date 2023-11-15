@@ -9,7 +9,6 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC1155} from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 
 import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
-import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {ILiquidityPoolCollectable, PerformanceFee} from "@src/poolManager/libs/PerformanceFee.sol";
@@ -17,6 +16,10 @@ import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 
 import {IDopexV2PositionManager} from "@src/vendor/dopexV2/IDopexV2PositionManager.sol";
 import {IUniswapV3SingleTickLiquidityHandler} from "@src/vendor/dopexV2/IUniswapV3SingleTickLiquidityHandler.sol";
+
+interface IMulticallProvider {
+    function multicall(bytes[] calldata data) external returns (bytes[] memory results);
+}
 
 contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     using SafeERC20 for IERC20;
@@ -26,12 +29,13 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     uint16 private constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
     IUniswapV3Pool public immutable pool;
+    int24 public immutable tickSpacing;
     IDopexV2PositionManager public immutable positionManager;
     IUniswapV3SingleTickLiquidityHandler public immutable handler;
 
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
-    address public vault;
+    address public immutable vault;
     address perfFeeRecipient;
     uint128 public perfFeeDivisor = 10; // 10% of profit
 
@@ -40,44 +44,89 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         _;
     }
 
-    constructor(address _token0, address _token1, address _pool, address _positionManager, address _handler) {
-        reversed = _token0 > _token1 ? true : false;
+    constructor(address vault_, address pool_, address positionManager_, address handler_) {
+        vault = vault_;
+        pool = IUniswapV3Pool(pool_);
+        positionManager = IDopexV2PositionManager(positionManager_);
+        handler = IUniswapV3SingleTickLiquidityHandler(handler_);
 
-        pool = IUniswapV3Pool(_pool);
-        positionManager = IDopexV2PositionManager(_positionManager);
-        handler = IUniswapV3SingleTickLiquidityHandler(_handler);
+        reversed = IOrangeVaultV1(vault_).token0() > IOrangeVaultV1(vault_).token1();
         fee = pool.fee();
+        tickSpacing = pool.tickSpacing();
     }
 
-    function setVault(address _vault) external {
-        if (vault != address(0)) revert("ALREADY_SET");
-        if (_vault == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+    /*//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                                                    Admin Action
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-        vault = _vault;
+    function setPerfFeeRecipient(address _perfFeeRecipient) external onlyOwner {
+        perfFeeRecipient = _perfFeeRecipient;
+    }
+
+    /**
+     * @dev set performance fee divisor
+     * @param _perfFeeDivisor divisor of performance fee. setting 0 will disable performance fee
+     */
+    function setPerfFeeDivisor(uint128 _perfFeeDivisor) external onlyOwner {
+        perfFeeDivisor = _perfFeeDivisor;
     }
 
     /*//////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                                     Position Management
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-    function mint(int24 lowerTick, int24 upperTick, uint128 liquidity) external onlyVault returns (uint256, uint256) {
+    function mint(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) external onlyVault returns (uint256 a0, uint256 a1) {
         address _vault = vault;
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
+        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
 
-        bytes memory _mintPositionData = abi.encode(pool, lowerTick, upperTick, liquidity);
+        int24 _t = lowerTick;
+        uint128 _l = liquidity / uint128(uint24(_ticks));
+        uint256 _pos = 0;
 
-        (address[] memory _tokens, uint256[] memory _amounts) = _handler.tokensToPullForMint(_mintPositionData);
+        // create call data for multicall
+        bytes[] memory _mcd = new bytes[](uint256(uint24(_ticks)));
+        bytes memory _md;
+        uint256[] memory _amounts;
 
-        (uint256 _a0, uint256 _a1) = (_amounts[0], _amounts[1]);
+        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+            _md = abi.encode(pool, _t, _nt, _l);
+            _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, _handler, _md);
+
+            (, _amounts) = _handler.tokensToPullForMint(_md);
+            a0 += _amounts[0];
+            a1 += _amounts[1];
+
+            unchecked {
+                _t = _nt;
+                _nt += tickSpacing;
+                _pos++;
+            }
+        }
+
+        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
+
+        // including remaining liquidity to the last tick
+        uint128 _rem = liquidity % uint128(uint24(_ticks));
+        _md = abi.encode(pool, _t, upperTick, _l + _rem);
+        _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, _handler, _md);
 
         // receive tokens from a vault
-        IERC20(_tokens[0]).safeTransferFrom(_vault, address(this), _a0);
-        IERC20(_tokens[1]).safeTransferFrom(_vault, address(this), _a1);
+        address[] memory _tokens;
+        (_tokens, _amounts) = _handler.tokensToPullForMint(_md);
+        a0 += _amounts[0];
+        a1 += _amounts[1];
 
-        // mint ERC1155 position
-        positionManager.mintPosition(_handler, _mintPositionData);
+        IERC20(_tokens[0]).safeTransferFrom(_vault, address(this), a0);
+        IERC20(_tokens[1]).safeTransferFrom(_vault, address(this), a1);
 
-        return reversed ? (_a1, _a0) : (_a0, _a1);
+        IMulticallProvider(address(positionManager)).multicall(_mcd);
+
+        return reversed ? (a1, a0) : (a0, a1);
     }
 
     function burnAndCollect(
@@ -99,9 +148,17 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         uint256 _pre1 = IERC20(_t1).balanceOf(address(this));
 
         // burn position
-        uint256 _shares = IUniswapV3SingleTickLiquidityHandler(address(handler)).convertToShares(liquidity);
-        bytes memory _burnPositionData = abi.encode(pool, lowerTick, upperTick, _shares);
-        positionManager.burnPosition(_handler, _burnPositionData);
+        // uint256 _shares = IUniswapV3SingleTickLiquidityHandler(address(handler)).convertToShares(liquidity);
+        // bytes memory _burnPositionData = abi.encode(pool, lowerTick, upperTick, _shares);
+        // positionManager.burnPosition(_handler, _burnPositionData);
+
+        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
+        uint24 _ticksU24 = uint24(_ticks);
+
+        // TODO: implement multicall
+        bytes[] memory _mcData = new bytes[](uint256(_ticksU24));
+
+        IMulticallProvider(address(positionManager)).multicall(_mcData);
 
         // tokens to receive
         got0 = IERC20(_t0).balanceOf(address(this)) - (_pre0 + _pf0);
@@ -145,6 +202,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         (, tick, , , , , ) = pool.slot0();
     }
 
+    // TODO: fix
     function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
         uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, _lowerTick, _upperTick));
@@ -153,6 +211,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         liquidity = _handler.convertToAssets(_share);
     }
 
+    // TODO: fix
     function getAmountsForLiquidity(
         int24 lowerTick,
         int24 upperTick,
@@ -168,6 +227,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         return reversed ? (amount1, amount0) : (amount0, amount1);
     }
 
+    // TODO: fix
     function getLiquidityForAmounts(
         int24 lowerTick,
         int24 upperTick,
@@ -195,6 +255,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         revert("INVALID_TICKS");
     }
 
+    // TODO: fix
     function getFeesEarned(int24 lowerTick, int24 upperTick) public view returns (uint256 fee0, uint256 fee1) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
         uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
@@ -232,6 +293,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         }
     }
 
+    // TODO: fix
     function _getAllFeeOwed(int24 lowerTick, int24 upperTick) internal view returns (uint128, uint128) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
