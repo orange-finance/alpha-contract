@@ -135,40 +135,68 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         uint128 liquidity
     ) external onlyVault returns (uint256 got0, uint256 got1) {
         if (liquidity == 0) return (0, 0);
-
-        address _vault = vault;
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-
-        // calculate performance fee before burning position
-        (uint256 _pf0, uint256 _pf1) = _performanceFee(lowerTick, upperTick);
-
-        // cache before balance
+        // // cache assets to be subtracted from the final balance
         (address _t0, address _t1) = (pool.token0(), pool.token1());
         uint256 _pre0 = IERC20(_t0).balanceOf(address(this));
         uint256 _pre1 = IERC20(_t1).balanceOf(address(this));
 
-        // burn position
-        // uint256 _shares = IUniswapV3SingleTickLiquidityHandler(address(handler)).convertToShares(liquidity);
-        // bytes memory _burnPositionData = abi.encode(pool, lowerTick, upperTick, _shares);
-        // positionManager.burnPosition(_handler, _burnPositionData);
+        // wrap logic to avoid stack too deep error
+        (bytes[] memory _mcd, uint256 _pf0, uint256 _pf1) = _prepareBatchBurn(lowerTick, upperTick, liquidity);
 
-        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
-        uint24 _ticksU24 = uint24(_ticks);
+        IMulticallProvider(address(positionManager)).multicall(_mcd);
 
-        // TODO: implement multicall
-        bytes[] memory _mcData = new bytes[](uint256(_ticksU24));
-
-        IMulticallProvider(address(positionManager)).multicall(_mcData);
-
-        // tokens to receive
+        // calculate tokens to be sent to a vault
         got0 = IERC20(_t0).balanceOf(address(this)) - (_pre0 + _pf0);
         got1 = IERC20(_t1).balanceOf(address(this)) - (_pre1 + _pf1);
 
         // send tokens to a vault
-        IERC20(_t0).safeTransfer(_vault, got0);
-        IERC20(_t1).safeTransfer(_vault, got1);
+        IERC20(_t0).safeTransfer(address(vault), got0);
+        IERC20(_t1).safeTransfer(address(vault), got1);
 
         if (reversed) (got0, got1) = (got1, got0);
+    }
+
+    function _prepareBatchBurn(
+        int24 lowerTick,
+        int24 upperTick,
+        uint128 liquidity
+    ) internal view returns (bytes[] memory burnMulticallData, uint256 perfFee0, uint256 perfFee1) {
+        IUniswapV3SingleTickLiquidityHandler _handler = handler;
+
+        int24 _t = lowerTick;
+        uint256 _pos = 0;
+        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
+        uint128 _l = liquidity / uint128(uint24(_ticks));
+
+        // create call data for multicall
+        burnMulticallData = new bytes[](uint256(uint24(_ticks)));
+        bytes memory _md;
+
+        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+            uint256 _shares = _handler.convertToShares(_l);
+            _md = abi.encode(pool, _t, _nt, _shares);
+            burnMulticallData[_pos] = abi.encodeWithSelector(positionManager.burnPosition.selector, _handler, _md);
+
+            // calculate performance fee
+            (uint256 _pf0, uint256 _pf1) = _performanceFee(_t, _nt);
+
+            unchecked {
+                // add to the amount to be subtracted
+                perfFee0 += _pf0;
+                perfFee1 += _pf1;
+
+                // update tick
+                _t = _nt;
+                _nt += tickSpacing;
+                _pos++;
+            }
+        }
+
+        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
+
+        // including remaining liquidity to the last tick
+        _md = abi.encode(pool, _t, upperTick, _l + _handler.convertToShares(liquidity % uint128(uint24(_ticks))));
+        burnMulticallData[_pos] = abi.encodeWithSelector(positionManager.burnPosition.selector, _handler, _md);
     }
 
     function _performanceFee(int24 lowerTick, int24 upperTick) internal view returns (uint256 fee0, uint256 fee1) {
