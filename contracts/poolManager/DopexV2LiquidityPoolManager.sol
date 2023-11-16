@@ -230,13 +230,39 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         (, tick, , , , , ) = pool.slot0();
     }
 
-    // TODO: fix
-    function getCurrentLiquidity(int24 _lowerTick, int24 _upperTick) external view returns (uint128 liquidity) {
+    function getCurrentLiquidity(int24 lowerTick, int24 upperTick) external view returns (uint128 liquidity) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
-        uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, _lowerTick, _upperTick));
-        uint256 _share = IERC1155(address(handler)).balanceOf(address(this), _tid);
+        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
+        // uint128 _l = liquidity / uint128(uint24(_ticks));
 
-        liquidity = _handler.convertToAssets(_share);
+        int24 _t = lowerTick;
+        uint256 _pos = 0;
+        uint256 _shares;
+
+        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+            liquidity += _getSingleTickLiquidity(_t, tickSpacing);
+
+            unchecked {
+                _t = _nt;
+                _nt += tickSpacing;
+                _pos++;
+            }
+        }
+
+        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
+
+        liquidity = _handler.convertToAssets(_shares);
+    }
+
+    function _getSingleTickLiquidity(int24 tick, int24 spacing) internal view returns (uint128 liquidity) {
+        IUniswapV3SingleTickLiquidityHandler _handler = handler;
+        uint256 _share = IERC1155(address(handler)).balanceOf(address(this), _positionId(tick, tick + spacing));
+
+        return _handler.convertToAssets(_share);
+    }
+
+    function _positionId(int24 lowerTick, int24 upperTick) internal view returns (uint256) {
+        return uint256(keccak256(abi.encode(pool, lowerTick, upperTick)));
     }
 
     // TODO: fix
