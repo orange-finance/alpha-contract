@@ -17,6 +17,8 @@ import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 import {IDopexV2PositionManager} from "@src/vendor/dopexV2/IDopexV2PositionManager.sol";
 import {IUniswapV3SingleTickLiquidityHandler} from "@src/vendor/dopexV2/IUniswapV3SingleTickLiquidityHandler.sol";
 
+import {DopexUniV3HandlerLib} from "@src/poolManager/libs/DopexUniV3HandlerLib.sol";
+
 interface IMulticallProvider {
     function multicall(bytes[] calldata data) external returns (bytes[] memory results);
 }
@@ -25,6 +27,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using PerformanceFee for ILiquidityPoolCollectable;
+    using DopexUniV3HandlerLib for IUniswapV3SingleTickLiquidityHandler;
 
     uint16 private constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
@@ -232,6 +235,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
 
     function getCurrentLiquidity(int24 lowerTick, int24 upperTick) external view returns (uint128 liquidity) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
+        address _pool = address(pool);
         int24 _ticks = (upperTick - lowerTick) / tickSpacing;
         // uint128 _l = liquidity / uint128(uint24(_ticks));
 
@@ -240,7 +244,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         uint256 _shares;
 
         for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            liquidity += _getSingleTickLiquidity(_t, tickSpacing);
+            liquidity += _handler.getSingleTickLiquidity(_pool, _t, tickSpacing);
 
             unchecked {
                 _t = _nt;
@@ -254,31 +258,44 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         liquidity = _handler.convertToAssets(_shares);
     }
 
-    function _getSingleTickLiquidity(int24 tick, int24 spacing) internal view returns (uint128 liquidity) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-        uint256 _share = IERC1155(address(handler)).balanceOf(address(this), _positionId(tick, tick + spacing));
-
-        return _handler.convertToAssets(_share);
-    }
-
-    function _positionId(int24 lowerTick, int24 upperTick) internal view returns (uint256) {
-        return uint256(keccak256(abi.encode(pool, lowerTick, upperTick)));
-    }
-
-    // TODO: fix
     function getAmountsForLiquidity(
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
-    ) external view returns (uint256, uint256) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
-            _sqrtRatioX96,
-            lowerTick.getSqrtRatioAtTick(),
-            upperTick.getSqrtRatioAtTick(),
-            liquidity
+    ) external view returns (uint256 amount0, uint256 amount1) {
+        IUniswapV3SingleTickLiquidityHandler _handler = handler;
+
+        int24 _t = lowerTick;
+        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
+        uint128 _l = liquidity / uint128(uint24(_ticks));
+
+        uint256 _pos = 0;
+        uint256[] memory _amounts;
+
+        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+            // the values are in the order of Uniswap V3 pool(token0, token1)
+            (, _amounts) = _handler.tokensToPullForMint(abi.encode(pool, _t, _nt, _l));
+            amount0 += _amounts[0];
+            amount1 += _amounts[1];
+
+            unchecked {
+                _t = _nt;
+                _nt += tickSpacing;
+                _pos++;
+            }
+        }
+
+        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
+
+        // including remaining liquidity to the last tick
+        (, _amounts) = _handler.tokensToPullForMint(
+            abi.encode(pool, _t, upperTick, _l + (liquidity % uint128(uint24(_ticks))))
         );
-        return reversed ? (amount1, amount0) : (amount0, amount1);
+
+        amount0 += _amounts[0];
+        amount1 += _amounts[1];
+
+        if (reversed) (amount0, amount1) = (amount1, amount0);
     }
 
     // TODO: fix
