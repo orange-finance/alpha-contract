@@ -23,7 +23,7 @@ interface IUniswapV3SingleTickLiquidityHandler is IHandler, IERC1155 {
 
     function tokenIds(uint256) external view returns (TokenIdInfo memory);
 
-    function convertToShares(uint128 _liquidity) external view returns (uint256 shares);
+    function convertToShares(uint128 liquidity, uint256 tokenId) external view returns (uint256 shares);
 
-    function convertToAssets(uint256 _shares) external view returns (uint128 liquidity);
+    function convertToAssets(uint256 shares, uint256 tokenId) external view returns (uint128 liquidity);
 }

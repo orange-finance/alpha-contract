@@ -2,11 +2,9 @@
 pragma solidity 0.8.16;
 
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import {FixedPoint128} from "@uniswap/v3-core/contracts/libraries/FixedPoint128.sol";
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC1155} from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 
 import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
@@ -26,6 +24,7 @@ interface IMulticallProvider {
 contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     using SafeERC20 for IERC20;
     using TickMath for int24;
+    using FullMath for uint256;
     using PerformanceFee for ILiquidityPoolCollectable;
     using DopexUniV3HandlerLib for IUniswapV3SingleTickLiquidityHandler;
 
@@ -161,19 +160,20 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     ) internal view returns (bytes[] memory burnMulticallData, uint256 perfFee0, uint256 perfFee1) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
-        int24 _t = lowerTick;
-        uint256 _pos = 0;
-        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
-        uint128 _l = liquidity / uint128(uint24(_ticks));
+        uint128 _total = handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
 
         // create call data for multicall
-        burnMulticallData = new bytes[](uint256(uint24(_ticks)));
-        bytes memory _md;
-
+        burnMulticallData = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing)));
+        int24 _t = lowerTick;
+        uint256 _pos = 0;
         for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            uint256 _shares = _handler.convertToShares(_l);
-            _md = abi.encode(pool, _t, _nt, _shares);
-            burnMulticallData[_pos] = abi.encodeWithSelector(positionManager.burnPosition.selector, _handler, _md);
+            uint256 _shares = _handler.getTotalSingleTickShares(pool, _t, tickSpacing);
+
+            burnMulticallData[_pos] = abi.encodeWithSelector(
+                positionManager.burnPosition.selector,
+                _handler,
+                abi.encode(pool, _t, _nt, _shares.mulDiv(liquidity, _total))
+            );
 
             // calculate performance fee
             (uint256 _pf0, uint256 _pf1) = _performanceFee(_t, _nt);
@@ -189,12 +189,6 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
                 _pos++;
             }
         }
-
-        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
-
-        // including remaining liquidity to the last tick
-        _md = abi.encode(pool, _t, upperTick, _l + _handler.convertToShares(liquidity % uint128(uint24(_ticks))));
-        burnMulticallData[_pos] = abi.encodeWithSelector(positionManager.burnPosition.selector, _handler, _md);
     }
 
     function _performanceFee(int24 lowerTick, int24 upperTick) internal view returns (uint256 fee0, uint256 fee1) {
@@ -228,72 +222,29 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         (, tick, , , , , ) = pool.slot0();
     }
 
+    /// @notice take average of the all single ticks in the range, because the liquidity is not evenly distributed (dynamic against share)
     function getCurrentLiquidity(int24 lowerTick, int24 upperTick) external view returns (uint128 liquidity) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-        address _pool = address(pool);
-        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
-        // uint128 _l = liquidity / uint128(uint24(_ticks));
-
-        int24 _t = lowerTick;
-        uint256 _pos = 0;
-        uint256 _shares;
-
-        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            liquidity += _handler.getSingleTickLiquidity(_pool, _t, tickSpacing);
-
-            unchecked {
-                _t = _nt;
-                _nt += tickSpacing;
-                _pos++;
-            }
-        }
-
-        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
-
-        liquidity = _handler.convertToAssets(_shares);
+        return handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
     }
 
+    /// @notice get amount of tokens to provide liquidity(average) in the range
     function getAmountsForLiquidity(
         int24 lowerTick,
         int24 upperTick,
         uint128 liquidity
     ) external view returns (uint256 amount0, uint256 amount1) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-
-        int24 _t = lowerTick;
-        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
-        uint128 _l = liquidity / uint128(uint24(_ticks));
-
-        uint256 _pos = 0;
-        uint256[] memory _amounts;
-
-        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            // the values are in the order of Uniswap V3 pool(token0, token1)
-            (, _amounts) = _handler.tokensToPullForMint(abi.encode(pool, _t, _nt, _l));
-            amount0 += _amounts[0];
-            amount1 += _amounts[1];
-
-            unchecked {
-                _t = _nt;
-                _nt += tickSpacing;
-                _pos++;
-            }
-        }
-
-        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
-
-        // including remaining liquidity to the last tick
-        (, _amounts) = _handler.tokensToPullForMint(
-            abi.encode(pool, _t, upperTick, _l + (liquidity % uint128(uint24(_ticks))))
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        (amount0, amount1) = LiquidityAmounts.getAmountsForLiquidity(
+            _sqrtRatioX96,
+            lowerTick.getSqrtRatioAtTick(),
+            upperTick.getSqrtRatioAtTick(),
+            liquidity
         );
 
-        amount0 += _amounts[0];
-        amount1 += _amounts[1];
-
-        if (reversed) (amount0, amount1) = (amount1, amount0);
+        if (reversed) (amount1, amount0) = (amount0, amount1);
     }
 
-    // TODO: fix
+    /// @notice get liquidity(average) for given token amounts in the range
     function getLiquidityForAmounts(
         int24 lowerTick,
         int24 upperTick,
@@ -314,88 +265,16 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
-        int24 _spacing = pool.tickSpacing();
+        int24 _spacing = tickSpacing;
         if (_lowerTick < _upperTick && _lowerTick % _spacing == 0 && _upperTick % _spacing == 0) {
             return;
         }
         revert("INVALID_TICKS");
     }
 
-    // TODO: fix
     function getFeesEarned(int24 lowerTick, int24 upperTick) public view returns (uint256 fee0, uint256 fee1) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-        uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
-        IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = _handler.tokenIds(_tid);
+        (fee0, fee1) = handler.getFeesEarned(pool, lowerTick, upperTick);
 
-        (uint128 _tokensOwed0, uint128 _tokensOwed1) = _getAllFeeOwed(lowerTick, upperTick);
-
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-
-        uint128 _uLiqTotal = _handler.convertToAssets(IERC1155(address(_handler)).balanceOf(address(this), _tid));
-
-        uint160 _sqrtRatioAX96 = lowerTick.getSqrtRatioAtTick();
-        uint160 _sqrtRatioBX96 = upperTick.getSqrtRatioAtTick();
-
-        (uint256 _uLiq0, uint256 _uLiq1) = LiquidityAmounts.getAmountsForLiquidity(
-            _sqrtRatioX96,
-            _sqrtRatioAX96,
-            _sqrtRatioBX96,
-            _uLiqTotal
-        );
-
-        (uint256 _total0, uint256 _total1) = LiquidityAmounts.getAmountsForLiquidity(
-            _sqrtRatioX96,
-            _sqrtRatioAX96,
-            _sqrtRatioBX96,
-            _ti.totalLiquidity
-        );
-
-        if (reversed) {
-            fee0 = (_tokensOwed1 * _uLiq1) / _total1;
-            fee1 = (_tokensOwed0 * _uLiq0) / _total0;
-        } else {
-            fee0 = (_tokensOwed0 * _uLiq0) / _total0;
-            fee1 = (_tokensOwed1 * _uLiq1) / _total1;
-        }
-    }
-
-    // TODO: fix
-    function _getAllFeeOwed(int24 lowerTick, int24 upperTick) internal view returns (uint128, uint128) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-
-        uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
-        IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = _handler.tokenIds(_tid);
-
-        uint128 _totalLiquidity = _ti.totalLiquidity;
-        uint128 _liquidityUsed = _ti.liquidityUsed;
-
-        (
-            ,
-            uint256 feeGrowthInside0LastX128,
-            uint256 feeGrowthInside1LastX128,
-            uint128 _tokensOwed0,
-            uint128 _tokensOwed1
-        ) = pool.positions(keccak256(abi.encode(address(_handler), lowerTick, upperTick)));
-
-        unchecked {
-            _tokensOwed0 += uint128(
-                FullMath.mulDiv(
-                    feeGrowthInside0LastX128 - _ti.feeGrowthInside0LastX128,
-                    // _ti.totalLiquidity - _ti.liquidityUsed,
-                    _totalLiquidity - _liquidityUsed,
-                    FixedPoint128.Q128
-                )
-            );
-            _tokensOwed1 += uint128(
-                FullMath.mulDiv(
-                    feeGrowthInside1LastX128 - _ti.feeGrowthInside1LastX128,
-                    // _ti.totalLiquidity - _ti.liquidityUsed,
-                    _totalLiquidity - _liquidityUsed,
-                    FixedPoint128.Q128
-                )
-            );
-        }
-
-        return (_tokensOwed0, _tokensOwed1);
+        if (reversed) (fee0, fee1) = (fee1, fee0);
     }
 }
