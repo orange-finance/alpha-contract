@@ -8,11 +8,12 @@ import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
 import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
 
-import {IBalancerVault, IOrangeVaultV1} from "@src/coreV1/OrangeVaultV1.sol";
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
 import {IERC20} from "@src/libs/BalancerFlashloan.sol";
 import {IAaveV3Pool} from "@src/interfaces/IAaveV3Pool.sol";
+import {IBalancerVault} from "@src/interfaces/IBalancerFlashloan.sol";
 
 import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
