@@ -85,24 +85,15 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     ) external onlyVault returns (uint256 a0, uint256 a1) {
         address _vault = vault;
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
-        int24 _ticks = (upperTick - lowerTick) / tickSpacing;
-
-        int24 _t = lowerTick;
-        uint128 _l = liquidity / uint128(uint24(_ticks));
-        uint256 _pos = 0;
 
         // create call data for multicall
-        bytes[] memory _mcd = new bytes[](uint256(uint24(_ticks)));
+        bytes[] memory _mcd = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing)));
         bytes memory _md;
-        uint256[] memory _amounts;
-
+        int24 _t = lowerTick;
+        uint256 _pos = 0;
         for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            _md = abi.encode(pool, _t, _nt, _l);
+            _md = abi.encode(pool, _t, _nt, liquidity);
             _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, _handler, _md);
-
-            (, _amounts) = _handler.tokensToPullForMint(_md);
-            a0 += _amounts[0];
-            a1 += _amounts[1];
 
             unchecked {
                 _t = _nt;
@@ -111,23 +102,27 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
             }
         }
 
-        if (_pos != uint256(uint24(_ticks))) revert("INVALID_TICKS");
+        // estimate tokens for minting
+        (address[] memory _tokens, uint256[] memory _amounts) = _handler.tokensToPullForMint(
+            abi.encode(pool, lowerTick, upperTick, liquidity)
+        );
+        a0 = _amounts[0];
+        a1 = _amounts[1];
 
-        // including remaining liquidity to the last tick
-        uint128 _rem = liquidity % uint128(uint24(_ticks));
-        _md = abi.encode(pool, _t, upperTick, _l + _rem);
-        _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, _handler, _md);
-
-        // receive tokens from a vault
-        address[] memory _tokens;
-        (_tokens, _amounts) = _handler.tokensToPullForMint(_md);
-        a0 += _amounts[0];
-        a1 += _amounts[1];
-
+        // pull tokens from a vault
         IERC20(_tokens[0]).safeTransferFrom(_vault, address(this), a0);
         IERC20(_tokens[1]).safeTransferFrom(_vault, address(this), a1);
 
+        // check if multicall is valid
+        uint256 _pre0 = IERC20(_tokens[0]).balanceOf(address(this));
+        uint256 _pre1 = IERC20(_tokens[1]).balanceOf(address(this));
+
         IMulticallProvider(address(positionManager)).multicall(_mcd);
+
+        uint256 _post0 = IERC20(_tokens[0]).balanceOf(address(this));
+        uint256 _post1 = IERC20(_tokens[1]).balanceOf(address(this));
+
+        if (_post0 - _pre0 != a0 || _post1 - _pre1 != a1) revert("INVALID_AMOUNTS");
 
         return reversed ? (a1, a0) : (a0, a1);
     }
