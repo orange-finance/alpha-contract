@@ -57,8 +57,8 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         assertEq(_vault.symbol(), _vaultConfig.symbol, "symbol should be set");
         assertEq(address(_vault.token0()), _vaultConfig.token0, "token0 should be set");
         assertEq(address(_vault.token1()), _vaultConfig.token1, "token1 should be set");
-        assertEq(_vault.liquidityPool(), _vaultConfig.liquidityPool, "liquidityPool should be set");
-        assertEq(_vault.lendingPool(), _vaultConfig.lendingPool, "lendingPool should be set");
+        assertTrue(_vault.liquidityPool() != address(0), "liquidityPool should be set");
+        assertTrue(_vault.lendingPool() != address(0), "lendingPool should be set");
         assertEq(_vault.router(), _vaultConfig.router, "router should be set");
         assertEq(_vault.routerFee(), _vaultConfig.routerFee, "routerFee should be set");
         assertEq(_vault.balancer(), _vaultConfig.balancer, "balancer should be set");

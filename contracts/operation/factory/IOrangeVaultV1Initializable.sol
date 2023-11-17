@@ -12,8 +12,8 @@ interface IOrangeVaultV1Initializable {
         string symbol;
         address token0;
         address token1;
-        address liquidityPool;
-        address lendingPool;
+        address liquidityPoolManager;
+        address lendingPoolManager;
         address params;
         address router;
         uint24 routerFee;
