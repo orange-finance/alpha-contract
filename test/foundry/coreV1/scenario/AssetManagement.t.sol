@@ -1,10 +1,12 @@
-// TODO: delete this file
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../coreV1/OrangeVaultV1TestBase.sol";
+import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 
-contract OrangeVaultV1ScenarioTest is OrangeVaultV1TestBase {
+contract AssetManagementScenarioTest is Fixture {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;

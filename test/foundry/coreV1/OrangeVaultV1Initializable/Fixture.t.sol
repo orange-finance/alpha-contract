@@ -1,27 +1,24 @@
-// TODO: delete this file
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
-import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
-import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-import {OrangeVaultV1, IBalancerVault, IBalancerFlashLoanRecipient, IOrangeVaultV1, ErrorsV1, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
-import {OrangeVaultV1Mock} from "../../../contracts/mocks/OrangeVaultV1Mock.sol";
-import {OrangeStrategyImplV1Mock} from "../../../contracts/mocks/OrangeStrategyImplV1Mock.sol";
-import {OrangeStrategyHelperV1} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
-import {IERC20} from "../../../contracts/libs/BalancerFlashloan.sol";
+import "@test/foundry/utils/BaseTest.sol";
+import {OrangeVaultV1Harness} from "@test/foundry/coreV1/OrangeVaultV1Initializable/harness/OrangeVaultV1Harness.sol";
+import {OrangeStrategyImplV1Harness} from "@test/foundry/coreV1/OrangeVaultV1Initializable/harness/OrangeStrategyImplV1Harness.sol";
+import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
+import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
+import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
+import {IBalancerVault, IOrangeVaultV1} from "@src/coreV1/OrangeVaultV1.sol";
+import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
+import {IERC20} from "@src/libs/BalancerFlashloan.sol";
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
+import {IAaveV3Pool} from "@src/interfaces/IAaveV3Pool.sol";
+import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 
-import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
 
-contract OrangeVaultV1TestBase is BaseTest {
+contract Fixture is BaseTest {
     event Action(
         IOrangeVaultV1.ActionType indexed actionType,
         address indexed caller,
@@ -45,7 +42,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     AddressHelper.UniswapAddr public uniswapAddr;
     AddressHelperV1.BalancerAddr public balancerAddr;
 
-    OrangeVaultV1Mock public vault;
+    OrangeVaultV1Harness public vault;
     IUniswapV3Pool public pool;
     ISwapRouter public router;
     IBalancerVault public balancer;
@@ -55,7 +52,7 @@ contract OrangeVaultV1TestBase is BaseTest {
     IERC20 public collateralToken0;
     IERC20 public debtToken1;
     OrangeParametersV1 public params;
-    OrangeStrategyImplV1Mock public impl;
+    OrangeStrategyImplV1Harness public impl;
     UniswapV3LiquidityPoolManager public liquidityPool;
     AaveLendingPoolManager public lendingPool;
     OrangeStrategyHelperV1 public helper;
@@ -94,22 +91,25 @@ contract OrangeVaultV1TestBase is BaseTest {
         liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
         lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
         //vault
-        vault = new OrangeVaultV1Mock(
-            "OrangeVaultV1Mock",
-            "ORANGE_VAULT_V1",
-            address(token0),
-            address(token1),
-            address(liquidityPool),
-            address(lendingPool),
-            address(params),
-            address(router),
-            500,
-            address(balancer)
+        vault = new OrangeVaultV1Harness();
+        vault.initialize(
+            IOrangeVaultV1Initializable.VaultInitializeParams({
+                name: "OrangeVaultV1Harness",
+                symbol: "ORANGE_VAULT_V1",
+                token0: address(token0),
+                token1: address(token1),
+                liquidityPool: address(liquidityPool),
+                lendingPool: address(lendingPool),
+                params: address(params),
+                router: address(router),
+                routerFee: 500,
+                balancer: address(balancer)
+            })
         );
         liquidityPool.setVault(address(vault));
         lendingPool.setVault(address(vault));
 
-        impl = new OrangeStrategyImplV1Mock();
+        impl = new OrangeStrategyImplV1Harness();
         params.setStrategyImpl(address(impl));
         helper = new OrangeStrategyHelperV1(address(vault));
         params.setHelper(address(helper));

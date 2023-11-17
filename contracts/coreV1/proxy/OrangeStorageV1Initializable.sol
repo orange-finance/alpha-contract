@@ -4,9 +4,10 @@ pragma solidity 0.8.16;
 import {IERC20} from "@src/libs/BalancerFlashloan.sol";
 import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
 import {IOrangeStorageV1} from "@src/interfaces/IOrangeStorageV1.sol";
-import {OrangeERC20Initializable, IERC20Decimals} from "@src/coreV1/proxy/OrangeERC20Initializable.sol";
 
-abstract contract OrangeStorageV1Initializable is IOrangeStorageV1, OrangeERC20Initializable {
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+
+abstract contract OrangeStorageV1Initializable is Initializable, IOrangeStorageV1 {
     struct DepositType {
         uint256 assets;
         uint40 timestamp;
@@ -27,8 +28,4 @@ abstract contract OrangeStorageV1Initializable is IOrangeStorageV1, OrangeERC20I
     address public router;
     uint24 public routerFee;
     address public balancer;
-
-    function decimals() public view override returns (uint8) {
-        return IERC20Decimals(address(token0)).decimals();
-    }
 }

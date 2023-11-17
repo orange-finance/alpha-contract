@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyHelperV1, ILiquidityPoolManager} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
-import {UniswapV3Twap, IUniswapV3Pool} from "../../../contracts/libs/UniswapV3Twap.sol";
+import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
+import {ILiquidityPoolManager} from "@src/coreV1/OrangeStrategyHelperV1.sol";
+import {UniswapV3Twap, IUniswapV3Pool} from "@src/libs/UniswapV3Twap.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract OrangeStrategyHelperV1Test is OrangeVaultV1TestBase {
+contract OrangeStrategyHelperV1Test is Fixture {
     using UniswapV3Twap for IUniswapV3Pool;
     using SafeERC20 for IERC20;
     using TickMath for int24;

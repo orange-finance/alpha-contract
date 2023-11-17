@@ -10,10 +10,9 @@ import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 import {IMerklCompatibleVault} from "@src/interfaces/IMerklCompatibleVault.sol";
 
 //extends
-import {OrangeValidationCheckerInitializable} from "@src/coreV1/proxy/OrangeValidationCheckerInitializable.sol";
+import {OrangeStorageV1Initializable} from "@src/coreV1/proxy/OrangeStorageV1Initializable.sol";
 
 //libraries
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {Proxy} from "@src/libs/Proxy.sol";
 import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -22,12 +21,12 @@ import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
 import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
 import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
-import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {OrangeERC20Initializable, IERC20Decimals} from "@src/coreV1/proxy/OrangeERC20Initializable.sol";
 
 contract OrangeVaultV1Initializable is
-    Initializable,
-    OrangeValidationCheckerInitializable,
+    OrangeStorageV1Initializable,
+    OrangeERC20Initializable,
     IOrangeVaultV1,
     IOrangeVaultV1Initializable,
     IBalancerFlashLoanRecipient,
@@ -38,6 +37,11 @@ contract OrangeVaultV1Initializable is
     using FullMath for uint256;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
+
+    modifier allowlisted(bytes32[] calldata merkleProof) {
+        _validateSenderAllowlisted(msg.sender, merkleProof);
+        _;
+    }
 
     /* ========== CONSTRUCTOR ========== */
     function initialize(VaultInitializeParams calldata _params) external initializer {
@@ -50,7 +54,7 @@ contract OrangeVaultV1Initializable is
         if (_params.router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
 
-        // setting adresses and approving
+        // setting addresses and approving
         token0 = IERC20(_params.token0);
         token1 = IERC20(_params.token1);
 
@@ -74,6 +78,11 @@ contract OrangeVaultV1Initializable is
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+
+    /// @inheritdoc OrangeERC20Initializable
+    function decimals() public view override returns (uint8) {
+        return IERC20Decimals(address(token0)).decimals();
+    }
 
     /// @inheritdoc IOrangeVaultV1
     function convertToShares(uint256 _assets) external view returns (uint256) {
@@ -189,7 +198,7 @@ contract OrangeVaultV1Initializable is
         uint256 _shares,
         uint256 _maxAssets,
         bytes32[] calldata _merkleProof
-    ) external Allowlisted(_merkleProof) returns (uint256) {
+    ) external allowlisted(_merkleProof) returns (uint256) {
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(ErrorsV1.INVALID_AMOUNT);
 
@@ -270,7 +279,7 @@ contract OrangeVaultV1Initializable is
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token0,
@@ -289,7 +298,7 @@ contract OrangeVaultV1Initializable is
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token1,
@@ -431,6 +440,14 @@ contract OrangeVaultV1Initializable is
     function _checkDepositCap() internal view {
         if (_totalAssets(lowerTick, upperTick) > params.depositCap()) {
             revert(ErrorsV1.CAPOVER);
+        }
+    }
+
+    function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view {
+        if (params.allowlistEnabled()) {
+            if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
+                revert(ErrorsV1.MERKLE_ALLOWLISTED);
+            }
         }
     }
 
