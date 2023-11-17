@@ -24,7 +24,7 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
 
     address public immutable registry;
     address public immutable vaultImpl;
-    address public strategyImpl;
+    address public immutable strategyImpl;
 
     event VaultAdded(address indexed vault, string indexed version, address indexed parameters);
     event VaultRemoved(address indexed vault);
