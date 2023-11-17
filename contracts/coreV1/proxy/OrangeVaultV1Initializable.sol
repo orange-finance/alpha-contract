@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-//interafaces
+//interfaces
 import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
 import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
+import {IMerklCompatibleVault} from "@src/interfaces/IMerklCompatibleVault.sol";
 
 //extends
 import {OrangeValidationCheckerInitializable} from "@src/coreV1/proxy/OrangeValidationCheckerInitializable.sol";
@@ -31,6 +32,7 @@ contract OrangeVaultV1Initializable is
     IOrangeVaultV1,
     IOrangeVaultV1Initializable,
     IBalancerFlashLoanRecipient,
+    IMerklCompatibleVault,
     Proxy
 {
     using SafeERC20 for IERC20;
@@ -39,7 +41,7 @@ contract OrangeVaultV1Initializable is
     using BalancerFlashloan for IBalancerVault;
 
     /* ========== CONSTRUCTOR ========== */
-    function initialize(VaultInitalizeParams calldata _params) external initializer {
+    function initialize(VaultInitializeParams calldata _params) external initializer {
         __OrangeERC20_init(_params.name, _params.symbol);
         if (_params.token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
         if (_params.token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
@@ -568,5 +570,10 @@ contract OrangeVaultV1Initializable is
             uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
             if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);
         }
+    }
+
+    /* ========== Merkl compatible functions ========== */
+    function pool() external view override returns (address) {
+        return ILiquidityPoolManager(liquidityPool).getPoolAddress();
     }
 }

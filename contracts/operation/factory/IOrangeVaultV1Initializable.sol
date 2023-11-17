@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
  * @author Orange Finance
  */
 interface IOrangeVaultV1Initializable {
-    struct VaultInitalizeParams {
+    struct VaultInitializeParams {
         string name;
         string symbol;
         address token0;
@@ -24,5 +24,5 @@ interface IOrangeVaultV1Initializable {
      * @notice Initializes the vault.
      * @param _params The parameters to initialize the vault.
      */
-    function initialize(VaultInitalizeParams calldata _params) external;
+    function initialize(VaultInitializeParams calldata _params) external;
 }
