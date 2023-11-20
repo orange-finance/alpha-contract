@@ -1,25 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeStorageV1, OrangeERC20} from "./OrangeStorageV1.sol";
+import {OrangeStorageV1Initializable} from "@src/coreV1/proxy/OrangeStorageV1Initializable.sol";
 
 //interfaces
-import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
+import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 
 //libraries
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
-import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
-import {ErrorsV1} from "./ErrorsV1.sol";
+import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
+import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
+import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 
-contract OrangeStrategyImplV1 is OrangeStorageV1 {
+contract OrangeStrategyImplV1Initializable is OrangeStorageV1Initializable {
     using SafeERC20 for IERC20;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    constructor() OrangeERC20("OrangeStrategyImplV1", "OrangeStrategyImplV1") {}
+    /**
+     * @dev It's okay to lock initialize state with constructor
+     * because this only accepts delegate call so that doesn't have own state actually.
+     */
+    constructor() initializer {}
 
     /* ========== EXTERNAL FUNCTIONS ========== */
     function rebalance(

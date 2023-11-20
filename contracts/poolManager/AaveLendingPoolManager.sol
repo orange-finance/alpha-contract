@@ -9,7 +9,6 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 
 //libraries
 import {ErrorsV1} from "../coreV1/ErrorsV1.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract AaveLendingPoolManager is ILendingPoolManager {
     using SafeERC20 for IERC20;
