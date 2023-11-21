@@ -159,8 +159,10 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         emit log_named_int("currentTick", currentTick);
         // uint160 _ratio = currentTick.getSqrtRatioAtTick();
 
+        // lowerTick = -200500;
+        // upperTick = -200200;
         lowerTick = -200500;
-        upperTick = -200100;
+        upperTick = -199000;
 
         //compute liquidity
         uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);

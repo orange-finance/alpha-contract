@@ -263,19 +263,13 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
     ) external view returns (uint256 amount0, uint256 amount1) {
         int24 _ct = getCurrentTick();
         int24 _t = lowerTick;
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        // (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
             if (_shouldMint(_t, _nt) && _nt - _ct > tickSpacing) {
-                (uint256 _amount0, uint256 _amount1) = LiquidityAmounts.getAmountsForLiquidity(
-                    _sqrtRatioX96,
-                    TickMath.getSqrtRatioAtTick(_t),
-                    TickMath.getSqrtRatioAtTick(_nt),
-                    liquidity
-                );
-
-                amount0 += _amount0;
-                amount1 += _amount1;
+                (, uint256[] memory _amounts) = handler.tokensToPullForMint(abi.encode(pool, _t, _nt, liquidity));
+                amount0 += _amounts[0];
+                amount1 += _amounts[1];
             }
 
             unchecked {
@@ -294,31 +288,22 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         uint256 amount0,
         uint256 amount1
     ) external view returns (uint128 liquidity) {
-        // (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        // (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
-
-        // return
-        //     LiquidityAmounts.getLiquidityForAmounts(
-        //         _sqrtRatioX96,
-        //         lowerTick.getSqrtRatioAtTick(),
-        //         upperTick.getSqrtRatioAtTick(),
-        //         _amount0,
-        //         _amount1
-        //     );
-
         int24 _ct = getCurrentTick();
         int24 _t = lowerTick;
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        int24 _tickCount = (upperTick - lowerTick) / tickSpacing;
+
+        liquidity = LiquidityAmounts.getLiquidityForAmounts(
+            _sqrtRatioX96,
+            TickMath.getSqrtRatioAtTick(lowerTick),
+            TickMath.getSqrtRatioAtTick(upperTick),
+            amount0,
+            amount1
+        );
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            if (_shouldMint(_t, _nt) && _nt - _ct > tickSpacing) {
-                liquidity += LiquidityAmounts.getLiquidityForAmounts(
-                    _sqrtRatioX96,
-                    TickMath.getSqrtRatioAtTick(_t),
-                    TickMath.getSqrtRatioAtTick(_nt),
-                    amount0,
-                    amount1
-                );
+            if (!_shouldMint(_t, _nt) || _nt - _ct <= tickSpacing) {
+                liquidity -= liquidity / uint128(uint24(_tickCount));
             }
 
             unchecked {
