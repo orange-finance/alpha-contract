@@ -5,6 +5,7 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
@@ -17,11 +18,13 @@ import {IUniswapV3SingleTickLiquidityHandler} from "@src/vendor/dopexV2/IUniswap
 
 import {DopexUniV3HandlerLib} from "@src/poolManager/libs/DopexUniV3HandlerLib.sol";
 
+import "forge-std/console2.sol";
+
 interface IMulticallProvider {
     function multicall(bytes[] calldata data) external returns (bytes[] memory results);
 }
 
-contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
+contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolManager {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -55,6 +58,9 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         reversed = IOrangeVaultV1(vault_).token0() > IOrangeVaultV1(vault_).token1();
         fee = pool.fee();
         tickSpacing = pool.tickSpacing();
+
+        IERC20(pool.token0()).safeApprove(positionManager_, type(uint256).max);
+        IERC20(pool.token1()).safeApprove(positionManager_, type(uint256).max);
     }
 
     /*//////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,46 +88,68 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256 a0, uint256 a1) {
-        address _vault = vault;
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
+        // address _vault = vault;
+        // IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
-        // create call data for multicall
-        bytes[] memory _mcd = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing)));
+        // create call data for multicall (reserve max size)
+        bytes[] memory _mcd = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing - 1)));
         bytes memory _md;
         int24 _t = lowerTick;
         uint256 _pos = 0;
-        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-            _md = abi.encode(pool, _t, _nt, liquidity);
-            _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, _handler, _md);
+        uint256[] memory _amounts;
+
+        for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
+            int24 _ct = getCurrentTick();
 
             unchecked {
+                // as Dopex not support in-range LP, only mint if the tick is not crossed
+                if (_shouldMint(_t, _nt) && _nt - _ct > tickSpacing) {
+                    _md = abi.encode(pool, _t, _nt, liquidity);
+                    _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, handler, _md);
+
+                    (, _amounts) = handler.tokensToPullForMint(abi.encode(pool, _t, _nt, liquidity));
+                    a0 += _amounts[0];
+                    a1 += _amounts[1];
+                    _pos++;
+                }
+
                 _t = _nt;
                 _nt += tickSpacing;
-                _pos++;
             }
         }
 
-        // estimate tokens for minting
-        (address[] memory _tokens, uint256[] memory _amounts) = _handler.tokensToPullForMint(
-            abi.encode(pool, lowerTick, upperTick, liquidity)
-        );
-        a0 = _amounts[0];
-        a1 = _amounts[1];
+        // create final call data (remove empty bytes)
+        bytes[] memory _final = new bytes[](uint256(uint24(_pos)));
+
+        for (uint256 i = 0; i < _pos; i++) {
+            _final[i] = _mcd[i];
+        }
 
         // pull tokens from a vault
-        IERC20(_tokens[0]).safeTransferFrom(_vault, address(this), a0);
-        IERC20(_tokens[1]).safeTransferFrom(_vault, address(this), a1);
+        IERC20(pool.token0()).safeTransferFrom(vault, address(this), a0);
+        IERC20(pool.token1()).safeTransferFrom(vault, address(this), a1);
+
+        console2.log("before 0: %d", IERC20(pool.token0()).balanceOf(address(this)));
+        console2.log("before 1: %d", IERC20(pool.token1()).balanceOf(address(this)));
 
         // check if multicall is valid
-        uint256 _pre0 = IERC20(_tokens[0]).balanceOf(address(this));
-        uint256 _pre1 = IERC20(_tokens[1]).balanceOf(address(this));
+        IMulticallProvider(address(positionManager)).multicall(_final);
 
-        IMulticallProvider(address(positionManager)).multicall(_mcd);
+        console2.log("after 0: %d", IERC20(pool.token0()).balanceOf(address(this)));
+        console2.log("after 1: %d", IERC20(pool.token1()).balanceOf(address(this)));
 
-        uint256 _post0 = IERC20(_tokens[0]).balanceOf(address(this));
-        uint256 _post1 = IERC20(_tokens[1]).balanceOf(address(this));
+        uint256 _refund0 = IERC20(pool.token0()).balanceOf(address(this));
+        uint256 _refund1 = IERC20(pool.token1()).balanceOf(address(this));
 
-        if (_post0 - _pre0 != a0 || _post1 - _pre1 != a1) revert("INVALID_AMOUNTS");
+        if (_refund0 > 0) {
+            IERC20(pool.token0()).safeTransfer(vault, _refund0);
+            a0 -= _refund0;
+        }
+
+        if (_refund1 > 0) {
+            IERC20(pool.token1()).safeTransfer(vault, _refund1);
+            a1 -= _refund1;
+        }
 
         return reversed ? (a1, a0) : (a0, a1);
     }
@@ -160,7 +188,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
     ) internal view returns (bytes[] memory burnMulticallData, uint256 perfFee0, uint256 perfFee1) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
-        uint128 _total = handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
+        uint128 _total = _handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
 
         // create call data for multicall
         burnMulticallData = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing)));
@@ -218,7 +246,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         }
     }
 
-    function getCurrentTick() external view returns (int24 tick) {
+    function getCurrentTick() public view returns (int24 tick) {
         (, tick, , , , , ) = pool.slot0();
     }
 
@@ -233,13 +261,28 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         int24 upperTick,
         uint128 liquidity
     ) external view returns (uint256 amount0, uint256 amount1) {
+        int24 _ct = getCurrentTick();
+        int24 _t = lowerTick;
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (amount0, amount1) = LiquidityAmounts.getAmountsForLiquidity(
-            _sqrtRatioX96,
-            lowerTick.getSqrtRatioAtTick(),
-            upperTick.getSqrtRatioAtTick(),
-            liquidity
-        );
+
+        for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
+            if (_shouldMint(_t, _nt) && _nt - _ct > tickSpacing) {
+                (uint256 _amount0, uint256 _amount1) = LiquidityAmounts.getAmountsForLiquidity(
+                    _sqrtRatioX96,
+                    TickMath.getSqrtRatioAtTick(_t),
+                    TickMath.getSqrtRatioAtTick(_nt),
+                    liquidity
+                );
+
+                amount0 += _amount0;
+                amount1 += _amount1;
+            }
+
+            unchecked {
+                _t = _nt;
+                _nt += tickSpacing;
+            }
+        }
 
         if (reversed) (amount1, amount0) = (amount0, amount1);
     }
@@ -251,17 +294,38 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         uint256 amount0,
         uint256 amount1
     ) external view returns (uint128 liquidity) {
-        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
+        // (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+        // (uint256 _amount0, uint256 _amount1) = reversed ? (amount1, amount0) : (amount0, amount1);
 
-        return
-            LiquidityAmounts.getLiquidityForAmounts(
-                _sqrtRatioX96,
-                lowerTick.getSqrtRatioAtTick(),
-                upperTick.getSqrtRatioAtTick(),
-                _amount0,
-                _amount1
-            );
+        // return
+        //     LiquidityAmounts.getLiquidityForAmounts(
+        //         _sqrtRatioX96,
+        //         lowerTick.getSqrtRatioAtTick(),
+        //         upperTick.getSqrtRatioAtTick(),
+        //         _amount0,
+        //         _amount1
+        //     );
+
+        int24 _ct = getCurrentTick();
+        int24 _t = lowerTick;
+        (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+
+        for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
+            if (_shouldMint(_t, _nt) && _nt - _ct > tickSpacing) {
+                liquidity += LiquidityAmounts.getLiquidityForAmounts(
+                    _sqrtRatioX96,
+                    TickMath.getSqrtRatioAtTick(_t),
+                    TickMath.getSqrtRatioAtTick(_nt),
+                    amount0,
+                    amount1
+                );
+            }
+
+            unchecked {
+                _t = _nt;
+                _nt += tickSpacing;
+            }
+        }
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
@@ -276,5 +340,17 @@ contract DopexV2LiquidityPoolManager is Ownable, ILiquidityPoolManager {
         (fee0, fee1) = handler.getFeesEarned(pool, lowerTick, upperTick);
 
         if (reversed) (fee0, fee1) = (fee1, fee0);
+    }
+
+    function _shouldMint(int24 lowerTick, int24 upperTick) internal view returns (bool) {
+        (, , , uint128 _owed0, uint128 _owed1) = pool.positions(
+            keccak256(abi.encodePacked(address(handler), lowerTick, upperTick))
+        );
+
+        if (_owed0 > 0 && _owed0 < 10) return false;
+
+        if (_owed1 > 0 && _owed1 < 10) return false;
+
+        return true;
     }
 }

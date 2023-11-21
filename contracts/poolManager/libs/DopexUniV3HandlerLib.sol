@@ -52,11 +52,13 @@ library DopexUniV3HandlerLib {
         return handler.convertToShares(liquidity, _pid);
     }
 
+    // TODO: skip current tick
     function getLiquidityAverageInRange(
         IUniswapV3SingleTickLiquidityHandler handler,
         IUniswapV3Pool _pool,
         int24 lowerTick,
         int24 upperTick,
+        // int24 currentTick,
         int24 tickSpacing
     ) internal view returns (uint128 liquidity) {
         int24 _spacing = tickSpacing;
@@ -77,6 +79,38 @@ library DopexUniV3HandlerLib {
         liquidity /= uint128(uint24((upperTick - lowerTick) / _spacing));
     }
 
+    // function getAmountsForLiquidity(
+    //     IUniswapV3SingleTickLiquidityHandler,
+    //     IUniswapV3Pool pool,
+    //     int24 lowerTick,
+    //     int24 upperTick,
+    //     int24 currentTick,
+    //     int24 tickSpacing,
+    //     uint128 liquidity
+    // ) internal view returns (uint256 amount0, uint256 amount1) {
+    //     int24 _t = lowerTick;
+    //     (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
+
+    //     for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+    //         if (_nt - currentTick > tickSpacing) {
+    //             (uint256 _amount0, uint256 _amount1) = LiquidityAmounts.getAmountsForLiquidity(
+    //                 _sqrtRatioX96,
+    //                 TickMath.getSqrtRatioAtTick(_t),
+    //                 TickMath.getSqrtRatioAtTick(_nt),
+    //                 liquidity
+    //             );
+
+    //             amount0 += _amount0;
+    //             amount1 += _amount1;
+    //         }
+
+    //         unchecked {
+    //             _t = _nt;
+    //             _nt += tickSpacing;
+    //         }
+    //     }
+    // }
+
     function getFeesEarned(
         IUniswapV3SingleTickLiquidityHandler handler,
         IUniswapV3Pool pool,
@@ -87,7 +121,7 @@ library DopexUniV3HandlerLib {
         uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
         IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = _handler.tokenIds(_tid);
 
-        (uint128 _tokensOwed0, uint128 _tokensOwed1) = _getAllFeeOwed(handler, pool, lowerTick, upperTick);
+        (uint128 _tokensOwed0, uint128 _tokensOwed1) = getAllFeeOwed(handler, pool, lowerTick, upperTick);
 
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
 
@@ -114,16 +148,14 @@ library DopexUniV3HandlerLib {
         fee1 = (_tokensOwed1 * _uLiq1) / _total1;
     }
 
-    function _getAllFeeOwed(
+    function getAllFeeOwed(
         IUniswapV3SingleTickLiquidityHandler handler,
         IUniswapV3Pool pool,
         int24 lowerTick,
         int24 upperTick
     ) internal view returns (uint128, uint128) {
-        IUniswapV3SingleTickLiquidityHandler _handler = handler;
-
-        uint256 _tid = _handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
-        IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = _handler.tokenIds(_tid);
+        uint256 _tid = handler.getHandlerIdentifier(abi.encode(pool, lowerTick, upperTick));
+        IUniswapV3SingleTickLiquidityHandler.TokenIdInfo memory _ti = handler.tokenIds(_tid);
 
         uint128 _totalLiquidity = _ti.totalLiquidity;
         uint128 _liquidityUsed = _ti.liquidityUsed;
@@ -134,7 +166,7 @@ library DopexUniV3HandlerLib {
             uint256 feeGrowthInside1LastX128,
             uint128 _tokensOwed0,
             uint128 _tokensOwed1
-        ) = pool.positions(keccak256(abi.encode(address(_handler), lowerTick, upperTick)));
+        ) = pool.positions(keccak256(abi.encode(address(handler), lowerTick, upperTick)));
 
         unchecked {
             _tokensOwed0 += uint128(
@@ -154,5 +186,16 @@ library DopexUniV3HandlerLib {
         }
 
         return (_tokensOwed0, _tokensOwed1);
+    }
+
+    function getFeeGrowths(
+        IUniswapV3SingleTickLiquidityHandler handler,
+        IUniswapV3Pool pool,
+        int24 lowerTick,
+        int24 upperTick
+    ) internal view returns (uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128) {
+        (, feeGrowthInside0LastX128, feeGrowthInside1LastX128, , ) = pool.positions(
+            keccak256(abi.encode(address(handler), lowerTick, upperTick))
+        );
     }
 }
