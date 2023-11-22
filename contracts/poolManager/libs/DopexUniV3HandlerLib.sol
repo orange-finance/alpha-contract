@@ -8,15 +8,20 @@ import {FixedPoint128} from "@uniswap/v3-core/contracts/libraries/FixedPoint128.
 import {FullMath} from "@src/libs/uniswap/FullMath.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+import "forge-std/console2.sol";
 
 library DopexUniV3HandlerLib {
+    using SafeCast for uint256;
+
     function positionId(
-        IUniswapV3SingleTickLiquidityHandler,
-        IUniswapV3Pool _pool,
+        IUniswapV3SingleTickLiquidityHandler handler,
+        IUniswapV3Pool pool,
         int24 lowerTick,
         int24 upperTick
     ) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(_pool, lowerTick, upperTick)));
+        return uint256(keccak256(abi.encode(handler, pool, lowerTick, upperTick)));
     }
 
     function getTotalSingleTickLiquidity(
@@ -28,7 +33,10 @@ library DopexUniV3HandlerLib {
         uint256 _pid = positionId(handler, _pool, tick, tick + spacing);
         uint256 _share = handler.balanceOf(address(this), _pid);
 
-        return handler.convertToAssets(_share, _pid);
+        // this is a hack to prevent division by zero
+        if (_share == 0) return 0;
+
+        return handler.convertToAssets(_share.toUint128(), _pid);
     }
 
     function getTotalSingleTickShares(
@@ -66,7 +74,7 @@ library DopexUniV3HandlerLib {
         int24 _t = lowerTick;
         uint256 _pos = 0;
 
-        for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
+        for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
             liquidity += getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
 
             unchecked {
@@ -78,38 +86,6 @@ library DopexUniV3HandlerLib {
 
         liquidity /= uint128(uint24((upperTick - lowerTick) / _spacing));
     }
-
-    // function getAmountsForLiquidity(
-    //     IUniswapV3SingleTickLiquidityHandler,
-    //     IUniswapV3Pool pool,
-    //     int24 lowerTick,
-    //     int24 upperTick,
-    //     int24 currentTick,
-    //     int24 tickSpacing,
-    //     uint128 liquidity
-    // ) internal view returns (uint256 amount0, uint256 amount1) {
-    //     int24 _t = lowerTick;
-    //     (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-
-    //     for (int24 _nt = _t + tickSpacing; _nt < upperTick; ) {
-    //         if (_nt - currentTick > tickSpacing) {
-    //             (uint256 _amount0, uint256 _amount1) = LiquidityAmounts.getAmountsForLiquidity(
-    //                 _sqrtRatioX96,
-    //                 TickMath.getSqrtRatioAtTick(_t),
-    //                 TickMath.getSqrtRatioAtTick(_nt),
-    //                 liquidity
-    //             );
-
-    //             amount0 += _amount0;
-    //             amount1 += _amount1;
-    //         }
-
-    //         unchecked {
-    //             _t = _nt;
-    //             _nt += tickSpacing;
-    //         }
-    //     }
-    // }
 
     function getFeesEarned(
         IUniswapV3SingleTickLiquidityHandler handler,
@@ -125,7 +101,10 @@ library DopexUniV3HandlerLib {
 
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
 
-        uint128 _uLiqTotal = _handler.convertToAssets(_handler.balanceOf(address(this), _tid), _tid);
+        uint128 _uLiqTotal = _handler.convertToAssets(
+            SafeCast.toUint128(_handler.balanceOf(address(this), _tid)),
+            _tid
+        );
 
         uint160 _sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(lowerTick);
         uint160 _sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(upperTick);

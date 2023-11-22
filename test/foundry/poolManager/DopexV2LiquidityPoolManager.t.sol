@@ -156,30 +156,47 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
     }
 
     function test_all_Success() public {
-        emit log_named_int("currentTick", currentTick);
         // uint160 _ratio = currentTick.getSqrtRatioAtTick();
 
-        // lowerTick = -200500;
-        // upperTick = -200200;
-        lowerTick = -200500;
-        upperTick = -199000;
+        // current tick:  -200491
+        currentTick = manager.getCurrentTick();
+        emit log_named_int("currentTick", currentTick);
+
+        // price range ≈ $80
+        lowerTick = -200690;
+        upperTick = -200290;
+        emit log_named_int("lowerTick", lowerTick);
+        emit log_named_int("upperTick", upperTick);
 
         //compute liquidity
         uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
 
         //mint
-        vm.prank(mockVault);
-        (uint _amount0, uint _amount1) = manager.mint(lowerTick, upperTick, _liquidity);
-        // //assertion of mint
-        (uint _expect0, uint _expect1) = manager.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        uint wethBefore = WETH.balanceOf(address(this));
+        uint usdceBefore = USDCE.balanceOf(address(this));
 
-        assertEq(_amount0, _expect0);
-        assertEq(_amount1, _expect1);
+        (uint _wethWillUsed, uint _usdceWillUsed) = manager.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        vm.prank(mockVault);
+        (uint _wethUsed, uint _usdceUsed) = manager.mint(lowerTick, upperTick, _liquidity);
+
+        emit log_named_uint("wethWillUsed", _wethWillUsed);
+        emit log_named_uint("usdceWillUsed", _usdceWillUsed);
+        emit log_named_uint("wethUsed", _wethUsed);
+        emit log_named_uint("usdceUsed", _usdceUsed);
+
+        assertEq(_wethUsed, _wethWillUsed, "manager.mint: amount0 mismatch");
+        assertEq(_usdceUsed, _usdceWillUsed, "manager.mint: amount1 mismatch");
+
+        uint wethAfter = WETH.balanceOf(address(this));
+        uint usdceAfter = USDCE.balanceOf(address(this));
+
+        assertEq(wethAfter - wethBefore, _wethUsed, "manager.mint: balance0 used mismatch");
+        assertEq(usdceAfter - usdceBefore, _usdceUsed, "manager.mint: balance1 used mismatch");
 
         // uint128 _liquidity2 = manager.getCurrentLiquidity(lowerTick, upperTick);
         // console2.log(_liquidity2, "liquidity2");
         // assertEq(_liquidity, _liquidity2);
-        // // //swap
+        // //swap
         // multiSwapByCarol();
 
         // //compute current fee and position
