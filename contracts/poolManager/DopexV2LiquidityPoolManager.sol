@@ -88,18 +88,18 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         int24 upperTick,
         uint128 liquidity
     ) external onlyVault returns (uint256 a0, uint256 a1) {
+        int24 _ct = getCurrentTick();
         // create call data for multicall (reserve max size)
         bytes[] memory _mcd = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing - 1)));
         bytes memory _md;
         int24 _t = lowerTick;
         uint256 _pos = 0;
         uint256[] memory _amounts;
-        int24 _ct = getCurrentTick();
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
             unchecked {
                 // as Dopex not support in-range LP, only mint if the tick is not crossed
-                if (_shouldMint(_t, _nt) && uint24(_nt - _ct) > uint24(tickSpacing)) {
+                if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
                     _md = abi.encode(pool, _t, _nt, liquidity);
                     _mcd[_pos] = abi.encodeWithSelector(positionManager.mintPosition.selector, handler, _md);
 
@@ -257,7 +257,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         // (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            if (_shouldMint(_t, _nt) && uint24(_nt - _ct) > uint24(tickSpacing)) {
+            if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
                 (, uint256[] memory _amounts) = handler.tokensToPullForMint(abi.encode(pool, _t, _nt, liquidity));
                 amount0 += _amounts[0];
                 amount1 += _amounts[1];
@@ -284,27 +284,8 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
         int24 _tickCount = (upperTick - lowerTick) / tickSpacing;
 
-        // liquidity = LiquidityAmounts.getLiquidityForAmounts(
-        //     _sqrtRatioX96,
-        //     TickMath.getSqrtRatioAtTick(lowerTick),
-        //     TickMath.getSqrtRatioAtTick(upperTick),
-        //     amount0,
-        //     amount1
-        // );
-
-        // for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-        //     if (!_shouldMint(_t, _nt) || _nt - _ct <= tickSpacing) {
-        //         liquidity -= liquidity / uint128(uint24(_tickCount));
-        //     }
-
-        //     unchecked {
-        //         _t = _nt;
-        //         _nt += tickSpacing;
-        //     }
-        // }
-
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            if (!_shouldMint(_t, _nt) || _nt - _ct <= tickSpacing) {
+            if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
                 liquidity +=
                     LiquidityAmounts.getLiquidityForAmounts(
                         _sqrtRatioX96,
@@ -339,7 +320,15 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         if (reversed) (fee0, fee1) = (fee1, fee0);
     }
 
-    function _shouldMint(int24 lowerTick, int24 upperTick) internal view returns (bool) {
+    function _shouldMint(
+        int24 lowerTick,
+        int24 upperTick,
+        int24 currentTick,
+        int24 spacing
+    ) internal view returns (bool) {
+        // as Dopex not support in-range LP, only mint if the tick is not crossed
+        if (uint24(upperTick - currentTick) <= uint24(spacing)) return false;
+
         (, , , uint128 _owed0, uint128 _owed1) = pool.positions(
             keccak256(abi.encodePacked(address(handler), lowerTick, upperTick))
         );
