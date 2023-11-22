@@ -21,3 +21,6 @@ solc_version = '0.8.16'
 [profile.default.optimizer_details.yulDetails]
 #optimizerSteps = 'dhfoDgvulfnTUtnIf'
 #stackAllocation = true
+
+[rpc_endpoints]
+arb = "${ARB_URL}"

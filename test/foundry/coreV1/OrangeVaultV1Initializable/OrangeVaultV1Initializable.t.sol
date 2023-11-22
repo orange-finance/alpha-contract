@@ -8,6 +8,7 @@ import {LiquidityAmounts, FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol
 import {IERC20Decimals} from "@src/coreV1/OrangeERC20.sol";
 import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../../Config.sol";
 
 contract OrangeVaultV1InitializableTest is Fixture {
     using SafeERC20 for IERC20;
@@ -19,6 +20,7 @@ contract OrangeVaultV1InitializableTest is Fixture {
     uint256 constant HEDGE_RATIO = 100e6; //100%
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         super.setUp();
     }
 

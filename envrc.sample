@@ -4,5 +4,3 @@ export ETHERSCAN_API_KEY=""
 export PRIVATE_KEY=""
 export GOERLI_URL=""
 export ARB_URL="https://arb1.arbitrum.io/rpc"
-export ARB_BLOCK=46334701
-#export ARB_BLOCK=103719100 #for camelot

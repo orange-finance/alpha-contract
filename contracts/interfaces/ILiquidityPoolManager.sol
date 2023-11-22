@@ -34,13 +34,5 @@ interface ILiquidityPoolManager {
         uint128 liquidity
     ) external returns (uint256 amount0, uint256 amount1);
 
-    function collect(int24 lowerTick, int24 upperTick) external returns (uint128 amount0, uint128 amount1);
-
-    function burn(
-        int24 lowerTick,
-        int24 upperTick,
-        uint128 liquidity
-    ) external returns (uint256 amount0, uint256 amount1);
-
     function burnAndCollect(int24 _lowerTick, int24 _upperTick, uint128 _liquidity) external returns (uint256, uint256);
 }

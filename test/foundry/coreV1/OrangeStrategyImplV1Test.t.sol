@@ -8,6 +8,7 @@ import {Proxy} from "@src/libs/Proxy.sol";
 import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract OrangeStrategyImplV1Test is Fixture {
     using SafeERC20 for IERC20;
@@ -16,16 +17,11 @@ contract OrangeStrategyImplV1Test is Fixture {
     using Ints for int24;
     using Ints for int256;
 
-    // int24 public lowerTick = -205680;
-    // int24 public upperTick = -203760;
-    // int24 public stoplossLowerTick = -206280;
-    // int24 public stoplossUpperTick = -203160;
-    // currentTick = -204714;
-
     uint256 constant HEDGE_RATIO = 100e6; //100%
     ProxyMock proxy;
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         super.setUp();
         proxy = new ProxyMock(address(params));
     }
@@ -120,7 +116,6 @@ contract OrangeStrategyImplV1Test is Fixture {
     }
 
     function test_rebalance_SuccessHedgeRatioZero() public {
-        uint _ltv = 80e6;
         uint256 _hedgeRatio = 0;
         vault.deposit(10 ether, 10 ether, new bytes32[](0));
         skip(1);
@@ -398,7 +393,7 @@ contract OrangeStrategyImplV1Test is Fixture {
 
     function _consolecomputeRebalancePosition(
         uint256 _assets,
-        int24 _currentTick,
+        int24, // _currentTick
         int24 _lowerTick,
         int24 _upperTick,
         uint256 _ltv,
@@ -433,10 +428,10 @@ contract ProxyMock is Proxy, OrangeStorageV1 {
     }
 
     function addLiquidityInRebalance(
-        int24 _lowerTick,
-        int24 _upperTick,
-        uint256 _targetAmount0,
-        uint256 _targetAmount1
+        int24, // _lowerTick
+        int24, //_upperTick
+        uint256, // _targetAmount0
+        uint256 //_targetAmount1
     ) external {
         _delegate(params.strategyImpl());
     }

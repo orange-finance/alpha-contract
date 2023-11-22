@@ -7,6 +7,7 @@ import {UniswapV3Twap, IUniswapV3Pool} from "@src/libs/UniswapV3Twap.sol";
 import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
 contract OrangeStrategyHelperV1Test is Fixture {
     using UniswapV3Twap for IUniswapV3Pool;
@@ -17,6 +18,7 @@ contract OrangeStrategyHelperV1Test is Fixture {
     using Ints for int256;
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
         super.setUp();
     }
 

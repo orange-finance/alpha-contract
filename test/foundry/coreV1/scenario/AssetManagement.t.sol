@@ -5,6 +5,7 @@ import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../../Config.sol";
 
 contract AssetManagementScenarioTest is Fixture {
     using SafeERC20 for IERC20;
@@ -18,6 +19,8 @@ contract AssetManagementScenarioTest is Fixture {
     uint256 constant MIN_DEPOSIT = 1e15;
 
     function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
+
         super.setUp();
         params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
 

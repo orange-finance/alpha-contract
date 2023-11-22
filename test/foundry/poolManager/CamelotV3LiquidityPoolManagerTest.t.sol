@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
+import "@test/foundry/utils/BaseTest.sol";
 
-import {CamelotV3LiquidityPoolManager, ILiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
+import {CamelotV3LiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
 
 import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
 import {IDataStorageOperator} from "../../../contracts/vendor/algebra/IDataStorageOperator.sol";
 import {IAlgebraSwapCallback} from "../../../contracts/vendor/algebra/callback/IAlgebraSwapCallback.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import {FullMath} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
+import {ARB_FORK_BLOCK_CAMELOT} from "../Config.sol";
 
 contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
     using SafeERC20 for IERC20;
@@ -37,10 +36,9 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
     int24 public upperTick = -200040;
     int24 public currentTick;
 
-    // block 94588781
-    // currentTick = -201279;
-
     function setUp() public virtual {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_CAMELOT);
+
         (tokenAddr, , uniswapAddr) = AddressHelper.addresses(block.chainid);
         (, camelotAddr) = AddressHelperV2.addresses(block.chainid);
 
@@ -79,19 +77,21 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
 
         vm.expectRevert(bytes("ONLY_VAULT"));
         vm.prank(alice);
-        liquidityPool.collect(lowerTick, upperTick);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
-        liquidityPool.burn(lowerTick, upperTick, 0);
-
-        vm.expectRevert(bytes("ONLY_VAULT"));
-        vm.prank(alice);
         liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
 
         vm.expectRevert(bytes("ONLY_CALLBACK_CALLER"));
         vm.prank(alice);
         liquidityPool.algebraMintCallback(0, 0, bytes(""));
+    }
+
+    function test_onlyOwner_Revert() public {
+        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.prank(alice);
+        liquidityPool.setPerfFeeRecipient(address(0));
+
+        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.prank(alice);
+        liquidityPool.setPerfFeeDivisor(0);
     }
 
     function test_constructor_Success() public {
@@ -125,6 +125,16 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
         liquidityPool.validateTicks(upperTick, lowerTick);
     }
 
+    function test_burnAndCollect_ReturnsZero() public {
+        liquidityPool.setPerfFeeRecipient(david);
+        liquidityPool.setPerfFeeDivisor(20); // 5%
+
+        (uint256 _burned0, uint256 _burned1) = liquidityPool.burnAndCollect(lowerTick, upperTick, 0);
+
+        assertEq(_burned0, 0);
+        assertEq(_burned1, 0);
+    }
+
     function test_all_Success() public {
         // _consoleBalance();
 
@@ -156,16 +166,93 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
         uint _balance1 = token1.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
         _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token0.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token1.balanceOf(address(this)));
         _consoleBalance();
+    }
+
+    function test_allWithPerfFee_Success() public {
+        liquidityPool.setPerfFeeRecipient(david);
+        liquidityPool.setPerfFeeDivisor(20); // 5%
+
+        //compute liquidity
+        uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+
+        //mint
+        (uint _amount0, uint _amount1) = liquidityPool.mint(lowerTick, upperTick, _liquidity);
+
+        //assertion of mint
+        (uint _amount0_, uint _amount1_) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, _amount0_ + 1);
+        assertEq(_amount1, _amount1_ + 1);
+
+        uint128 _liquidity2 = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, _liquidity2);
+
+        //swap
+        multiSwapByCarol();
+
+        //compute current fee and position
+        (uint256 fee0, uint256 fee1) = liquidityPool.getFeesEarned(lowerTick, upperTick);
+        (_amount0, _amount1) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        uint _balance0 = token0.balanceOf(address(this));
+        uint _balance1 = token1.balanceOf(address(this));
+
+        // burn and collect
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, burn0_);
+        assertEq(_amount1, burn1_);
+
+        // 5% of fee
+        (uint _perfFee0, uint _perfFee1) = (fee0 / 20, fee1 / 20);
+
+        assertEq(token0.balanceOf(david), _perfFee0);
+        assertEq(token1.balanceOf(david), _perfFee1);
+        assertEq(token0.balanceOf(address(this)), _balance0 + fee0 - _perfFee0 + burn0_);
+        assertEq(token1.balanceOf(address(this)), _balance1 + fee1 - _perfFee1 + burn1_);
+    }
+
+    function test_allWithZeroFee_Success() public {
+        liquidityPool.setPerfFeeRecipient(david);
+        liquidityPool.setPerfFeeDivisor(0); // no performance fee
+
+        //compute liquidity
+        uint128 _liquidity = liquidityPool.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+
+        //mint
+        (uint _amount0, uint _amount1) = liquidityPool.mint(lowerTick, upperTick, _liquidity);
+
+        //assertion of mint
+        (uint _amount0_, uint _amount1_) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, _amount0_ + 1);
+        assertEq(_amount1, _amount1_ + 1);
+
+        uint128 _liquidity2 = liquidityPool.getCurrentLiquidity(lowerTick, upperTick);
+        assertEq(_liquidity, _liquidity2);
+
+        //swap
+        multiSwapByCarol();
+
+        //compute current fee and position
+        (uint256 fee0, uint256 fee1) = liquidityPool.getFeesEarned(lowerTick, upperTick);
+        (_amount0, _amount1) = liquidityPool.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        uint _balance0 = token0.balanceOf(address(this));
+        uint _balance1 = token1.balanceOf(address(this));
+
+        // burn and collect
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
+        assertEq(_amount0, burn0_);
+        assertEq(_amount1, burn1_);
+
+        assertEq(token0.balanceOf(david), 0);
+        assertEq(token1.balanceOf(david), 0);
+        assertEq(token0.balanceOf(address(this)), _balance0 + fee0 + burn0_);
+        assertEq(token1.balanceOf(address(this)), _balance1 + fee1 + burn1_);
     }
 
     function test_allReverse_Success() public {
@@ -205,13 +292,10 @@ contract CamelotV3LiquidityPoolManagerTest is BaseTest, IAlgebraSwapCallback {
         uint _balance1 = token0.balanceOf(address(this));
 
         // burn and collect
-        (uint burn0_, uint burn1_) = liquidityPool.burn(lowerTick, upperTick, _liquidity);
+        (uint burn0_, uint burn1_) = liquidityPool.burnAndCollect(lowerTick, upperTick, _liquidity);
         assertEq(_amount0, burn0_);
         assertEq(_amount1, burn1_);
-        // _consoleBalance();
 
-        (uint collect0, uint collect1) = liquidityPool.collect(lowerTick, upperTick);
-        console2.log(collect0, collect1);
         assertEq(_balance0 + fee0 + burn0_, token1.balanceOf(address(this)));
         assertEq(_balance1 + fee1 + burn1_, token0.balanceOf(address(this)));
         // _consoleBalance();
