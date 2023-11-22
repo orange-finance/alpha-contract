@@ -3,8 +3,7 @@ pragma solidity 0.8.16;
 
 import {OrangeStorageV1, OrangeERC20} from "./OrangeStorageV1.sol";
 
-//interafaces
-import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
+//interfaces
 import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
 import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
 import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";

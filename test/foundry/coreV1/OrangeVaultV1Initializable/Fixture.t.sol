@@ -7,18 +7,22 @@ import {OrangeStrategyImplV1Harness} from "@test/foundry/coreV1/OrangeVaultV1Ini
 import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
 import {UniswapV3LiquidityPoolManager} from "@src/poolManager/UniswapV3LiquidityPoolManager.sol";
 import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.sol";
-import {IBalancerVault, IOrangeVaultV1} from "@src/coreV1/OrangeVaultV1.sol";
+
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
+import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
 import {IERC20} from "@src/libs/BalancerFlashloan.sol";
-
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {IAaveV3Pool} from "@src/interfaces/IAaveV3Pool.sol";
-import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
+import {IBalancerVault} from "@src/interfaces/IBalancerFlashloan.sol";
 
 import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 contract Fixture is BaseTest {
+    using Clones for address;
+
     event Action(
         IOrangeVaultV1.ActionType indexed actionType,
         address indexed caller,
@@ -43,6 +47,8 @@ contract Fixture is BaseTest {
     AddressHelperV1.BalancerAddr public balancerAddr;
 
     OrangeVaultV1Harness public vault;
+    address public vaultImpl;
+
     IUniswapV3Pool public pool;
     ISwapRouter public router;
     IBalancerVault public balancer;
@@ -91,7 +97,8 @@ contract Fixture is BaseTest {
         liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
         lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
         //vault
-        vault = new OrangeVaultV1Harness();
+        vaultImpl = address(new OrangeVaultV1Harness());
+        vault = OrangeVaultV1Harness(vaultImpl.clone());
         vault.initialize(
             IOrangeVaultV1Initializable.VaultInitializeParams({
                 name: "OrangeVaultV1Harness",

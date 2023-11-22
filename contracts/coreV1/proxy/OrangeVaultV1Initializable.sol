@@ -44,6 +44,12 @@ contract OrangeVaultV1Initializable is
     }
 
     /* ========== CONSTRUCTOR ========== */
+
+    constructor() {
+        /// @dev prevent re-initialization of the implementation contract
+        _disableInitializers();
+    }
+
     function initialize(VaultInitializeParams calldata _params) external initializer {
         __OrangeERC20_init(_params.name, _params.symbol);
         if (_params.token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);

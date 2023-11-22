@@ -7,6 +7,7 @@ import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {LiquidityAmounts, FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {IERC20Decimals} from "@src/coreV1/OrangeERC20.sol";
 import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
+import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 
 contract OrangeVaultV1InitializableTest is Fixture {
     using SafeERC20 for IERC20;
@@ -39,6 +40,24 @@ contract OrangeVaultV1InitializableTest is Fixture {
         assertEq(address(vault.router()), address(router));
         assertEq(vault.routerFee(), 500);
         assertEq(address(vault.balancer()), address(balancer));
+    }
+
+    function test_reInitialization_Revert() public {
+        IOrangeVaultV1Initializable.VaultInitializeParams memory _params = IOrangeVaultV1Initializable
+            .VaultInitializeParams(
+                "Orange Vault",
+                "ORANGE",
+                address(token0),
+                address(token1),
+                address(1),
+                address(2),
+                address(3),
+                address(router),
+                500,
+                address(balancer)
+            );
+        vm.expectRevert("Initializable: contract is already initialized");
+        IOrangeVaultV1Initializable(vaultImpl).initialize(_params);
     }
 
     /* ========== ACCESS CONTROLS ========== */

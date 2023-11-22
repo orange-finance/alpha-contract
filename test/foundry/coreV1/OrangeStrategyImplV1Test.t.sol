@@ -2,7 +2,8 @@
 pragma solidity 0.8.16;
 
 import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
-import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeStorageV1, IOrangeParametersV1, OrangeERC20} from "@src/coreV1/OrangeStrategyImplV1.sol";
+import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeStorageV1, OrangeERC20} from "@src/coreV1/OrangeStrategyImplV1.sol";
+import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
 import {Proxy} from "@src/libs/Proxy.sol";
 import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
