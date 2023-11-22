@@ -1,179 +1,43 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "../utils/BaseTest.sol";
-import {OrangeParametersV1} from "../../../contracts/coreV1/OrangeParametersV1.sol";
-import {CamelotV3LiquidityPoolManager} from "../../../contracts/poolManager/CamelotV3LiquidityPoolManager.sol";
-import {UniswapV3LiquidityPoolManager} from "../../../contracts/poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "../../../contracts/poolManager/AaveLendingPoolManager.sol";
-import {OrangeVaultV1, IBalancerVault, IOrangeVaultV1, ErrorsV1, SafeERC20} from "../../../contracts/coreV1/OrangeVaultV1.sol";
-import {OrangeVaultV1Mock} from "../../../contracts/mocks/OrangeVaultV1Mock.sol";
-import {OrangeStrategyImplV1Mock} from "../../../contracts/mocks/OrangeStrategyImplV1Mock.sol";
-import {OrangeStrategyHelperV1} from "../../../contracts/coreV1/OrangeStrategyHelperV1.sol";
-import {IERC20} from "../../../contracts/libs/BalancerFlashloan.sol";
-import {IERC20Decimals} from "../../../contracts/coreV1/OrangeERC20.sol";
+import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {ARB_FORK_BLOCK_DEFAULT} from "../../Config.sol";
 
-import {IAlgebraPool} from "../../../contracts/vendor/algebra/IAlgebraPool.sol";
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {IAaveV3Pool} from "../../../contracts/interfaces/IAaveV3Pool.sol";
-
-import {TickMath} from "../../../contracts/libs/uniswap/TickMath.sol";
-import {OracleLibrary} from "../../../contracts/libs/uniswap/OracleLibrary.sol";
-import {FullMath, LiquidityAmounts} from "../../../contracts/libs/uniswap/LiquidityAmounts.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-
-contract OrangeVaultV1LightTest is BaseTest {
+contract AssetManagementScenarioTest is Fixture {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
     using Ints for int24;
     using Ints for int256;
 
-    /**** modify below ****/
-    uint24 public constant FEE = 500;
-    // uint256 constant INITIAL_BAL = 10_000 * 1e6;
-    uint256 constant INITIAL_BAL = 10 ether;
-
-    //uniswap
-    // UniswapV3LiquidityPoolManager public liquidityPool;
-    // IUniswapV3Pool public pool;
-    //camelot
-    CamelotV3LiquidityPoolManager public liquidityPool;
-    IAlgebraPool public pool;
-
-    //ARB - USDC.e
-    // currentTick = -274999;
-    // int24 public lowerTick = -275880;
-    // int24 public upperTick = -274080;
-    // int24 public stoplossLowerTick = -276780;
-    // int24 public stoplossUpperTick = -273180;
-
-    //ETH - USDC.e
-    // int24 public lowerTick = -205680;
-    // int24 public upperTick = -203760;
-    // int24 public stoplossLowerTick = -206280;
-    // int24 public stoplossUpperTick = -203160;
-
-    //ETH - USDC at blocknum: 125971611
-    // int24 public lowerTick = -205680;
-    // int24 public upperTick = -203760;
-    // int24 public stoplossLowerTick = -206280;
-    // int24 public stoplossUpperTick = -203160;
-
-    // ARB - ETH at blocknum: 125971611
-    // current 74625
-    int24 public lowerTick = 73740;
-    int24 public upperTick = 75540;
-    int24 public stoplossLowerTick = 72840;
-    int24 public stoplossUpperTick = 76440;
-
-    /**** modify end ****/
-
-    uint256 constant MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-    uint16 constant MAGIC_SCALE_1E4 = 10000; //for slippage
     uint256 constant HEDGE_RATIO = 100e6; //100%
+    uint256 constant INITIAL_BAL = 10 ether;
+    uint256 constant MIN_DEPOSIT = 1e15;
 
-    AddressHelper.TokenAddr public tokenAddr;
-    AddressHelper.AaveAddr public aaveAddr;
-    AddressHelper.UniswapAddr public uniswapAddr;
-    AddressHelperV1.BalancerAddr public balancerAddr;
-    AddressHelperV2.CamelotAddr camelotAddr;
-    AddressHelperV2.TokenAddrV2 tokenAddrV2;
+    function setUp() public override {
+        vm.createSelectFork("arb", ARB_FORK_BLOCK_DEFAULT);
 
-    OrangeVaultV1Mock public vault;
-    ISwapRouter public router;
-    IBalancerVault public balancer;
-    IAaveV3Pool public aave;
-    IERC20 public token0;
-    IERC20 public token1;
-    OrangeParametersV1 public params;
-    OrangeStrategyImplV1Mock public impl;
-    AaveLendingPoolManager public lendingPool;
-    OrangeStrategyHelperV1 public helper;
-    int24 public currentTick;
-    uint256 minDeposit;
-
-    function setUp() public {
-        _setAddresses();
-        _deploy();
-        _dealAndApprove();
-    }
-
-    function _setAddresses() internal virtual {
-        (tokenAddr, aaveAddr, uniswapAddr) = AddressHelper.addresses(block.chainid);
-        (tokenAddrV2, camelotAddr) = AddressHelperV2.addresses(block.chainid);
-
-        /**** modify below ****/
-        token0 = IERC20(tokenAddr.wethAddr);
-        token1 = IERC20(tokenAddrV2.arbAddr);
-        // pool = IUniswapV3Pool(uniswapAddr.arbUsdcePoolAddr);
-        pool = IAlgebraPool(camelotAddr.arbWethPoolAddr);
-        /**** modify end ****/
-
-        aave = IAaveV3Pool(aaveAddr.poolAddr);
-        router = ISwapRouter(uniswapAddr.routerAddr);
-        balancerAddr = AddressHelperV1.addresses(block.chainid);
-        balancer = IBalancerVault(balancerAddr.vaultAddr);
-        params = new OrangeParametersV1();
-
-        params.setDepositCap(9_000 ether);
-        minDeposit = (10 ** IERC20Decimals(address(token0)).decimals() / 100);
-        params.setMinDepositAmount(minDeposit);
-        params.setHelper(address(this));
-        params.setAllowlistEnabled(false);
+        super.setUp();
         params.setMaxLtv(70e6); // setting low maxLtv to avoid liquidation, because this test manipulate uniswap's price but doesn't aave's price
-    }
 
-    function _deploy() internal virtual {
-        /**** modify below ****/
-        // liquidityPool = new UniswapV3LiquidityPoolManager(address(token0), address(token1), address(pool));
-        liquidityPool = new CamelotV3LiquidityPoolManager(address(token0), address(token1), address(pool));
-        /**** modify end ****/
-        lendingPool = new AaveLendingPoolManager(address(token0), address(token1), address(aave));
-        //vault
-        vault = new OrangeVaultV1Mock(
-            "OrangeVaultV1Mock",
-            "ORANGE_VAULT_V1",
-            address(token0),
-            address(token1),
-            address(liquidityPool),
-            address(lendingPool),
-            address(params),
-            address(router),
-            FEE,
-            address(balancer)
-        );
-        liquidityPool.setVault(address(vault));
-        lendingPool.setVault(address(vault));
-
-        impl = new OrangeStrategyImplV1Mock();
-        params.setStrategyImpl(address(impl));
-        helper = new OrangeStrategyHelperV1(address(vault));
-        params.setHelper(address(helper));
         //set Ticks for testing
-        currentTick = getCurrentTick();
-    }
+        (, int24 _tick, , , , , ) = pool.slot0();
+        currentTick = _tick;
 
-    function _dealAndApprove() internal virtual {
-        //deal for tester
-        deal(tokenAddrV2.arbAddr, address(this), 10_000 ether);
-        deal(tokenAddr.usdcAddr, address(this), 10_000 ether);
-        deal(tokenAddrV2.arbAddr, carol, 10_000 ether);
-        deal(tokenAddr.usdcAddr, carol, 10_000 ether);
-        //approve
-        token0.approve(address(vault), type(uint256).max);
-        vm.startPrank(carol);
-        token0.approve(address(router), type(uint256).max);
-        token1.approve(address(router), type(uint256).max);
-        vm.stopPrank();
+        //deal
 
-        //deal for users
         deal(address(token0), address(11), INITIAL_BAL);
         deal(address(token0), address(12), INITIAL_BAL);
         deal(address(token0), address(13), INITIAL_BAL);
         deal(address(token0), address(14), INITIAL_BAL);
         deal(address(token0), address(15), INITIAL_BAL);
+
+        deal(address(token0), carol, 1200 ether);
+        deal(address(token1), carol, 1_200_000 * 1e6);
 
         //approve
         vm.prank(address(11));
@@ -186,14 +50,48 @@ contract OrangeVaultV1LightTest is BaseTest {
         token0.approve(address(vault), type(uint256).max);
         vm.prank(address(15));
         token0.approve(address(vault), type(uint256).max);
+
+        vm.startPrank(carol);
+        token0.approve(address(router), type(uint256).max);
+        token1.approve(address(router), type(uint256).max);
+        vm.stopPrank();
     }
 
-    /* ========== TEST start ========== */
+    //joint test of vault, vault and parameters
+    function test_scenario0() public {
+        helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
+
+        uint256 _maxAsset = 10 ether;
+        vm.prank(address(11));
+        uint _shares = vault.deposit(10 ether, _maxAsset, new bytes32[](0));
+        skip(1);
+        vm.prank(address(12));
+        uint _shares2 = vault.deposit(10 ether, _maxAsset, new bytes32[](0));
+        skip(1);
+
+        assertEq(token0.balanceOf(address(11)), INITIAL_BAL - (10 ether));
+        assertEq(token0.balanceOf(address(12)), INITIAL_BAL - (10 ether));
+        assertEq(vault.balanceOf(address(11)), 10 ether - 1e15);
+        assertEq(vault.balanceOf(address(12)), 10 ether);
+
+        skip(7 days);
+
+        uint256 _minAsset = 1 ether;
+        vm.prank(address(11));
+        vault.redeem(_shares, _minAsset);
+        skip(1);
+        vm.prank(address(12));
+        vault.redeem(_shares2, _minAsset);
+        skip(1);
+        assertEq(token0.balanceOf(address(11)), INITIAL_BAL - 1e15);
+        assertEq(token0.balanceOf(address(12)), INITIAL_BAL);
+    }
+
     //deposit and redeem
     function test_scenario1(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
 
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
@@ -206,9 +104,9 @@ contract OrangeVaultV1LightTest is BaseTest {
 
     //deposit, rebalance and redeem
     function test_scenario2(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
@@ -223,9 +121,9 @@ contract OrangeVaultV1LightTest is BaseTest {
 
     //deposit, rebalance, ChaigingPrice(InRange) and redeem
     function test_scenario3(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
@@ -244,9 +142,9 @@ contract OrangeVaultV1LightTest is BaseTest {
 
     //Deposit, Rebalance, RisingPrice(OutOfRange), Stoploss, Rebalance and Redeem
     function test_scenario4(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
@@ -261,7 +159,7 @@ contract OrangeVaultV1LightTest is BaseTest {
 
         //stoploss
         console2.log("stoploss");
-        int24 _tick = getCurrentTick();
+        (, int24 _tick, , , , , ) = pool.slot0();
         helper.stoploss(_tick);
 
         lowerTick = roundTick(_tick) - 900;
@@ -281,9 +179,9 @@ contract OrangeVaultV1LightTest is BaseTest {
         //because the price Uniswap is changed, but Aaves' is not changed.
         params.setMaxLtv(70000000);
 
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
@@ -298,7 +196,7 @@ contract OrangeVaultV1LightTest is BaseTest {
 
         //stoploss
         console2.log("stoploss");
-        int24 _tick = getCurrentTick();
+        (, int24 _tick, , , , , ) = pool.slot0();
         helper.stoploss(_tick);
 
         lowerTick = roundTick(_tick) - 900;
@@ -314,9 +212,9 @@ contract OrangeVaultV1LightTest is BaseTest {
 
     //Deposit, Rebalance, RisingPrice(OutOfRange), Stoploss, Rebalance, FallingPrice(OutOfRange), Stoploss, Rebalance, Redeem
     function test_scenario6(uint _maxAsset1, uint _maxAsset2, uint _maxAsset3) public {
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         (uint _share1, uint _share2, uint _share3) = _deposit(_maxAsset1, _maxAsset2, _maxAsset3);
 
         helper.rebalance(lowerTick, upperTick, stoplossLowerTick, stoplossUpperTick, HEDGE_RATIO, 0);
@@ -331,10 +229,10 @@ contract OrangeVaultV1LightTest is BaseTest {
 
         //stoploss
         console2.log("stoploss");
-        int24 _tick = getCurrentTick();
+        (, int24 _tick, , , , , ) = pool.slot0();
         helper.stoploss(_tick);
 
-        _tick = getCurrentTick();
+        (, _tick, , , , , ) = pool.slot0();
         lowerTick = roundTick(_tick) - 900;
         upperTick = roundTick(_tick) + 900;
         _rebalance(HEDGE_RATIO);
@@ -345,10 +243,10 @@ contract OrangeVaultV1LightTest is BaseTest {
 
         //stoploss
         console2.log("stoploss");
-        _tick = getCurrentTick();
+        (, _tick, , , , , ) = pool.slot0();
         helper.stoploss(_tick);
 
-        _tick = getCurrentTick();
+        (, _tick, , , , , ) = pool.slot0();
         lowerTick = roundTick(_tick) - 900;
         upperTick = roundTick(_tick) + 900;
         _rebalance(HEDGE_RATIO);
@@ -376,9 +274,9 @@ contract OrangeVaultV1LightTest is BaseTest {
         // uint _hedgeRatio = 150e6;
         // uint _randomLowerTick = 0;
         // uint _randomUpperTick = 1e18;
-        _maxAsset1 = bound(_maxAsset1, minDeposit, INITIAL_BAL);
-        _maxAsset2 = bound(_maxAsset2, minDeposit, INITIAL_BAL);
-        _maxAsset3 = bound(_maxAsset3, minDeposit, INITIAL_BAL);
+        _maxAsset1 = bound(_maxAsset1, params.minDepositAmount(), INITIAL_BAL);
+        _maxAsset2 = bound(_maxAsset2, MIN_DEPOSIT, INITIAL_BAL);
+        _maxAsset3 = bound(_maxAsset3, MIN_DEPOSIT, INITIAL_BAL);
         _hedgeRatio = bound(_hedgeRatio, 20e6, 100e6);
         _randomLowerTick = bound(_randomLowerTick, 60, 900);
         _randomUpperTick = bound(_randomUpperTick, 60, 900);
@@ -397,7 +295,7 @@ contract OrangeVaultV1LightTest is BaseTest {
 
         //stoploss
         console2.log("stoploss");
-        int24 _tick = getCurrentTick();
+        (, int24 _tick, , , , , ) = pool.slot0();
         helper.stoploss(_tick);
 
         lowerTick = roundTick(_tick - int24(uint24(_randomLowerTick)));
@@ -420,49 +318,6 @@ contract OrangeVaultV1LightTest is BaseTest {
     }
 
     /* ========== TEST functions ========== */
-    function swapByCarol(bool _zeroForOne, uint256 _amountIn) internal returns (uint256 amountOut_) {
-        ISwapRouter.ExactInputSingleParams memory inputParams;
-        if (_zeroForOne) {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token0),
-                tokenOut: address(token1),
-                fee: FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-        } else {
-            inputParams = ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(token1),
-                tokenOut: address(token0),
-                fee: FEE,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: _amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-        }
-        vm.prank(carol);
-        amountOut_ = router.exactInputSingle(inputParams);
-    }
-
-    function multiSwapByCarol() internal {
-        swapByCarol(true, 1 ether);
-        swapByCarol(false, 2000 * 1e6);
-        swapByCarol(true, 1 ether);
-    }
-
-    function roundTick(int24 _tick) internal view returns (int24) {
-        return (_tick / pool.tickSpacing()) * pool.tickSpacing();
-    }
-
-    function getCurrentTick() internal view returns (int24) {
-        return liquidityPool.getCurrentTick();
-    }
-
     function _deposit(
         uint _maxAsset1,
         uint _maxAsset2,

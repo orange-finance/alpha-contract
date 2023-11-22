@@ -1,44 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {OrangeVaultV1, IERC20} from "../coreV1/OrangeVaultV1.sol";
-import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
+import {OrangeVaultV1Initializable} from "@src/coreV1/proxy/OrangeVaultV1Initializable.sol";
 
-// import "forge-std/console2.sol";
-
-contract OrangeVaultV1Mock is OrangeVaultV1 {
-    // uint256 MAGIC_SCALE_1E8 = 1e8; //for computing ltv
-
+contract OrangeVaultV1Harness is OrangeVaultV1Initializable {
     int24 public avgTick;
-
-    /* ========== CONSTRUCTOR ========== */
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        address _token0,
-        address _token1,
-        address _liquidityPool,
-        address _lendingPool,
-        address _params,
-        address _router,
-        uint24 _routerFee,
-        address _balancer
-    )
-        OrangeVaultV1(
-            _name,
-            _symbol,
-            _token0,
-            _token1,
-            _liquidityPool,
-            _lendingPool,
-            _params,
-            _router,
-            _routerFee,
-            _balancer
-        )
-    {
-        // console.log("OrangeVaultV1Mock deployed");
-    }
 
     /* ========== ONLY MOCK FUNCTIONS ========== */
 

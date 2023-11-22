@@ -1,79 +1,94 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-//interafaces
-import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {ILendingPoolManager} from "../interfaces/ILendingPoolManager.sol";
+//interfaces
+import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
+import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
+import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
+import {ILiquidityPoolManager} from "@src/interfaces/ILiquidityPoolManager.sol";
+import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
+import {IMerklCompatibleVault} from "@src/interfaces/IMerklCompatibleVault.sol";
 
 //extends
-import {OrangeValidationChecker} from "./OrangeValidationChecker.sol";
-import {OrangeERC20} from "./OrangeERC20.sol";
+import {OrangeStorageV1Initializable} from "@src/coreV1/proxy/OrangeStorageV1Initializable.sol";
 
 //libraries
-import {Proxy} from "../libs/Proxy.sol";
-import {ErrorsV1} from "./ErrorsV1.sol";
+import {Proxy} from "@src/libs/Proxy.sol";
+import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
-import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
-import {UniswapRouterSwapper, ISwapRouter} from "../libs/UniswapRouterSwapper.sol";
-import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "../libs/BalancerFlashloan.sol";
-import {UniswapV3LiquidityPoolManager} from "../poolManager/UniswapV3LiquidityPoolManager.sol";
-import {AaveLendingPoolManager} from "../poolManager/AaveLendingPoolManager.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {OracleLibrary} from "@src/libs/uniswap/OracleLibrary.sol";
+import {UniswapRouterSwapper, ISwapRouter} from "@src/libs/UniswapRouterSwapper.sol";
+import {BalancerFlashloan, IBalancerVault, IBalancerFlashLoanRecipient, IERC20} from "@src/libs/BalancerFlashloan.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {OrangeERC20Initializable, IERC20Decimals} from "@src/coreV1/proxy/OrangeERC20Initializable.sol";
 
-contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeValidationChecker, Proxy {
+contract OrangeVaultV1Initializable is
+    OrangeStorageV1Initializable,
+    OrangeERC20Initializable,
+    IOrangeVaultV1,
+    IOrangeVaultV1Initializable,
+    IBalancerFlashLoanRecipient,
+    IMerklCompatibleVault,
+    Proxy
+{
     using SafeERC20 for IERC20;
     using FullMath for uint256;
     using UniswapRouterSwapper for ISwapRouter;
     using BalancerFlashloan for IBalancerVault;
 
-    /* ========== CONSTRUCTOR ========== */
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        address _token0,
-        address _token1,
-        address _liquidityPool,
-        address _lendingPool,
-        address _params,
-        address _router,
-        uint24 _routerFee,
-        address _balancer
-    ) OrangeERC20(_name, _symbol) {
-        if (_token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_liquidityPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_lendingPool == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
-        if (_balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+    modifier allowlisted(bytes32[] calldata merkleProof) {
+        _validateSenderAllowlisted(msg.sender, merkleProof);
+        _;
+    }
 
-        // setting adresses and approving
-        token0 = IERC20(_token0);
-        token1 = IERC20(_token1);
+    /* ========== CONSTRUCTOR ========== */
+
+    constructor() {
+        /// @dev prevent re-initialization of the implementation contract
+        _disableInitializers();
+    }
+
+    function initialize(VaultInitializeParams calldata _params) external initializer {
+        __OrangeERC20_init(_params.name, _params.symbol);
+        if (_params.token0 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.token1 == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.liquidityPoolManager == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.lendingPoolManager == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.params == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.router == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+        if (_params.balancer == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
+
+        // setting addresses and approving
+        token0 = IERC20(_params.token0);
+        token1 = IERC20(_params.token1);
 
         //deploy liquidity pool manager
-        liquidityPool = _liquidityPool;
+        liquidityPool = _params.liquidityPoolManager;
         token0.safeApprove(liquidityPool, type(uint256).max);
         token1.safeApprove(liquidityPool, type(uint256).max);
 
         //deploy lending pool manager
-        lendingPool = _lendingPool;
+        lendingPool = _params.lendingPoolManager;
         token0.safeApprove(lendingPool, type(uint256).max);
         token1.safeApprove(lendingPool, type(uint256).max);
 
-        params = IOrangeParametersV1(_params);
+        params = IOrangeParametersV1(_params.params);
 
-        router = _router;
-        token0.safeApprove(_router, type(uint256).max);
-        token1.safeApprove(_router, type(uint256).max);
-        routerFee = _routerFee;
-        balancer = _balancer;
+        router = _params.router;
+        token0.safeApprove(_params.router, type(uint256).max);
+        token1.safeApprove(_params.router, type(uint256).max);
+        routerFee = _params.routerFee;
+        balancer = _params.balancer;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
+
+    /// @inheritdoc OrangeERC20Initializable
+    function decimals() public view override returns (uint8) {
+        return IERC20Decimals(address(token0)).decimals();
+    }
 
     /// @inheritdoc IOrangeVaultV1
     function convertToShares(uint256 _assets) external view returns (uint256) {
@@ -189,7 +204,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         uint256 _shares,
         uint256 _maxAssets,
         bytes32[] calldata _merkleProof
-    ) external Allowlisted(_merkleProof) returns (uint256) {
+    ) external allowlisted(_merkleProof) returns (uint256) {
         //validation check
         if (_shares == 0 || _maxAssets == 0) revert(ErrorsV1.INVALID_AMOUNT);
 
@@ -270,7 +285,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token0,
@@ -289,7 +304,7 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
                 _maxAssets,
                 msg.sender
             );
-            flashloanHash = keccak256(_userData); //set stroage for callback
+            flashloanHash = keccak256(_userData); //set storage for callback
             IBalancerVault(balancer).makeFlashLoan(
                 IBalancerFlashLoanRecipient(address(this)),
                 token1,
@@ -434,6 +449,14 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
         }
     }
 
+    function _validateSenderAllowlisted(address _account, bytes32[] calldata _merkleProof) internal view {
+        if (params.allowlistEnabled()) {
+            if (!MerkleProof.verify(_merkleProof, params.merkleRoot(), keccak256(abi.encodePacked(_account)))) {
+                revert(ErrorsV1.MERKLE_ALLOWLISTED);
+            }
+        }
+    }
+
     /* ========== EXTERNAL FUNCTIONS (Delegate call) ========== */
 
     /// @inheritdoc IOrangeVaultV1
@@ -569,5 +592,10 @@ contract OrangeVaultV1 is IOrangeVaultV1, IBalancerFlashLoanRecipient, OrangeVal
             uint256 _refundAmount0 = _maxAssets - _actualUsedAmount0;
             if (_refundAmount0 > 0) token0.safeTransfer(_receiver, _refundAmount0);
         }
+    }
+
+    /* ========== Merkl compatible functions ========== */
+    function pool() external view override returns (address) {
+        return ILiquidityPoolManager(liquidityPool).getPoolAddress();
     }
 }

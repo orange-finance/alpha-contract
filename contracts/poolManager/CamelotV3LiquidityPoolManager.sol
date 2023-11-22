@@ -106,6 +106,10 @@ contract CamelotV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IAlgeb
             );
     }
 
+    function getPoolAddress() external view returns (address) {
+        return address(pool);
+    }
+
     ///@notice Cheking tickSpacing
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
         int24 _spacing = pool.tickSpacing();
