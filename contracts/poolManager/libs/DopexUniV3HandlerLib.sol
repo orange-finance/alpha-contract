@@ -72,15 +72,19 @@ library DopexUniV3HandlerLib {
         int24 _spacing = tickSpacing;
 
         int24 _t = lowerTick;
-        uint256 _pos = 0;
+
+        console2.log("len", uint24((upperTick - lowerTick) / _spacing));
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            liquidity += getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
+            // liquidity += getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
+            uint128 _l = getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
+            liquidity += _l;
+
+            console2.log("tick liq", uint24(_t), uint24(_nt), _l);
 
             unchecked {
                 _t = _nt;
                 _nt += _spacing;
-                _pos++;
             }
         }
 

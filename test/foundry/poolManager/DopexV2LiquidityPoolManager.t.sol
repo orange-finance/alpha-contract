@@ -172,13 +172,15 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
 
         //mint
-        uint wethBefore = WETH.balanceOf(address(this));
-        uint usdceBefore = USDCE.balanceOf(address(this));
+        uint wethBefore = WETH.balanceOf(address(mockVault));
+        uint usdceBefore = USDCE.balanceOf(address(mockVault));
 
         (uint _wethWillUsed, uint _usdceWillUsed) = manager.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
+        assertEq(_wethWillUsed, 1 ether, "manager.getAmountsForLiquidity: amount0 mismatch");
+        assertEq(_usdceWillUsed, 1000 * 1e6, "manager.getAmountsForLiquidity: amount1 mismatch");
+
         vm.prank(mockVault);
         (uint _wethUsed, uint _usdceUsed) = manager.mint(lowerTick, upperTick, _liquidity);
-
         emit log_named_uint("wethWillUsed", _wethWillUsed);
         emit log_named_uint("usdceWillUsed", _usdceWillUsed);
         emit log_named_uint("wethUsed", _wethUsed);
@@ -187,15 +189,15 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         assertEq(_wethUsed, _wethWillUsed, "manager.mint: amount0 mismatch");
         assertEq(_usdceUsed, _usdceWillUsed, "manager.mint: amount1 mismatch");
 
-        uint wethAfter = WETH.balanceOf(address(this));
-        uint usdceAfter = USDCE.balanceOf(address(this));
+        uint wethAfter = WETH.balanceOf(address(mockVault));
+        uint usdceAfter = USDCE.balanceOf(address(mockVault));
 
-        assertEq(wethAfter - wethBefore, _wethUsed, "manager.mint: balance0 used mismatch");
-        assertEq(usdceAfter - usdceBefore, _usdceUsed, "manager.mint: balance1 used mismatch");
+        assertEq(wethBefore - wethAfter, _wethUsed, "manager.mint: balance0 used mismatch");
+        assertEq(usdceBefore - usdceAfter, _usdceUsed, "manager.mint: balance1 used mismatch");
 
-        // uint128 _liquidity2 = manager.getCurrentLiquidity(lowerTick, upperTick);
-        // console2.log(_liquidity2, "liquidity2");
-        // assertEq(_liquidity, _liquidity2);
+        uint128 _currentLiquidity = manager.getCurrentLiquidity(lowerTick, upperTick);
+        emit log_named_uint("currentLiquidity", _currentLiquidity);
+        assertEq(_currentLiquidity, _liquidity);
         // //swap
         // multiSwapByCarol();
 
