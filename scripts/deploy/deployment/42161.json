@@ -1,0 +1,46 @@
+{
+  "OrangeVaultV1Initializable": {
+    "address": "0x00Bf57D9D1e8959374CF27695f7eE58A86EfCF62",
+    "args": []
+  },
+  "OrangeStrategyImplV1": {
+    "address": "0x1c8143fBc257D39191ED3547BCC59051a31CB6A3",
+    "args": []
+  },
+  "UniswapV3LiquidityPoolManagerDeployer": {
+    "address": "0xE8C76A1638C2345072068F805a487FcA3C34891D",
+    "args": []
+  },
+  "CamelotV3LiquidityPoolManagerDeployer": {
+    "address": "0x71423b1388721e40a00921F7129BC28ceA7A86d6",
+    "args": []
+  },
+  "AaveLendingPoolManagerDeployer": {
+    "address": "0xE844a11b5a7eA1C72949a3b389D21b643A56CD10",
+    "args": []
+  },
+  "OrangeEmitter": {
+    "address": "0x8C9d376c65Cf2d7E1e87d51aD9d06c77a3f90DE9",
+    "args": []
+  },
+  "OrangeStoplossChecker": {
+    "address": "0x7f800179a6f8563b3cA0e7eB7747f12cdF845a46",
+    "args": []
+  },
+  "OrangeVaultRegistry": {
+    "address": "0x5A553091990CACff0809A2F2E33fAF498a6892FA",
+    "args": []
+  },
+  "OrangeVaultFactoryV1_0": {
+    "address": "0x559E8cB95b394FB62e6872656371780465AD6e13",
+    "args": [
+      "0x5A553091990CACff0809A2F2E33fAF498a6892FA",
+      "0x00Bf57D9D1e8959374CF27695f7eE58A86EfCF62",
+      "0x1c8143fBc257D39191ED3547BCC59051a31CB6A3"
+    ]
+  },
+  "SafeAavePool": {
+    "address": "0xF76eB0e2672824E2690aD2f9FC831F1fD000C395",
+    "args": []
+  }
+}
