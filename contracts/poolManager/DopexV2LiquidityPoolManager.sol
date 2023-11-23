@@ -288,7 +288,8 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
                     lowerTick += tickSpacing;
                 } else if (_t < _ct) {
                     // ticks include current tick
-                    // ? do what?
+                    lowerTick += _ct - _t;
+                    upperTick -= _nt - _ct;
                 } else {
                     // ticks are on the right side of current tick
                     upperTick -= tickSpacing;

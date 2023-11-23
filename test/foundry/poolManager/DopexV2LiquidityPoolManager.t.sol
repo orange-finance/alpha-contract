@@ -170,6 +170,7 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
 
         //compute liquidity
         uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+        emit log_named_uint("computed liquidity", _liquidity);
 
         //mint
         uint wethBefore = WETH.balanceOf(address(mockVault));
