@@ -280,33 +280,19 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
         int24 _ct = getCurrentTick();
         int24 _t = lowerTick;
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
-        int24 _tickCount = (upperTick - lowerTick) / tickSpacing;
-
-        liquidity = LiquidityAmounts.getLiquidityForAmounts(
-            _sqrtRatioX96,
-            TickMath.getSqrtRatioAtTick(lowerTick),
-            TickMath.getSqrtRatioAtTick(upperTick),
-            amount0,
-            amount1
-        );
-
-        console2.log("sum liq", liquidity);
-        console2.log("tick count", uint24(_tickCount));
 
         for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            // console2.log("tick", uint24(_t), uint24(_nt));
             if (!_shouldMint(_t, _nt, _ct, tickSpacing)) {
-                uint128 _subLiq = LiquidityAmounts.getLiquidityForAmounts(
-                    _sqrtRatioX96,
-                    TickMath.getSqrtRatioAtTick(_t),
-                    TickMath.getSqrtRatioAtTick(_nt),
-                    amount0 / uint256(uint24(_tickCount)),
-                    amount1 / uint256(uint24(_tickCount))
-                );
-
-                console2.log("sub liq", _subLiq);
-
-                liquidity -= _subLiq;
+                if (_nt < _ct) {
+                    // ticks are on the left side of current tick
+                    lowerTick += tickSpacing;
+                } else if (_t < _ct) {
+                    // ticks include current tick
+                    // ? do what?
+                } else {
+                    // ticks are on the right side of current tick
+                    upperTick -= tickSpacing;
+                }
             }
 
             unchecked {
@@ -315,59 +301,13 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
             }
         }
 
-        // int24 targetCount;
-        // check target tick to provide liquidity
-        // for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-        //     if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
-        //         targetCount++;
-        //     }
-
-        //     unchecked {
-        //         _t = _nt;
-        //         _nt += tickSpacing;
-        //     }
-        // }
-
-        // uint256 _a0PerTick = amount0 / uint256(uint24(targetCount));
-        // uint256 _a1PerTick = amount1 / uint256(uint24(targetCount));
-        // _t = lowerTick;
-        // for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-        //     if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
-        //         liquidity += LiquidityAmounts.getLiquidityForAmounts(
-        //             _sqrtRatioX96,
-        //             TickMath.getSqrtRatioAtTick(_t),
-        //             TickMath.getSqrtRatioAtTick(_nt),
-        //             uint128(_a0PerTick),
-        //             uint128(_a1PerTick)
-        //         );
-        //     }
-
-        //     unchecked {
-        //         _t = _nt;
-        //         _nt += tickSpacing;
-        //     }
-        // }
-
-        // for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-        //     if (_shouldMint(_t, _nt, _ct, tickSpacing)) {
-        //         liquidity +=
-        //             LiquidityAmounts.getLiquidityForAmounts(
-        //                 _sqrtRatioX96,
-        //                 TickMath.getSqrtRatioAtTick(_t),
-        //                 TickMath.getSqrtRatioAtTick(_nt),
-        //                 amount0,
-        //                 amount1
-        //             ) /
-        //             uint128(uint24(_tickCount));
-        //     }
-
-        //     unchecked {
-        //         _t = _nt;
-        //         _nt += tickSpacing;
-        //     }
-        // }
-
-        // liquidity /= uint128(uint24(_tickCount));
+        liquidity = LiquidityAmounts.getLiquidityForAmounts(
+            _sqrtRatioX96,
+            TickMath.getSqrtRatioAtTick(lowerTick),
+            TickMath.getSqrtRatioAtTick(upperTick),
+            amount0,
+            amount1
+        );
     }
 
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view {
