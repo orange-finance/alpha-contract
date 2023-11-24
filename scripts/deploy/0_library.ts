@@ -3,13 +3,17 @@ import fs from "fs-extra";
 import path from "path";
 
 /**
- * @description Deploys a SafeAavePool library contract.
+ * @description Deploys library contracts.
  */
 async function main() {
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
   const SafeAavePool = await hre.ethers.getContractFactory("SafeAavePool");
+  const PerformanceFee = await hre.ethers.getContractFactory("PerformanceFee");
 
   const safeAavePool = await SafeAavePool.deploy().then((u) => u.deployed());
+  const performanceFee = await PerformanceFee.deploy().then((u) =>
+    u.deployed()
+  );
 
   // export as json file
   const outFile = path.join(__dirname, "deployment", `${chain}.json`);
@@ -23,6 +27,11 @@ async function main() {
 
     json["SafeAavePool"] = {
       address: safeAavePool.address,
+      args: [],
+    };
+
+    json["PerformanceFee"] = {
+      address: performanceFee.address,
       args: [],
     };
 

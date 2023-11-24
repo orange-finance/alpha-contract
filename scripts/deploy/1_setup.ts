@@ -9,7 +9,6 @@ import { config } from "./config";
 async function main() {
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
   const meta = await config.getMetadata(chain);
-  if (!meta.SafeAavePool) throw new Error("SafeAavePool address not set");
 
   const UniV3ManagerDeployer = await hre.ethers.getContractFactory(
     "UniswapV3LiquidityPoolManagerDeployer"
@@ -129,6 +128,3 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-function fileURLToPath(url: string): string {
-  throw new Error("Function not implemented.");
-}

@@ -44,6 +44,7 @@ namespace schema {
 
   export const contracts = z.object({
     SafeAavePool: metadata,
+    PerformanceFee: metadata,
     OrangeVaultV1Initializable: metadata,
     OrangeStrategyImplV1: metadata,
     UniswapV3LiquidityPoolManagerDeployer: metadata,

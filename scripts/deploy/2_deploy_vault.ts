@@ -32,6 +32,17 @@ async function main() {
       ],
     },
     {
+      type: "select",
+      name: "version",
+      message: "Select vault version",
+      choices: [
+        {
+          title: "Delta Neutral Classic",
+          value: "V1_DN_CLASSIC",
+        },
+      ],
+    },
+    {
       type: "text",
       name: "depositCap",
       message: "Enter deposit cap",
@@ -62,23 +73,27 @@ async function main() {
     type: "select",
     message: "Select token0",
     choices: tokens.map((t) => ({
-      title: t.symbol,
+      title: t.symbol + " " + t.address.slice(0, 6) + "...",
       value: t.address,
     })),
   });
 
-  const { poolType, depositCap, minDepositAmount, owner, liquidityPool } =
-    await prompts(q1, {
-      onCancel: () => process.exit(0),
-    });
+  const {
+    version,
+    poolType,
+    depositCap,
+    minDepositAmount,
+    owner,
+    liquidityPool,
+  } = await prompts(q1, {
+    onCancel: () => process.exit(0),
+  });
 
   const liqM =
     poolType === "UniswapV3"
       ? md.UniswapV3LiquidityPoolManagerDeployer.address
       : md.CamelotV3LiquidityPoolManagerDeployer.address;
 
-  // TODO: redeploy factory to apply latest changes (dynamic version support, fee event emission)
-  // TODO: redeploy registry when production ready
   const factory = await hre.ethers.getContractAt(
     "OrangeVaultFactoryV1_0",
     md.OrangeVaultFactoryV1_0.address,
@@ -114,10 +129,8 @@ async function main() {
 
   const vToken1 = vToken0 === token0 ? token1 : token0;
 
-  console.log({ vToken0, vToken1 });
-
   const vc: OrangeVaultFactoryV1_0.VaultConfigStruct = {
-    version: "V1_DN_CLASSIC",
+    version,
     allowlistEnabled: true,
     balancer: ext.BalancerVault,
     depositCap,
