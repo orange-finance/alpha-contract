@@ -131,7 +131,7 @@ async function main() {
 
   const vc: OrangeVaultFactoryV1_0.VaultConfigStruct = {
     version,
-    allowlistEnabled: true,
+    allowlistEnabled: false,
     balancer: ext.BalancerVault,
     depositCap,
     lendingPool: ext.AavePool,
