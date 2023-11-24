@@ -166,6 +166,10 @@ async function main() {
 
   const beforeBal = await hre.ethers.provider.getBalance(signer.address);
 
+  const strategist = config.getStrategist(chain);
+
+  const multisig = config.getMultisigAccount(chain);
+
   await factory.createVault(vc, liqC, lenC, sc).then((tx) => tx.wait());
   console.log("✨ Vault created: ", v);
 
@@ -204,9 +208,15 @@ async function main() {
   await helper.setStrategist(checker.address, true).then((tx) => tx.wait());
   console.log("✨ Stoploss checker added as strategist");
 
+  await helper.setStrategist(strategist, true).then((tx) => tx.wait());
+  console.log("✨ EOA added as strategist");
+
   // add vault to checker
   await checker.addVault(v, helper.address).then((tx) => tx.wait());
   console.log("✨ Vault added to checker");
+
+  // transfer ownership of params to multisig
+  await params.transferOwnership(multisig).then((tx) => tx.wait());
 
   // gas used
   const afterBal = await hre.ethers.provider.getBalance(signer.address);

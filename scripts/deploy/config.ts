@@ -34,6 +34,24 @@ export const config = {
 
     return hre.ethers.getSigner(address);
   },
+  getVaults: async (chain: number) => {
+    const { default: vaults } = await import(
+      `./deployment/vault/${chain}.json`
+    );
+
+    return z.record(schema.vault).parse(vaults);
+  },
+  /**
+   * @note currently one strategist for all vaults
+   */
+  getStrategist: (_: number) => {
+    return "0xd31583735e47206e9af728EF4f44f62B20db4b27";
+  },
+  getMultisigAccount: (chain: number) => {
+    if (chain != 42161) throw new Error("the chain not supported");
+
+    return "0x38E4157345Bd2c8Cf7Dbe4B0C75302c2038AB7Ec";
+  },
 };
 
 namespace schema {
@@ -61,6 +79,13 @@ namespace schema {
     UniswapRouter: z.string(),
     AavePool: z.string(),
     Tokens: z.record(z.string()),
+  });
+
+  export const vault = z.object({
+    token0: z.string(),
+    token1: z.string(),
+    poolType: z.string(),
+    poolAddress: z.string(),
   });
 
   const errorMap: z.ZodErrorMap = (error, ctx) => {
