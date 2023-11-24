@@ -32,7 +32,7 @@ async function main() {
   );
 
   const StrategyImpl = await hre.ethers.getContractFactory(
-    "OrangeStrategyImplV1"
+    "OrangeStrategyImplV1Initializable"
   );
 
   const Emitter = await hre.ethers.getContractFactory("OrangeEmitter");

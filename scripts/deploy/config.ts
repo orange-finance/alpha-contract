@@ -64,7 +64,7 @@ namespace schema {
     SafeAavePool: metadata,
     PerformanceFee: metadata,
     OrangeVaultV1Initializable: metadata,
-    OrangeStrategyImplV1: metadata,
+    OrangeStrategyImplV1Initializable: metadata,
     UniswapV3LiquidityPoolManagerDeployer: metadata,
     CamelotV3LiquidityPoolManagerDeployer: metadata,
     AaveLendingPoolManagerDeployer: metadata,
