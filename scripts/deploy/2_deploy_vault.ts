@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import { OrangeVaultFactoryV1_0 } from "../../typechain-types";
 import prompts from "prompts";
+import kleur from "kleur";
 import { config } from "./config";
 
 /**
@@ -14,6 +15,8 @@ async function main() {
 
   const md = await config.getMetadata(chain);
   const ext = await config.getExternals(chain);
+
+  const multisig = config.getMultisigAccount(chain);
 
   const q1: prompts.PromptObject<string>[] = [
     {
@@ -57,12 +60,41 @@ async function main() {
       type: "text",
       name: "owner",
       message: "Enter owner address",
-      initial: signer.address,
+      initial: multisig,
+    },
+    {
+      type: "text",
+      name: "performanceFeeRecipient",
+      message: "Enter performance fee recipient address",
+      initial: multisig,
     },
     {
       type: "text",
       name: "liquidityPool",
       message: "Enter liquidity pool address",
+    },
+    {
+      type: "select",
+      name: "feeTier",
+      message: "Select UniswapV3 Router fee tier (used for swap)",
+      choices: [
+        {
+          title: "0.01% (best for very stable pairs)",
+          value: 100,
+        },
+        {
+          title: "0.05% (best for stable pairs)",
+          value: 500,
+        },
+        {
+          title: "0.30% (best for most pairs)",
+          value: 3000,
+        },
+        {
+          title: "1.00% (best for exotic pairs)",
+          value: 10000,
+        },
+      ],
     },
   ];
 
@@ -84,7 +116,9 @@ async function main() {
     depositCap,
     minDepositAmount,
     owner,
+    performanceFeeRecipient,
     liquidityPool,
+    feeTier,
   } = await prompts(q1, {
     onCancel: () => process.exit(0),
   });
@@ -128,6 +162,10 @@ async function main() {
   );
 
   const vToken1 = vToken0 === token0 ? token1 : token0;
+  const vSymbol0 = vToken0 === token0 ? symbol0 : symbol1;
+  const vSymbol1 = vToken1 === token1 ? symbol1 : symbol0;
+
+  const vSymbol = `o${vSymbol0}-${vSymbol1}`;
 
   const vc: OrangeVaultFactoryV1_0.VaultConfigStruct = {
     version,
@@ -137,18 +175,29 @@ async function main() {
     lendingPool: ext.AavePool,
     liquidityPool,
     minDepositAmount,
-    name: "Orange Vault",
+    name: vSymbol,
     owner,
     router: ext.UniswapRouter,
-    routerFee: 0,
-    symbol: "ORANGE",
+    routerFee: feeTier,
+    symbol: vSymbol,
     token0: vToken0,
     token1: vToken1,
   };
 
+  /**
+   * @description
+   * 1. owner address
+   * 2. performance fee recipient
+   * 3. performance fee divisor (fee / divisor) - 10 = 10% fee
+   */
+  const liqSetup = hre.ethers.utils.defaultAbiCoder.encode(
+    ["address", "address", "uint128"],
+    [owner, performanceFeeRecipient, 10]
+  );
+
   const liqC: OrangeVaultFactoryV1_0.PoolManagerConfigStruct = {
     managerDeployer: liqM,
-    setUpData: hre.ethers.constants.HashZero,
+    setUpData: liqSetup,
   };
 
   const lenC: OrangeVaultFactoryV1_0.PoolManagerConfigStruct = {
@@ -168,7 +217,28 @@ async function main() {
 
   const strategist = config.getStrategist(chain);
 
-  const multisig = config.getMultisigAccount(chain);
+  // confirm vault creation
+
+  console.log(`🚨 Confirm vault creation:`);
+  console.log("Version:", kleur.yellow(`${vc.version}`));
+  console.log("Name:", kleur.yellow(`${vc.name}`));
+  console.log("Symbol:", kleur.yellow(`${vc.symbol}`));
+  console.log("Token0:", kleur.yellow(`${vc.token0}`));
+  console.log("Token1:", kleur.yellow(`${vc.token1}`));
+  console.log("Router fee tier:", kleur.yellow(`${vc.routerFee}`));
+  console.log("Owner:", kleur.yellow(`${vc.owner}`));
+  console.log("Strategist:", kleur.yellow(`${strategist}`));
+  console.log("Allowlist enabled:", kleur.yellow(`${vc.allowlistEnabled}`));
+  console.log("Deposit cap:", kleur.yellow(`${vc.depositCap}`));
+  console.log("Min deposit amount:", kleur.yellow(`${vc.minDepositAmount}`));
+
+  const { confirm } = await prompts({
+    type: "confirm",
+    name: "confirm",
+    message: "Create vault?",
+  });
+
+  if (!confirm) process.exit(0);
 
   await factory.createVault(vc, liqC, lenC, sc).then((tx) => tx.wait());
   console.log("✨ Vault created: ", v);
@@ -214,9 +284,6 @@ async function main() {
   // add vault to checker
   await checker.addVault(v, helper.address).then((tx) => tx.wait());
   console.log("✨ Vault added to checker");
-
-  // transfer ownership of params to multisig
-  await params.transferOwnership(multisig).then((tx) => tx.wait());
 
   // gas used
   const afterBal = await hre.ethers.provider.getBalance(signer.address);

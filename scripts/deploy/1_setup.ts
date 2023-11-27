@@ -80,7 +80,7 @@ async function main() {
       args: [],
     };
 
-    json["OrangeStrategyImplV1"] = {
+    json["OrangeStrategyImplV1Initializable"] = {
       address: sImpl.address,
       args: [],
     };
