@@ -178,7 +178,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
     ) internal view returns (bytes[] memory burnMulticallData, uint256 perfFee0, uint256 perfFee1) {
         IUniswapV3SingleTickLiquidityHandler _handler = handler;
 
-        uint128 _total = _handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
+        uint128 _total = _handler.getCurrentLiquidity(pool, lowerTick, upperTick, tickSpacing);
 
         // create call data for multicall
         burnMulticallData = new bytes[](uint256(uint24((upperTick - lowerTick) / tickSpacing)));
@@ -242,7 +242,7 @@ contract DopexV2LiquidityPoolManager is Ownable, ERC1155Holder, ILiquidityPoolMa
 
     /// @notice take average of the all single ticks in the range, because the liquidity is not evenly distributed (dynamic against share)
     function getCurrentLiquidity(int24 lowerTick, int24 upperTick) external view returns (uint128 liquidity) {
-        return handler.getLiquidityAverageInRange(pool, lowerTick, upperTick, tickSpacing);
+        return handler.getCurrentLiquidity(pool, lowerTick, upperTick, tickSpacing);
     }
 
     /// @notice get amount of tokens to provide liquidity(average) in the range

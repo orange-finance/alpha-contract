@@ -60,35 +60,35 @@ library DopexUniV3HandlerLib {
         return handler.convertToShares(liquidity, _pid);
     }
 
-    // TODO: skip current tick
-    function getLiquidityAverageInRange(
+    function getCurrentLiquidity(
         IUniswapV3SingleTickLiquidityHandler handler,
         IUniswapV3Pool _pool,
         int24 lowerTick,
         int24 upperTick,
-        // int24 currentTick,
         int24 tickSpacing
     ) internal view returns (uint128 liquidity) {
-        int24 _spacing = tickSpacing;
+        uint128 _targetCount;
 
-        int24 _t = lowerTick;
+        for (int24 _t = lowerTick; _t <= upperTick; ) {
+            uint128 _l = getTotalSingleTickLiquidity(handler, _pool, _t, tickSpacing);
 
-        console2.log("len", uint24((upperTick - lowerTick) / _spacing));
-
-        for (int24 _nt = _t + tickSpacing; _nt <= upperTick; ) {
-            // liquidity += getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
-            uint128 _l = getTotalSingleTickLiquidity(handler, _pool, _t, _spacing);
-            liquidity += _l;
-
-            console2.log("tick liq", uint24(_t), uint24(_nt), _l);
+            // when the liquidity is zero, the tick is not minted
+            if (_l > 0) {
+                unchecked {
+                    _targetCount++;
+                    liquidity += _l;
+                }
+            }
 
             unchecked {
-                _t = _nt;
-                _nt += _spacing;
+                _t += tickSpacing;
             }
         }
 
-        liquidity /= uint128(uint24((upperTick - lowerTick) / _spacing));
+        // avoid division by zero
+        if (_targetCount == 0) return 0;
+
+        liquidity /= _targetCount;
     }
 
     function getFeesEarned(

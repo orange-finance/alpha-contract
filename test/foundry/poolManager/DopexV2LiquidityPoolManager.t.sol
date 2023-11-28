@@ -169,7 +169,9 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         emit log_named_int("upperTick", upperTick);
 
         //compute liquidity
-        uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, 1 ether, 1000 * 1e6);
+        uint _a0MaxUsed = 1 ether;
+        uint _a1MaxUsed = 1000 * 1e6;
+        uint128 _liquidity = manager.getLiquidityForAmounts(lowerTick, upperTick, _a0MaxUsed, _a1MaxUsed);
         emit log_named_uint("computed liquidity", _liquidity);
 
         //mint
@@ -177,8 +179,8 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         uint usdceBefore = USDCE.balanceOf(address(mockVault));
 
         (uint _wethWillUsed, uint _usdceWillUsed) = manager.getAmountsForLiquidity(lowerTick, upperTick, _liquidity);
-        assertEq(_wethWillUsed, 1 ether, "manager.getAmountsForLiquidity: amount0 mismatch");
-        assertEq(_usdceWillUsed, 1000 * 1e6, "manager.getAmountsForLiquidity: amount1 mismatch");
+        assertLe(_wethWillUsed, _a0MaxUsed, "manager.getAmountsForLiquidity: _wethWillUsed > _a0MaxUsed");
+        assertLe(_usdceWillUsed, _a1MaxUsed, "manager.getAmountsForLiquidity: _usdceWillUsed > _a1MaxUsed");
 
         vm.prank(mockVault);
         (uint _wethUsed, uint _usdceUsed) = manager.mint(lowerTick, upperTick, _liquidity);
@@ -201,7 +203,6 @@ contract DopexV2LiquidityPoolManagerTest is BaseTest {
         assertEq(_currentLiquidity, _liquidity);
         // //swap
         // multiSwapByCarol();
-
         // //compute current fee and position
         // (uint256 fee0, uint256 fee1) = manager.getFeesEarned(lowerTick, upperTick);
         // console2.log(fee0, fee1);
