@@ -162,8 +162,14 @@ async function main() {
   );
 
   const vToken1 = vToken0 === token0 ? token1 : token0;
-  const vSymbol0 = vToken0 === token0 ? symbol0 : symbol1;
-  const vSymbol1 = vToken1 === token1 ? symbol1 : symbol0;
+  let vSymbol0 = vToken0 === token0 ? symbol0 : symbol1;
+  let vSymbol1 = vToken1 === token1 ? symbol1 : symbol0;
+
+  // USDC.e symbol is represented as USDC in the contract, so we need to change it here
+  // WARNING: this is a hack only applicable on Arbitrum, and should be replaced if we have a better solution
+  const USDCE = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8";
+  if (vToken0 === USDCE) vSymbol0 = "USDC.e";
+  if (vToken1 === USDCE) vSymbol1 = "USDC.e";
 
   const vSymbol = `o${vSymbol0}-${vSymbol1}`;
 
