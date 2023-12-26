@@ -1,45 +1,43 @@
-import { ethers } from "hardhat";
-import { Verify, ERC20metadata } from "../common";
-import { getAddresses } from "../addresses";
+import hre from "hardhat";
+import { config } from "./config";
 
-const vaultMeta: ERC20metadata = {
-  name: "OrangeAlphaVault",
-  symbol: "OrangeAlphaVault",
-  decimals: 6,
-};
+/**
+ * This script verifies all Orange contracts deployed.
+ */
+async function main() {
+  const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
 
-const verify = async () => {
-  const a = getAddresses()!;
+  if (chain === 31337) {
+    console.log("skipping verification on localhost");
+    return;
+  }
 
-  await Verify(a.OrangeAlphaParameters, []);
+  const metadata = await config.getMetadata(chain);
 
-  await Verify(a.OrangeAlphaVault, [
-    vaultMeta.name,
-    vaultMeta.symbol,
-    a.UniswapPool,
-    a.Weth,
-    a.Usdc,
-    a.UniswapRouter,
-    a.AavePool,
-    a.VDebtWeth,
-    a.AUsdc,
-    a.OrangeAlphaParameters,
-  ]);
+  for (const [k, { address, args }] of Object.entries(metadata)) {
+    if (!address || !args) {
+      throw new Error(`missing address or args for ${k}`);
+    }
 
-  await Verify(a.OrangeAlphaPeriphery, [
-    a.OrangeAlphaVault,
-    a.OrangeAlphaParameters,
-  ]);
+    console.log(`verifying ${k} at ${address} with args ${args}`);
 
-  await Verify(a.OrangeAlphaResolver, [
-    a.OrangeAlphaVault,
-    a.OrangeAlphaParameters,
-  ]);
-};
-
-const main = async () => {
-  await verify();
-};
+    try {
+      await hre.run("verify:verify", {
+        address,
+        constructorArguments: args,
+      });
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        e.message.includes("Contract source code already verified")
+      ) {
+        console.log("already verified");
+      } else {
+        throw e;
+      }
+    }
+  }
+}
 
 main().catch((error) => {
   console.error(error);

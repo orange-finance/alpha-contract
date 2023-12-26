@@ -34,6 +34,9 @@ interface ILiquidityPoolCollectable {
 library PerformanceFee {
     using SafeERC20 for IERC20;
 
+    event CLAMMFeeCollect(address indexed token0, address indexed token1, uint128 fee0, uint128 fee1);
+    event PerformanceFeeCollect(address indexed token, uint128 fee);
+
     /**
      * @notice Parameters for collecting performance fee.
      * @param lowerTick The lower tick of the range to collect fees on.
@@ -74,12 +77,18 @@ library PerformanceFee {
         IERC20 _token0 = IERC20(pool.token0());
         IERC20 _token1 = IERC20(pool.token1());
 
+        emit CLAMMFeeCollect(address(_token0), address(_token1), _amount0, _amount1);
+
         (uint128 _perfFee0, uint128 _perfFee1) = (_amount0 / perfFeeDivisor, _amount1 / perfFeeDivisor);
 
-        if (_perfFee0 > 0 && _token0.balanceOf(msg.sender) >= _perfFee0)
+        if (_perfFee0 > 0 && _token0.balanceOf(msg.sender) >= _perfFee0) {
             _token0.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee0);
+            emit PerformanceFeeCollect(address(_token0), _perfFee0);
+        }
 
-        if (_perfFee1 > 0 && _token1.balanceOf(msg.sender) >= _perfFee1)
+        if (_perfFee1 > 0 && _token1.balanceOf(msg.sender) >= _perfFee1) {
             _token1.safeTransferFrom(msg.sender, perfFeeRecipient, _perfFee1);
+            emit PerformanceFeeCollect(address(_token1), _perfFee1);
+        }
     }
 }

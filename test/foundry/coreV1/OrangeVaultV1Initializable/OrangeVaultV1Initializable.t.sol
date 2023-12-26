@@ -5,7 +5,7 @@ import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {LiquidityAmounts, FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
-import {IERC20Decimals} from "@src/coreV1/OrangeERC20.sol";
+import {IERC20Decimals} from "@src/coreV1/proxy/OrangeERC20Initializable.sol";
 import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
 import {ARB_FORK_BLOCK_DEFAULT} from "../../Config.sol";

@@ -17,6 +17,7 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         _deployFactory({_admin: alice});
 
         OrangeVaultFactoryV1_0.VaultConfig memory _vaultConfig = OrangeVaultFactoryV1_0.VaultConfig({
+            version: "V1_DN_CLASSIC",
             name: "Orange Vault",
             symbol: "ORANGE",
             token0: address(mockToken0),
@@ -76,6 +77,7 @@ contract OrangeVaultFactoryV1_0Test is Fixture {
         _deployFactory({_admin: alice});
 
         OrangeVaultFactoryV1_0.VaultConfig memory _vaultConfig = OrangeVaultFactoryV1_0.VaultConfig({
+            version: "V1_DN_CLASSIC",
             name: "Orange Vault",
             symbol: "ORANGE",
             token0: address(mockToken0),

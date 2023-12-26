@@ -17,28 +17,20 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
     using TickMath for int24;
     using PerformanceFee for ILiquidityPoolCollectable;
 
-    /* ========== Structs ========== */
-
-    /* ========== CONSTANTS ========== */
     uint16 private constant MAGIC_SCALE_1E4 = 10000; //for slippage
 
-    /* ========== STORAGES ========== */
-
-    /* ========== PARAMETERS ========== */
     IUniswapV3Pool public pool;
     uint24 public immutable fee;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public vault;
-    address perfFeeRecipient;
+    address public perfFeeRecipient;
     uint128 public perfFeeDivisor = 10; // 10% of profit
 
-    /* ========== MODIFIER ========== */
     modifier onlyVault() {
         if (msg.sender != vault) revert("ONLY_VAULT");
         _;
     }
 
-    /* ========== Initializable ========== */
     constructor(address _token0, address _token1, address _pool) {
         reversed = _token0 > _token1 ? true : false;
 
@@ -53,7 +45,6 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
         vault = _vault;
     }
 
-    /* ========== VIEW FUNCTIONS ========== */
     function getTwap(uint32 _minute) external view returns (int24 avgTick) {
         uint32[] memory secondsAgo = new uint32[](2);
         secondsAgo[0] = _minute;

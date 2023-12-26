@@ -20,17 +20,13 @@ import {AddressZero} from "@src/operation/Errors.sol";
 contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
     using Clones for address;
 
-    string public constant VAULT_VERSION = "1.0";
-
     address public immutable registry;
     address public immutable vaultImpl;
     address public immutable strategyImpl;
 
-    event VaultAdded(address indexed vault, string indexed version, address indexed parameters);
-    event VaultRemoved(address indexed vault);
-
     struct VaultConfig {
         // when deploying a new vault
+        string version;
         string name;
         string symbol;
         address token0;
@@ -45,11 +41,6 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
         uint256 depositCap;
         uint256 minDepositAmount;
         address owner;
-        // TODO: check if we need to specify these params (default values are set in Vault's constructor)
-        // uint16 slippageBPS;
-        // uint24 tickSlippageBPS;
-        // uint32 twapSlippageInterval;
-        // uint32 maxLtv;
     }
 
     struct PoolManagerConfig {
@@ -142,7 +133,7 @@ contract OrangeVaultFactoryV1_0 is AccessControlEnumerable {
         _lendingManager.setVault(_vault);
         _liquidityManager.setVault(_vault);
 
-        IOrangeVaultRegistry(registry).add(_vault, VAULT_VERSION, address(_parameters));
+        IOrangeVaultRegistry(registry).add(_vault, _vaultConfig.version, address(_parameters));
 
         return _vault;
     }

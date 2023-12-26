@@ -44,6 +44,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
         }
         slippageBPS = _slippageBPS;
         tickSlippageBPS = _tickSlippageBPS;
+
+        emit SetSlippage(_slippageBPS, _tickSlippageBPS);
     }
 
     /**
@@ -53,6 +55,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     function setTwapSlippageInterval(uint32 _twapSlippageInterval) external onlyOwner {
         if (_twapSlippageInterval == 0) revert(ErrorsV1.ZERO_INTEGER);
         twapSlippageInterval = _twapSlippageInterval;
+
+        emit SetTwapSlippageInterval(_twapSlippageInterval);
     }
 
     /**
@@ -64,6 +68,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
             revert(ErrorsV1.INVALID_PARAM);
         }
         maxLtv = _maxLtv;
+
+        emit SetMaxLtv(_maxLtv);
     }
 
     /**
@@ -72,6 +78,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      */
     function setAllowlistEnabled(bool _allowlistEnabled) external onlyOwner {
         allowlistEnabled = _allowlistEnabled;
+
+        emit SetAllowlistEnabled(_allowlistEnabled);
     }
 
     /**
@@ -80,6 +88,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
      */
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
         merkleRoot = _merkleRoot;
+
+        emit SetMerkleRoot(_merkleRoot);
     }
 
     /**
@@ -89,6 +99,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     function setDepositCap(uint256 _depositCap) external onlyOwner {
         if (_depositCap == 0) revert(ErrorsV1.ZERO_INTEGER);
         depositCap = _depositCap;
+
+        emit SetDepositCap(_depositCap);
     }
 
     /**
@@ -98,6 +110,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
     function setMinDepositAmount(uint256 _minDepositAmount) external onlyOwner {
         if (_minDepositAmount == 0) revert(ErrorsV1.ZERO_INTEGER);
         minDepositAmount = _minDepositAmount;
+
+        emit SetMinDepositAmount(_minDepositAmount);
     }
 
     /**
@@ -108,6 +122,8 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
         if (_helper == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
 
         helper = _helper;
+
+        emit SetHelper(_helper);
     }
 
     /**
@@ -118,5 +134,7 @@ contract OrangeParametersV1 is IOrangeParametersV1, Ownable {
         if (_strategyImpl == address(0)) revert(ErrorsV1.ZERO_ADDRESS);
 
         strategyImpl = _strategyImpl;
+
+        emit SetStrategyImpl(_strategyImpl);
     }
 }
