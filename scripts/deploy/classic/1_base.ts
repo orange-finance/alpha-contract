@@ -1,14 +1,14 @@
 import hre from "hardhat";
 import fs from "fs-extra";
-import path from "path";
-import { config } from "./config";
+import { Config } from "./config";
 
 /**
  * @description Deploys Base contracts. These are identical on a chain.
  */
 async function main() {
+  const environ = Config.environ();
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
-  const meta = await config.getMetadata(chain);
+  const meta = await Config.getLibMetadata(environ, chain);
 
   const UniV3ManagerDeployer = await hre.ethers.getContractFactory(
     "UniswapV3LiquidityPoolManagerDeployer"
@@ -67,13 +67,13 @@ async function main() {
   await reg.grantRole(await reg.VAULT_DEPLOYER_ROLE(), fac.address);
 
   // export as json file
-  const outFile = path.join(__dirname, "deployment", `${chain}.json`);
+  const outFile = Config.baseSavePath(environ, chain);
   fs.ensureFileSync(outFile);
 
   fs.readFile(outFile, (err, data) => {
     if (err) throw err;
 
-    const json = JSON.parse(data.toString());
+    const json = JSON.parse(data.toString() || "{}");
 
     json["OrangeVaultV1Initializable"] = {
       address: vImpl.address,

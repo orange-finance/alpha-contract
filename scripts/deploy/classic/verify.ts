@@ -1,10 +1,11 @@
 import hre from "hardhat";
-import { config } from "./config";
+import { Config } from "./config";
 
 /**
  * This script verifies all Orange contracts deployed.
  */
 async function main() {
+  const environ = Config.environ();
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
 
   if (chain === 31337) {
@@ -12,7 +13,7 @@ async function main() {
     return;
   }
 
-  const metadata = await config.getMetadata(chain);
+  const metadata = await Config.getBaseMetadata(environ, chain);
 
   for (const [k, { address, args }] of Object.entries(metadata)) {
     if (!address || !args) {

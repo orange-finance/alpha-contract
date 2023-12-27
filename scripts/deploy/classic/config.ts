@@ -1,20 +1,65 @@
 import hre from "hardhat";
+import path from "path";
 import {
   impersonateAccount,
   setBalance,
 } from "@nomicfoundation/hardhat-network-helpers";
 import { z } from "zod";
 
-export const config = {
-  getMetadata: async (chain: number) => {
-    const { default: metadata } = await import(`./deployment/${chain}.json`);
+export const ENV = {
+  PROD: "prod",
+  QA: "qa",
+  LOCAL: "local",
+} as const;
 
-    return schema.contracts.parse(metadata);
+export const Config = {
+  environ: (): Config.Env => {
+    const env = process.env.ENV;
+
+    try {
+      if (!env) throw new Error('environment variable "ENV" not set');
+      if (!Object.values(ENV).includes(env as any))
+        throw new Error(`ENV ${env} not supported`);
+    } catch (e) {
+      throw new Error(
+        `error: ${e}\nsupported ENV values: ${Object.keys(ENV).join(", ")}`
+      );
+    }
+
+    return env as Config.Env;
   },
+
+  deploymentDir: path.join(__dirname, "deployment"),
+
+  libSavePath: (env: Config.Env, chain: number) => {
+    return path.join(Config.deploymentDir, "lib", env, `${chain}.json`);
+  },
+
+  baseSavePath: (env: Config.Env, chain: number) => {
+    return path.join(Config.deploymentDir, "base", env, `${chain}.json`);
+  },
+
+  vaultSavePath: (env: Config.Env, chain: number) => {
+    return path.join(Config.deploymentDir, "vault", env, `${chain}.json`);
+  },
+
+  getLibMetadata: async (env: Config.Env, chain: number) => {
+    const { default: metadata } = await import(Config.libSavePath(env, chain));
+
+    return schema.lib.parse(metadata);
+  },
+
+  getBaseMetadata: async (env: Config.Env, chain: number) => {
+    const { default: metadata } = await import(Config.baseSavePath(env, chain));
+
+    return schema.base.parse(metadata);
+  },
+
   getExternals: async (chain: number) => {
     const { default: external } = await import(`./external/${chain}.json`);
     return schema.externals.parse(external);
   },
+
   getDefaultSigner: async () => {
     const useFork =
       hre.network.name === "hardhat" &&
@@ -34,6 +79,7 @@ export const config = {
 
     return hre.ethers.getSigner(address);
   },
+
   getVaults: async (chain: number) => {
     const { default: vaults } = await import(
       `./deployment/vault/${chain}.json`
@@ -41,6 +87,7 @@ export const config = {
 
     return z.record(schema.vault).parse(vaults);
   },
+
   /**
    * @note currently one strategist for all vaults
    */
@@ -60,9 +107,11 @@ namespace schema {
     args: z.array(z.string()),
   });
 
-  export const contracts = z.object({
+  export const lib = z.object({
     SafeAavePool: metadata,
-    PerformanceFee: metadata,
+  });
+
+  export const base = z.object({
     OrangeVaultV1Initializable: metadata,
     OrangeStrategyImplV1Initializable: metadata,
     UniswapV3LiquidityPoolManagerDeployer: metadata,
@@ -101,4 +150,8 @@ namespace schema {
   };
 
   z.setErrorMap(errorMap);
+}
+
+export namespace Config {
+  export type Env = typeof ENV[keyof typeof ENV];
 }

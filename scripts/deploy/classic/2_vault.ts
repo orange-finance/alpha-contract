@@ -1,22 +1,23 @@
 import hre from "hardhat";
 import fs from "fs-extra";
 import path from "path";
-import { OrangeVaultFactoryV1_0 } from "../../typechain-types";
+import { OrangeVaultFactoryV1_0 } from "../../../typechain-types";
 import prompts from "prompts";
 import kleur from "kleur";
-import { config } from "./config";
+import { Config } from "./config";
 
 /**
  * @description Deploys a Vault contract. You must have deployed the Base contracts first.
  */
 async function main() {
+  const environ = Config.environ();
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
-  const signer = await config.getDefaultSigner();
+  const signer = await Config.getDefaultSigner();
 
-  const md = await config.getMetadata(chain);
-  const ext = await config.getExternals(chain);
+  const md = await Config.getBaseMetadata(environ, chain);
+  const ext = await Config.getExternals(chain);
 
-  const multisig = config.getMultisigAccount(chain);
+  const multisig = Config.getMultisigAccount(chain);
 
   const q1: prompts.PromptObject<string>[] = [
     {
@@ -221,7 +222,7 @@ async function main() {
 
   const beforeBal = await hre.ethers.provider.getBalance(signer.address);
 
-  const strategist = config.getStrategist(chain);
+  const strategist = Config.getStrategist(chain);
 
   // confirm vault creation
 
@@ -297,7 +298,7 @@ async function main() {
   console.log("⛽️ Gas used: ", gasUsed);
 
   // export as json file
-  const outFile = path.join(__dirname, "deployment", "vault", `${chain}.json`);
+  const outFile = Config.vaultSavePath(environ, chain);
   fs.ensureFileSync(outFile);
 
   fs.readFile(outFile, (err, data) => {
@@ -306,6 +307,7 @@ async function main() {
     const json = JSON.parse(data.toString() || "{}");
 
     json[v] = {
+      name: vc.name,
       token0,
       token1,
       poolType,
