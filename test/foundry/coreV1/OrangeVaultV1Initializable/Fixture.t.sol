@@ -10,7 +10,7 @@ import {AaveLendingPoolManager} from "@src/poolManager/AaveLendingPoolManager.so
 
 import {IOrangeVaultV1} from "@src/interfaces/IOrangeVaultV1.sol";
 import {IOrangeVaultV1Initializable} from "@src/interfaces/IOrangeVaultV1Initializable.sol";
-import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
+import {OrangeStrategyHelperV1} from "@src/coreV1/strategyHelper/OrangeStrategyHelperV1.sol";
 import {IERC20} from "@src/libs/BalancerFlashloan.sol";
 import {IAaveV3Pool} from "@src/interfaces/IAaveV3Pool.sol";
 import {IBalancerVault} from "@src/interfaces/IBalancerFlashloan.sol";

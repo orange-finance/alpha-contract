@@ -2,18 +2,18 @@
 pragma solidity 0.8.16;
 
 //interafaces
-import {IOrangeParametersV1} from "../interfaces/IOrangeParametersV1.sol";
-import {IOrangeVaultV1} from "../interfaces/IOrangeVaultV1.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
-import {IResolver} from "../interfaces/IResolver.sol";
+import {IOrangeParametersV1} from "../../interfaces/IOrangeParametersV1.sol";
+import {IOrangeVaultV1} from "../../interfaces/IOrangeVaultV1.sol";
+import {ILiquidityPoolManager} from "../../interfaces/ILiquidityPoolManager.sol";
+import {IResolver} from "../../interfaces/IResolver.sol";
 
 //libraries
-import {ErrorsV1} from "./ErrorsV1.sol";
-import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
-import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
-import {OracleLibrary} from "../libs/uniswap/OracleLibrary.sol";
+import {ErrorsV1} from "../ErrorsV1.sol";
+import {UniswapV3Twap, IUniswapV3Pool} from "../../libs/UniswapV3Twap.sol";
+import {FullMath} from "../../libs/uniswap/LiquidityAmounts.sol";
+import {OracleLibrary} from "../../libs/uniswap/OracleLibrary.sol";
 
-contract OrangeStrategyHelperV1 is IResolver {
+contract OrangeStrategyHelperV2 is IResolver {
     using UniswapV3Twap for IUniswapV3Pool;
     using FullMath for uint256;
 
