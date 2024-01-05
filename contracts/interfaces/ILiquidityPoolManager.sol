@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 // forked and modified from https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolActions.sol
 interface ILiquidityPoolManager {
+    function reversed() external view returns (bool);
+
     function getTwap(uint32 _minute) external view returns (int24 avgTick);
 
     function getCurrentTick() external view returns (int24 tick);

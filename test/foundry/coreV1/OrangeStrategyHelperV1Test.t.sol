@@ -2,7 +2,7 @@
 pragma solidity 0.8.16;
 
 import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
-import {ILiquidityPoolManager} from "@src/coreV1/OrangeStrategyHelperV1.sol";
+import {ILiquidityPoolManager} from "@src/coreV1/strategyHelper/OrangeStrategyHelperV1.sol";
 import {UniswapV3Twap, IUniswapV3Pool} from "@src/libs/UniswapV3Twap.sol";
 import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
@@ -127,7 +127,7 @@ contract OrangeStrategyHelperV1Test is Fixture {
             _hedgeRatio
         );
         //compute liquidity
-        (, int24 _currentTick, , , , , ) = pool.slot0();
+        //(, int24 _currentTick, , , , , ) = pool.slot0();
         uint128 _liquidity2 = liquidityPool.getLiquidityForAmounts(
             lowerTick,
             upperTick,
@@ -139,7 +139,7 @@ contract OrangeStrategyHelperV1Test is Fixture {
 
     function test_computeHedge_SuccessCase1() public {
         //price 2,944
-        int24 _tick = -196445;
+        //int24 _tick = -196445;
         // console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
         _testComputeRebalancePosition(10 ether, -197040, -195850, 72913000, 127200000);

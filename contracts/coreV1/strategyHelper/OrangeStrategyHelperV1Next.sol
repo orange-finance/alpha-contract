@@ -2,12 +2,12 @@
 pragma solidity 0.8.16;
 
 import {OrangeStrategyHelperV1} from "./OrangeStrategyHelperV1.sol";
-import {ILiquidityPoolManager} from "../interfaces/ILiquidityPoolManager.sol";
+import {ILiquidityPoolManager} from "../../interfaces/ILiquidityPoolManager.sol";
 
 //libraries
-import {UniswapV3Twap, IUniswapV3Pool} from "../libs/UniswapV3Twap.sol";
-import {FullMath} from "../libs/uniswap/LiquidityAmounts.sol";
-import {TickMath} from "../libs/uniswap/TickMath.sol";
+import {UniswapV3Twap, IUniswapV3Pool} from "../../libs/UniswapV3Twap.sol";
+import {FullMath} from "../../libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "../../libs/uniswap/TickMath.sol";
 
 contract OrangeStrategyHelperV1Next is OrangeStrategyHelperV1 {
     using UniswapV3Twap for IUniswapV3Pool;

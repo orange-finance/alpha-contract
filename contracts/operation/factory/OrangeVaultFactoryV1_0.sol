@@ -9,7 +9,7 @@ import {IOrangeVaultV1Initializable} from "@src/operation/factory/IOrangeVaultV1
 import {IPoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/IPoolManagerDeployer.sol";
 import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 import {OrangeParametersV1} from "@src/coreV1/OrangeParametersV1.sol";
-import {OrangeStrategyHelperV1} from "@src/coreV1/OrangeStrategyHelperV1.sol";
+import {OrangeStrategyHelperV1} from "@src/coreV1/strategyHelper/OrangeStrategyHelperV1.sol";
 import {AddressZero} from "@src/operation/Errors.sol";
 
 /**
