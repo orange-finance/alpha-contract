@@ -11,7 +11,6 @@ import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
 import {TickMath} from "@src/libs/uniswap/TickMath.sol";
 import {FullMath, LiquidityAmounts} from "@src/libs/uniswap/LiquidityAmounts.sol";
 import {ILiquidityPoolCollectable, PerformanceFee} from "@src/poolManager/libs/PerformanceFee.sol";
-import "forge-std/console2.sol";
 
 contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUniswapV3MintCallback {
     using SafeERC20 for IERC20;
@@ -72,7 +71,6 @@ contract UniswapV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IUnisw
         int24 upperTick,
         uint128 liquidity
     ) external view returns (uint256, uint256) {
-        console2.log("reversed", reversed);
         (uint160 _sqrtRatioX96, , , , , , ) = pool.slot0();
         (uint256 amount0, uint256 amount1) = LiquidityAmounts.getAmountsForLiquidity(
             _sqrtRatioX96,

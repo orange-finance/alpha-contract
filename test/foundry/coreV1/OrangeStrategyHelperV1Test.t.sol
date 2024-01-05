@@ -127,7 +127,7 @@ contract OrangeStrategyHelperV1Test is Fixture {
             _hedgeRatio
         );
         //compute liquidity
-        (, int24 _currentTick, , , , , ) = pool.slot0();
+        //(, int24 _currentTick, , , , , ) = pool.slot0();
         uint128 _liquidity2 = liquidityPool.getLiquidityForAmounts(
             lowerTick,
             upperTick,
@@ -139,7 +139,7 @@ contract OrangeStrategyHelperV1Test is Fixture {
 
     function test_computeHedge_SuccessCase1() public {
         //price 2,944
-        int24 _tick = -196445;
+        //int24 _tick = -196445;
         // console2.log(_quoteEthPriceByTick(_tick), "ethPrice");
 
         _testComputeRebalancePosition(10 ether, -197040, -195850, 72913000, 127200000);
