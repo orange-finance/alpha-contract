@@ -46,13 +46,13 @@ contract Fixture is BaseTest {
     AddressHelper.UniswapAddr public uniswapAddr;
     AddressHelperV1.BalancerAddr public balancerAddr;
 
-    OrangeVaultV1Harness public vault;
-    address public vaultImpl;
-
     IUniswapV3Pool public pool;
     ISwapRouter public router;
     IBalancerVault public balancer;
     IAaveV3Pool public aave;
+
+    OrangeVaultV1Harness public vault;
+    address public vaultImpl;
     IERC20 public token0;
     IERC20 public token1;
     IERC20 public collateralToken0;
@@ -62,6 +62,18 @@ contract Fixture is BaseTest {
     UniswapV3LiquidityPoolManager public liquidityPool;
     AaveLendingPoolManager public lendingPool;
     OrangeStrategyHelperV1 public helper;
+
+    OrangeVaultV1Harness public b_vault;
+    address public b_vaultImpl;
+    IERC20 public b_token0;
+    IERC20 public b_token1;
+    IERC20 public b_collateralToken0;
+    IERC20 public b_debtToken1;
+    OrangeParametersV1 public b_params;
+    OrangeStrategyImplV1Harness public b_impl;
+    UniswapV3LiquidityPoolManager public b_liquidityPool;
+    AaveLendingPoolManager public b_lendingPool;
+    OrangeStrategyHelperV1 public b_helper;
 
     int24 public lowerTick = -205680;
     int24 public upperTick = -203760;
@@ -90,6 +102,7 @@ contract Fixture is BaseTest {
         params.setAllowlistEnabled(false);
 
         _deploy();
+        _deploy2();
         _dealAndApprove();
     }
 
@@ -120,6 +133,43 @@ contract Fixture is BaseTest {
         params.setStrategyImpl(address(impl));
         helper = new OrangeStrategyHelperV1(address(vault));
         params.setHelper(address(helper));
+    }
+
+    function _deploy2() internal virtual {
+        b_params = new OrangeParametersV1();
+
+        b_params.setDepositCap(9_000 ether);
+        b_params.setMinDepositAmount(1e16);
+        b_params.setHelper(address(this));
+        b_params.setAllowlistEnabled(false);
+
+        b_liquidityPool = new UniswapV3LiquidityPoolManager(address(token1), address(token0), address(pool));
+        b_lendingPool = new AaveLendingPoolManager(address(token1), address(token0), address(aave));
+        //vault
+        b_vaultImpl = address(new OrangeVaultV1Harness());
+        b_vault = OrangeVaultV1Harness(b_vaultImpl.clone());
+
+        b_vault.initialize(
+            IOrangeVaultV1Initializable.VaultInitializeParams({
+                name: "OrangeVault2V1Harness",
+                symbol: "ORANGE_VAULT2_V1",
+                token0: address(token1),
+                token1: address(token0),
+                liquidityPoolManager: address(b_liquidityPool),
+                lendingPoolManager: address(b_lendingPool),
+                params: address(b_params),
+                router: address(router),
+                routerFee: 500,
+                balancer: address(balancer)
+            })
+        );
+        b_liquidityPool.setVault(address(b_vault));
+        b_lendingPool.setVault(address(b_vault));
+
+        b_impl = new OrangeStrategyImplV1Harness();
+        b_params.setStrategyImpl(address(b_impl));
+        b_helper = new OrangeStrategyHelperV1(address(b_vault));
+        b_params.setHelper(address(b_helper));
     }
 
     function _dealAndApprove() internal virtual {

@@ -32,6 +32,10 @@ contract OrangeStrategyHelperV2 is IResolver {
     address public immutable token1; //debt and hedge target token
     IOrangeParametersV1 public immutable params;
 
+    /* ========== ERRORS =========== */
+    error DivisorZero();
+    error CTooSmall();
+
     /* ========== MODIFIER ========== */
     modifier onlyStrategist() {
         if (!strategists[msg.sender]) revert(ErrorsV1.ONLY_STRATEGISTS);
@@ -160,12 +164,26 @@ contract OrangeStrategyHelperV2 is IResolver {
         return OracleLibrary.getQuoteAtTick(_tick, baseAmount, baseToken, quoteToken);
     }
 
-    function _quoteCurrent(uint128 baseAmount, address baseToken, address quoteToken) internal view returns (uint256) {
+    function _quoteCurrent(
+        uint128 baseAmount,
+        address vaultTokenBase,
+        address vaultTokenQuote
+    ) internal view returns (uint256) {
         int24 _tick = ILiquidityPoolManager(liquidityPool).getCurrentTick();
-        return _quoteAtTick(_tick, baseAmount, baseToken, quoteToken);
+        bool reversed = ILiquidityPoolManager(liquidityPool).reversed();
+
+        return
+            !reversed
+                ? _quoteAtTick(_tick, baseAmount, vaultTokenBase, vaultTokenQuote)
+                : _quoteAtTick(_tick, baseAmount, vaultTokenQuote, vaultTokenBase);
     }
 
-    /// @notice Compute the amount of collateral/debt and token0/token1 to Liquidity
+    /**
+     *  @notice Compute the amount of collateral/debt and token0/token1 to Liquidity
+     * @param _ltv MAGIC_SCALE_1E8 = 100%
+     * @param _hedgeRatio MAGIC_SCALE_1E8 = 100%
+     */
+
     function _computeRebalancePosition(
         uint256 _assets0,
         int24 _lowerTick,
@@ -179,36 +197,38 @@ contract OrangeStrategyHelperV2 is IResolver {
         (uint256 _amount0, uint256 _amount1) = ILiquidityPoolManager(liquidityPool).getAmountsForLiquidity(
             _lowerTick,
             _upperTick,
-            1e18 //any amount
+            1e18 //Arbitrary Liquidity Unit
         );
-        uint256 _amount1ValueInToken0 = _quoteCurrent(uint128(_amount1), token1, token0);
+        uint256 c = MAGIC_SCALE_1E8.mulDiv(MAGIC_SCALE_1E8, _ltv); //1e8
+        if (c < MAGIC_SCALE_1E8) revert CTooSmall(); //must be more than 1e8;
 
-        if (_hedgeRatio == 0) {
-            position_.token0Balance = (_amount1ValueInToken0 + _amount0 == 0)
-                ? 0
-                : _assets0.mulDiv(_amount0, (_amount1ValueInToken0 + _amount0));
-            position_.token1Balance = (_amount0 == 0) ? 0 : position_.token0Balance.mulDiv(_amount1, _amount0);
+        uint256 _token1BalanceInToken0;
+        uint256 _debtAmount1InToken0;
+
+        if (_amount0 != 0) {
+            uint256 a = MAGIC_SCALE_1E8.mulDiv(_quoteCurrent(uint128(_amount1), token1, token0), _amount0); //1e8
+
+            uint256 divisor = MAGIC_SCALE_1E8 +
+                a +
+                (a.mulDiv(_hedgeRatio, MAGIC_SCALE_1E8).mulDiv(c, MAGIC_SCALE_1E8)) -
+                (a.mulDiv(_hedgeRatio, MAGIC_SCALE_1E8)); //1+a+abc-ab
+            if (divisor == 0) revert DivisorZero(); //must not be 0
+
+            position_.token0Balance = _assets0.mulDiv(MAGIC_SCALE_1E8, divisor);
+            _token1BalanceInToken0 = position_.token0Balance.mulDiv(a, MAGIC_SCALE_1E8);
         } else {
-            //compute collateral/asset ratio
-            uint256 _x = (_amount1ValueInToken0 == 0) ? 0 : MAGIC_SCALE_1E8.mulDiv(_amount0, _amount1ValueInToken0);
-            uint256 _collateralRatioReciprocal = MAGIC_SCALE_1E8 -
-                _ltv +
-                MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio) +
-                MAGIC_SCALE_1E8.mulDiv(_ltv, _hedgeRatio).mulDiv(_x, MAGIC_SCALE_1E8);
+            //amount0 == 0
+            uint256 divisor = MAGIC_SCALE_1E8 + (_hedgeRatio.mulDiv(c, MAGIC_SCALE_1E8)) - _hedgeRatio; //1+bc-b
+            if (divisor == 0) revert DivisorZero(); //must not be 0
 
-            //Collateral
-            position_.collateralAmount0 = (_collateralRatioReciprocal == 0)
-                ? 0
-                : _assets0.mulDiv(MAGIC_SCALE_1E8, _collateralRatioReciprocal);
-
-            uint256 _borrow0 = position_.collateralAmount0.mulDiv(_ltv, MAGIC_SCALE_1E8);
-            //borrowing usdc amount to weth
-            position_.debtAmount1 = _quoteCurrent(uint128(_borrow0), token0, token1);
-
-            // amount added on Uniswap
-            position_.token1Balance = position_.debtAmount1.mulDiv(MAGIC_SCALE_1E8, _hedgeRatio);
-            position_.token0Balance = (_amount1 == 0) ? 0 : position_.token1Balance.mulDiv(_amount0, _amount1);
+            position_.token0Balance = 0;
+            _token1BalanceInToken0 = _assets0.mulDiv(MAGIC_SCALE_1E8, divisor);
         }
+        _debtAmount1InToken0 = _token1BalanceInToken0.mulDiv(_hedgeRatio, MAGIC_SCALE_1E8);
+        position_.collateralAmount0 = _debtAmount1InToken0.mulDiv(c, MAGIC_SCALE_1E8);
+
+        position_.token1Balance = _quoteCurrent(uint128(_token1BalanceInToken0), token0, token1);
+        position_.debtAmount1 = _quoteCurrent(uint128(_debtAmount1InToken0), token0, token1);
     }
 
     ///@notice Get LTV by current and range prices
