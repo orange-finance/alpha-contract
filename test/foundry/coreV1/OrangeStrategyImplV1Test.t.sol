@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import "./OrangeVaultV1TestBase.sol";
-import {OrangeStrategyImplV1, ErrorsV1, IOrangeVaultV1, OrangeStorageV1, IOrangeParametersV1, OrangeERC20} from "../../../contracts/coreV1/OrangeStrategyImplV1.sol";
-import {Proxy} from "../../../contracts/libs/Proxy.sol";
+import "@test/foundry/coreV1/OrangeVaultV1Initializable/Fixture.t.sol";
+import {IOrangeParametersV1} from "@src/interfaces/IOrangeParametersV1.sol";
+import {Proxy} from "@src/libs/Proxy.sol";
+import {FullMath} from "@src/libs/uniswap/LiquidityAmounts.sol";
+import {TickMath} from "@src/libs/uniswap/TickMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ErrorsV1} from "@src/coreV1/ErrorsV1.sol";
+import {OrangeStorageV1Initializable} from "@src/coreV1/proxy/OrangeStorageV1Initializable.sol";
 import {ARB_FORK_BLOCK_DEFAULT} from "../Config.sol";
 
-contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
+contract OrangeStrategyImplV1Test is Fixture {
     using SafeERC20 for IERC20;
     using TickMath for int24;
     using FullMath for uint256;
@@ -410,8 +415,8 @@ contract OrangeStrategyImplV1Test is OrangeVaultV1TestBase {
     }
 }
 
-contract ProxyMock is Proxy, OrangeStorageV1 {
-    constructor(address _params) OrangeERC20("OrangeStrategyImplV1", "OrangeStrategyImplV1") {
+contract ProxyMock is Proxy, OrangeStorageV1Initializable {
+    constructor(address _params) {
         params = IOrangeParametersV1(_params);
     }
 

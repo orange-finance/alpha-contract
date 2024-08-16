@@ -1,0 +1,23 @@
+{
+  "0x2bAebF9C7C2422de6773dFa4Ac11303db8D7F319": {
+    "name": "oWETH-USDC",
+    "token0": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "token1": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "poolType": "CamelotV3",
+    "poolAddress": "0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526"
+  },
+  "0x56551a482a2401f08e747AbdD8803D613E905Ef6": {
+    "name": "oUSDC-WETH",
+    "token0": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "token1": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "poolType": "CamelotV3",
+    "poolAddress": "0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526"
+  },
+  "0x738D72b8ed405DE32B9Bc74065D119534018C6d7": {
+    "name": "owstETH-WETH",
+    "token0": "0x5979D7b546E38E414F7E9822514be443A4800529",
+    "token1": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "poolType": "CamelotV3",
+    "poolAddress": "0xdEb89DE4bb6ecf5BFeD581EB049308b52d9b2Da7"
+  }
+}

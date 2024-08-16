@@ -24,6 +24,8 @@ interface ILiquidityPoolManager {
         uint256 amount1
     ) external view returns (uint128 liquidity);
 
+    function getPoolAddress() external view returns (address poolAddress);
+
     function validateTicks(int24 _lowerTick, int24 _upperTick) external view;
 
     function mint(

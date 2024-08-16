@@ -2,6 +2,16 @@
 pragma solidity ^0.8.0;
 
 interface IOrangeParametersV1 {
+    event SetSlippage(uint16 slippageBPS, uint24 tickSlippageBPS);
+    event SetTwapSlippageInterval(uint32 twapSlippageInterval);
+    event SetMaxLtv(uint32 maxLtv);
+    event SetAllowlistEnabled(bool allowlistEnabled);
+    event SetMerkleRoot(bytes32 merkleRoot);
+    event SetDepositCap(uint256 depositCap);
+    event SetMinDepositAmount(uint256 minDepositAmount);
+    event SetHelper(address helper);
+    event SetStrategyImpl(address strategyImpl);
+
     /// @notice Get the slippage tolerance
     function slippageBPS() external view returns (uint16);
 

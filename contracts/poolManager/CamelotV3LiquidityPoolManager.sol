@@ -30,7 +30,7 @@ contract CamelotV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IAlgeb
     IAlgebraPool public pool;
     bool public immutable reversed; //if baseToken > targetToken of Vault, true
     address public vault;
-    address perfFeeRecipient;
+    address public perfFeeRecipient;
     uint128 public perfFeeDivisor = 10; // 10% of profit
 
     /* ========== MODIFIER ========== */
@@ -104,6 +104,10 @@ contract CamelotV3LiquidityPoolManager is Ownable, ILiquidityPoolManager, IAlgeb
                 _amount0,
                 _amount1
             );
+    }
+
+    function getPoolAddress() external view returns (address) {
+        return address(pool);
     }
 
     ///@notice Cheking tickSpacing

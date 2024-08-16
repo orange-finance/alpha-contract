@@ -28,7 +28,13 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    hardhat: {},
+    hardhat: {
+      forking: {
+        url: process.env.ARB_URL || "",
+        enabled: true,
+      },
+      chainId: 42161,
+    },
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
