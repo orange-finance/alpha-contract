@@ -32,11 +32,11 @@
     ]
   },
   "OrangeEmitter": {
-    "address": "0x99D7AD45C1c8b541E412f8E9413A6C2B975ED6d2",
+    "address": "0xacd36b472ca6cf2e167cb8fea751b33e45b432d9",
     "args": []
   },
   "OrangeStoplossChecker": {
-    "address": "0xE210973d4964C73Ca9c2e57bBceAe6e61cD23d99",
+    "address": "0x7f800179a6f8563b3cA0e7eB7747f12cdF845a46",
     "args": []
   }
 }

@@ -14,6 +14,8 @@ async function main() {
   const chain = await hre.ethers.provider.getNetwork().then((n) => n.chainId);
   const signer = await Config.getDefaultSigner();
 
+  console.log({ signer: signer.address });
+
   const md = await Config.getBaseMetadata(environ, chain);
   const ext = await Config.getExternals(chain);
 
@@ -50,6 +52,8 @@ async function main() {
       type: "text",
       name: "depositCap",
       message: "Enter deposit cap",
+      initial:
+        "115792089237316195423570985008687907853269984665640564039457584007913129639935",
     },
     {
       type: "text",

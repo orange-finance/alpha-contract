@@ -22,7 +22,7 @@ export const Config = {
         throw new Error(`ENV ${env} not supported`);
     } catch (e) {
       throw new Error(
-        `error: ${e}\nsupported ENV values: ${Object.keys(ENV).join(", ")}`
+        `error: ${e}\nsupported ENV values: ${Object.values(ENV).join(", ")}`
       );
     }
 
