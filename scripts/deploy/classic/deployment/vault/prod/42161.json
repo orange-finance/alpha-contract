@@ -52,5 +52,19 @@
     "token1": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
     "poolType": "CamelotV3",
     "poolAddress": "0xB1026b8e7276e7AC75410F1fcbbe21796e8f7526"
+  },
+  "0x4B9e44f3aE5c76373642dB24dA026E29798c83Eb": {
+    "name": "oweETH-WETH",
+    "token0": "0x35751007a407ca6FEFfE80b3cB397736D2cf4dbe",
+    "token1": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "poolType": "CamelotV3",
+    "poolAddress": "0x293DFD996d5cd72Bed712B0EEAb96DBE400c0416"
+  },
+  "0xF546b7a7319d6901bFD7D8759035698C638f576C": {
+    "name": "oezETH-WETH",
+    "token0": "0x2416092f143378750bb29b79eD961ab195CcEea5",
+    "token1": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    "poolType": "CamelotV3",
+    "poolAddress": "0xaA45265A94C93802BE9511E426933239117E658f"
   }
 }
