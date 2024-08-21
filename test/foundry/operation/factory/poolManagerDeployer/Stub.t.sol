@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {IPoolManager} from "@src/operation/factory/OrangeVaultFactoryV1_0.sol";
 import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 import {StubLendingPoolManagerDeployer} from "@src/operation/factory/poolManagerDeployer/lendingPool/Stub.sol";
+import {StubLendingPoolManager} from "@src/poolManager/StubLendingPoolManager.sol";
 
 contract StubLendingPoolManagerDeployerTest is Test {
     StubLendingPoolManagerDeployer public deployer;
@@ -16,8 +17,8 @@ contract StubLendingPoolManagerDeployerTest is Test {
 
     function test_deployPoolManager() public {
         address poolManager = address(deployer.deployPoolManager(address(0), address(0), address(0), bytes("")));
-        IPoolManager(poolManager).setVault(address(0));
-        assertTrue(address(poolManager) != address(0), "PoolManager should be deployed. setVault should not revert.");
+        IPoolManager(poolManager).setVault(address(1));
+        assertEq(StubLendingPoolManager(poolManager).vault(), address(1), "Vault should be set");
 
         ILendingPoolManager lm = ILendingPoolManager(poolManager);
 

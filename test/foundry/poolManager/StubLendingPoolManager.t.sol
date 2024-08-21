@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {StubLendingPoolManager, StubLendingPoolManager__NotImplemented} from "../../../contracts/poolManager/StubLendingPoolManager.sol";
+import {StubLendingPoolManager, StubLendingPoolManager__NotImplemented, StubLendingPoolManager__ZeroAddress, StubLendingPoolManager__VaultAlreadySet} from "../../../contracts/poolManager/StubLendingPoolManager.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract StubLendingPoolManagerTest is Test {
@@ -45,7 +45,19 @@ contract StubLendingPoolManagerTest is Test {
         poolManager.repay(100);
     }
 
-    function test_setVault() public view {
+    function test_setVault() public {
+        poolManager.setVault(address(1));
+        assertEq(poolManager.vault(), address(1), "Vault should be set");
+    }
+
+    function test_setVault_revert_zeroAddress() public {
+        vm.expectRevert(StubLendingPoolManager__ZeroAddress.selector);
         poolManager.setVault(address(0));
+    }
+
+    function test_setVault_revert_vaultAlreadySet() public {
+        poolManager.setVault(address(1));
+        vm.expectRevert(StubLendingPoolManager__VaultAlreadySet.selector);
+        poolManager.setVault(address(2));
     }
 }

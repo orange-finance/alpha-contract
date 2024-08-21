@@ -5,6 +5,8 @@ import {ILendingPoolManager} from "@src/interfaces/ILendingPoolManager.sol";
 import {IPoolManager} from "@src/operation/factory/poolManagerDeployer/IPoolManager.sol";
 
 error StubLendingPoolManager__NotImplemented();
+error StubLendingPoolManager__VaultAlreadySet();
+error StubLendingPoolManager__ZeroAddress();
 
 /**
  * @title StubLendingPoolManager
@@ -12,6 +14,8 @@ error StubLendingPoolManager__NotImplemented();
  * It's useful for no hedge strategy that doesn't need to interact with LendingPool.
  */
 contract StubLendingPoolManager is ILendingPoolManager, IPoolManager {
+    address public vault;
+
     /// @inheritdoc ILendingPoolManager
     function balances() external pure returns (uint256, uint256) {
         return (0, 0);
@@ -28,9 +32,11 @@ contract StubLendingPoolManager is ILendingPoolManager, IPoolManager {
     }
 
     /// @inheritdoc IPoolManager
-    function setVault(address) external pure {
-        // we leave this empty because factory use this function in deployment.
-        // reverting here will cause deployment to fail.
+    function setVault(address vault_) external {
+        if (vault != address(0)) revert StubLendingPoolManager__VaultAlreadySet();
+        if (vault_ == address(0)) revert StubLendingPoolManager__ZeroAddress();
+
+        vault = vault_;
     }
 
     /// @inheritdoc ILendingPoolManager
