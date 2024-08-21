@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.16;
 
-import {StubLendingPoolManager} from "../../../contracts/poolManager/StubLendingPoolManager.sol";
+import {StubLendingPoolManager, StubLendingPoolManager__NotImplemented} from "../../../contracts/poolManager/StubLendingPoolManager.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract StubLendingPoolManagerTest is Test {
@@ -26,26 +26,26 @@ contract StubLendingPoolManagerTest is Test {
     }
 
     function test_supply() public {
+        vm.expectRevert(StubLendingPoolManager__NotImplemented.selector);
         poolManager.supply(100);
-        assertEq(poolManager.balanceOfCollateral(), 0, "Supply does not effect collateral");
-        assertEq(poolManager.balanceOfDebt(), 0, "Supply does not effect debt");
     }
 
     function test_withdraw() public {
+        vm.expectRevert(StubLendingPoolManager__NotImplemented.selector);
         poolManager.withdraw(100);
-        assertEq(poolManager.balanceOfCollateral(), 0, "Withdraw does not effect collateral");
-        assertEq(poolManager.balanceOfDebt(), 0, "Withdraw does not effect debt");
     }
 
     function test_borrow() public {
+        vm.expectRevert(StubLendingPoolManager__NotImplemented.selector);
         poolManager.borrow(100);
-        assertEq(poolManager.balanceOfDebt(), 0, "Borrow does not effect debt");
-        assertEq(poolManager.balanceOfCollateral(), 0, "Borrow does not effect collateral");
     }
 
     function test_repay() public {
+        vm.expectRevert(StubLendingPoolManager__NotImplemented.selector);
         poolManager.repay(100);
-        assertEq(poolManager.balanceOfDebt(), 0, "Repay does not effect debt");
-        assertEq(poolManager.balanceOfCollateral(), 0, "Repay does not effect collateral");
+    }
+
+    function test_setVault() public view {
+        poolManager.setVault(address(0));
     }
 }

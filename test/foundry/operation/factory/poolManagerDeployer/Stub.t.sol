@@ -27,11 +27,5 @@ contract StubLendingPoolManagerDeployerTest is Test {
 
         assertEq(lm.balanceOfCollateral(), 0, "Balance of collateral should be 0.");
         assertEq(lm.balanceOfDebt(), 0, "Balance of debt should be 0.");
-
-        // should not revert
-        lm.supply(100 ether);
-        lm.withdraw(100 ether);
-        lm.borrow(100 ether);
-        lm.repay(100 ether);
     }
 }
