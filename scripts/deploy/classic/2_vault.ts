@@ -79,6 +79,11 @@ async function main() {
       message: "Enter liquidity pool address",
     },
     {
+      type: "confirm",
+      name: "useAave",
+      message: "Use Aave lending pool? (otherwise use Stub)",
+    },
+    {
       type: "select",
       name: "feeTier",
       message: "Select UniswapV3 Router fee tier (used for swap)",
@@ -124,6 +129,7 @@ async function main() {
     performanceFeeRecipient,
     liquidityPool,
     feeTier,
+    useAave,
   } = await prompts(q1, {
     onCancel: () => process.exit(0),
   });
@@ -178,12 +184,17 @@ async function main() {
 
   const vSymbol = `o${vSymbol0}-${vSymbol1}`;
 
+  const lendingPool = useAave ? ext.AavePool : hre.ethers.constants.AddressZero;
+  const lendingManagerDeployer = useAave
+    ? md.AaveLendingPoolManagerDeployer.address
+    : md.StubLendingPoolManagerDeployer.address;
+
   const vc: OrangeVaultFactoryV1_0.VaultConfigStruct = {
     version,
     allowlistEnabled: false,
     balancer: ext.BalancerVault,
     depositCap,
-    lendingPool: ext.AavePool,
+    lendingPool,
     liquidityPool,
     minDepositAmount,
     name: vSymbol,
@@ -212,7 +223,7 @@ async function main() {
   };
 
   const lenC: OrangeVaultFactoryV1_0.PoolManagerConfigStruct = {
-    managerDeployer: md.AaveLendingPoolManagerDeployer.address,
+    managerDeployer: lendingManagerDeployer,
     setUpData: hre.ethers.constants.HashZero,
   };
 
@@ -237,6 +248,7 @@ async function main() {
   console.log("Token0:", kleur.yellow(`${vc.token0}`));
   console.log("Token1:", kleur.yellow(`${vc.token1}`));
   console.log("Router fee tier:", kleur.yellow(`${vc.routerFee}`));
+  console.log("useAave:", kleur.yellow(`${useAave}`));
   console.log("Owner:", kleur.yellow(`${vc.owner}`));
   console.log("Strategist:", kleur.yellow(`${strategist}`));
   console.log("Allowlist enabled:", kleur.yellow(`${vc.allowlistEnabled}`));

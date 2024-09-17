@@ -3,7 +3,7 @@ src = 'contracts'
 out = 'out'
 libs = ['node_modules', 'lib']
 test = 'test/foundry'
-cache_path  = 'forge-cache'
+cache_path = 'forge-cache'
 solc_version = '0.8.16'
 #optimizer = true
 #via_ir = true
@@ -24,3 +24,6 @@ solc_version = '0.8.16'
 
 [rpc_endpoints]
 arb = "${ARB_URL}"
+
+[etherscan]
+arb = { key = "${ETHERSCAN_API_KEY}" }

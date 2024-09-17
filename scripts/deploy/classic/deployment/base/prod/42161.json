@@ -31,6 +31,10 @@
     "address": "0xE844a11b5a7eA1C72949a3b389D21b643A56CD10",
     "args": []
   },
+  "StubLendingPoolManagerDeployer": {
+    "address": "0xB80f2000a05ab164145661d9ebc6591a8d2567D5",
+    "args": []
+  },
   "OrangeEmitter": {
     "address": "0xacd36b472ca6cf2e167cb8fea751b33e45b432d9",
     "args": []

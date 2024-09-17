@@ -117,6 +117,7 @@ namespace schema {
     UniswapV3LiquidityPoolManagerDeployer: metadata,
     CamelotV3LiquidityPoolManagerDeployer: metadata,
     AaveLendingPoolManagerDeployer: metadata,
+    StubLendingPoolManagerDeployer: metadata,
     OrangeVaultRegistry: metadata,
     OrangeVaultFactoryV1_0: metadata,
     OrangeEmitter: metadata,
